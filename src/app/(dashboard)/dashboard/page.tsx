@@ -17,7 +17,13 @@ export default async function DashboardPage() {
     .from("profiles")
     .select("username, display_name")
     .eq("id", user.id)
-    .single()
+    .maybeSingle()
 
-  return <DashboardClient entries={entries || []} profile={profile} />
+  const metaUsername = user.user_metadata?.username as string | undefined
+  const emailName = user.email?.split("@")[0]
+  const resolvedProfile = profile?.username
+    ? profile
+    : { username: metaUsername || emailName || "User", display_name: metaUsername || emailName || "User" }
+
+  return <DashboardClient entries={entries || []} profile={resolvedProfile} />
 }

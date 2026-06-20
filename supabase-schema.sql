@@ -1,5 +1,10 @@
 -- Run this in your Supabase SQL editor
 
+-- Grant API access
+grant usage on schema public to anon, authenticated;
+grant all on all tables in schema public to anon, authenticated;
+grant all on all sequences in schema public to anon, authenticated;
+
 -- 1. Profiles table
 create table if not exists profiles (
   id uuid references auth.users on delete cascade primary key,

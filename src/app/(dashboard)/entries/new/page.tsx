@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { TMDSearch } from "@/components/tmdb-search"
 import { GutRatingForm } from "@/components/gut-rating-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +19,6 @@ interface TMDBResult {
 
 export default function NewEntryPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [selected, setSelected] = useState<TMDBResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,31 +31,24 @@ export default function NewEntryPage() {
     setLoading(true)
     setError(null)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setError("You must be logged in")
-      setLoading(false)
-      return
-    }
-
-    const { error: insertError } = await supabase.from("entries").insert({
-      user_id: user.id,
-      tmdb_id: selected!.tmdb_id,
-      media_type: selected!.media_type,
-      title: selected!.title,
-      poster_path: selected!.poster_path,
-      year: selected!.year ? parseInt(selected!.year) : null,
-      gut_rating: data.gut_rating,
-      gut_rated_at: new Date().toISOString(),
-      notes: data.notes,
+    const res = await fetch("/api/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tmdb_id: selected!.tmdb_id,
+        media_type: selected!.media_type,
+        title: selected!.title,
+        poster_path: selected!.poster_path,
+        year: selected!.year ? parseInt(selected!.year) : null,
+        gut_rating: data.gut_rating,
+        notes: data.notes,
+      }),
     })
 
-    if (insertError) {
-      if (insertError.code === "23505") {
-        setError("You've already rated this title!")
-      } else {
-        setError(insertError.message)
-      }
+    const json = await res.json()
+
+    if (!res.ok) {
+      setError(json.error || "Failed to save entry")
       setLoading(false)
       return
     }
