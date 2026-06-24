@@ -11,7 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { LogOut, LayoutDashboard, ListVideo, Plus, Users, Settings } from "lucide-react"
+import { LogOut, LayoutDashboard, ListVideo, Plus, Users, Settings, UserPlus } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 interface Profile {
@@ -39,6 +39,7 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
     { href: "/entries", label: "My Ratings", icon: ListVideo },
     { href: "/entries/new", label: "Add Rating", icon: Plus },
     { href: "/compare", label: "Compare", icon: Users },
+    { href: "/social", label: "Social", icon: UserPlus },
   ]
 
   return (
@@ -85,6 +86,9 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
                 </Button>
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
                   <Link href="/entries"><ListVideo className="h-4 w-4 mr-2" />My Ratings</Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="justify-start" asChild>
+                  <Link href="/social"><UserPlus className="h-4 w-4 mr-2" />Social</Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
                   <Link href="/settings"><Settings className="h-4 w-4 mr-2" />Settings</Link>

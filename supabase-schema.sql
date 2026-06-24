@@ -105,3 +105,29 @@ $$ language plpgsql;
 create or replace trigger on_entry_updated
   before update on entries
   for each row execute function public.handle_updated_at();
+
+-- 3. Follows table
+create table if not exists follows (
+  id uuid default gen_random_uuid() primary key,
+  follower_id uuid references profiles(id) on delete cascade not null,
+  following_id uuid references profiles(id) on delete cascade not null,
+  created_at timestamptz default now(),
+  unique(follower_id, following_id)
+);
+
+alter table follows enable row level security;
+
+create policy "Users can view their own follows"
+  on follows for select
+  using (auth.uid() = follower_id or auth.uid() = following_id);
+
+create policy "Users can follow others"
+  on follows for insert
+  with check (auth.uid() = follower_id);
+
+create policy "Users can unfollow"
+  on follows for delete
+  using (auth.uid() = follower_id);
+
+-- Add pinned_user_id to profiles
+alter table profiles add column if not exists pinned_user_id uuid references profiles(id) on delete set null;

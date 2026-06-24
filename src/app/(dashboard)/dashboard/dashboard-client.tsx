@@ -1,10 +1,12 @@
 "use client"
 
 import { useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import Image from "next/image"
+import Link from "next/link"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
-import { BarChart3, TrendingUp, TrendingDown } from "lucide-react"
+import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv } from "lucide-react"
 
 interface Entry {
   id: string
@@ -19,11 +21,17 @@ interface Entry {
   detailed_watch_again: number | null
   notes: string | null
   weight: number
+  user_id?: string
+  tmdb_id?: number
+  created_at?: string
 }
 
 interface DashboardClientProps {
   entries: Entry[]
   profile: { username: string | null; display_name: string | null } | null
+  pinnedUser?: { username: string | null; display_name: string | null } | null
+  pinnedEntry?: Entry | null
+  myComparisonEntry?: Entry | null
 }
 
 function computeRankings(entries: Entry[], useDetailed: boolean, ascending: boolean) {
@@ -45,7 +53,7 @@ function computeRankings(entries: Entry[], useDetailed: boolean, ascending: bool
     .slice(0, 10)
 }
 
-export function DashboardClient({ entries, profile }: DashboardClientProps) {
+export function DashboardClient({ entries, profile, pinnedUser, pinnedEntry, myComparisonEntry }: DashboardClientProps) {
   const displayName = profile?.display_name || profile?.username || "User"
 
   const allEntries = useMemo(
@@ -104,6 +112,77 @@ export function DashboardClient({ entries, profile }: DashboardClientProps) {
         <h1 className="text-2xl font-bold">Welcome, {displayName}</h1>
         <p className="text-muted-foreground">Your ranking dashboard</p>
       </div>
+
+      {pinnedUser && pinnedEntry ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+              <Pin className="h-4 w-4" />
+              Pinned: {pinnedUser.display_name || pinnedUser.username}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4">
+              {pinnedEntry.poster_path ? (
+                <Image
+                  src={`https://image.tmdb.org/t/p/w92${pinnedEntry.poster_path}`}
+                  alt={pinnedEntry.title}
+                  width={46}
+                  height={69}
+                  className="rounded object-contain bg-muted flex-shrink-0"
+                />
+              ) : (
+                <div className="w-[46px] h-[69px] rounded bg-muted flex items-center justify-center flex-shrink-0">
+                  {pinnedEntry.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
+                </div>
+              )}
+              <div className="flex-1 min-w-0 space-y-1">
+                <Link href={`/entries/${pinnedEntry.id}`} className="font-semibold hover:underline line-clamp-1">
+                  {pinnedEntry.title}
+                </Link>
+                <p className="text-xs text-muted-foreground">
+                  {pinnedEntry.year} &middot; {pinnedEntry.media_type === "tv" ? "TV Show" : pinnedEntry.media_type === "misc" ? "Misc" : "Movie"}
+                </p>
+                <div className="flex items-center gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">{pinnedUser.display_name || pinnedUser.username}: </span>
+                    <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
+                    <span className="text-xs text-muted-foreground">/100</span>
+                  </div>
+                  {myComparisonEntry ? (
+                    <>
+                      <div>
+                        <span className="text-muted-foreground">Your rating: </span>
+                        <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
+                        <span className="text-xs text-muted-foreground">/100</span>
+                      </div>
+                      {pinnedEntry.gut_rating != null && myComparisonEntry.gut_rating != null && (
+                        <div>
+                          <span className="text-muted-foreground">Δ </span>
+                          <span className={`font-medium ${myComparisonEntry.gut_rating > pinnedEntry.gut_rating ? "text-green-600" : myComparisonEntry.gut_rating < pinnedEntry.gut_rating ? "text-destructive" : ""}`}>
+                            {myComparisonEntry.gut_rating - pinnedEntry.gut_rating > 0 ? "+" : ""}{myComparisonEntry.gut_rating - pinnedEntry.gut_rating}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">You haven't rated this yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : pinnedUser === null && !pinnedEntry ? (
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <Pin className="h-4 w-4" />
+              Pin a user from the <Link href="/social" className="underline hover:text-foreground">Social</Link> page to see their latest rating here.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {stats.map((stat) => {
