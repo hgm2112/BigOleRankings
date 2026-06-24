@@ -32,6 +32,8 @@ interface DashboardClientProps {
   pinnedUser?: { username: string | null; display_name: string | null } | null
   pinnedEntry?: Entry | null
   myComparisonEntry?: Entry | null
+  headerTitle?: string
+  headerDescription?: string
 }
 
 function computeRankings(entries: Entry[], useDetailed: boolean, ascending: boolean) {
@@ -53,7 +55,7 @@ function computeRankings(entries: Entry[], useDetailed: boolean, ascending: bool
     .slice(0, 10)
 }
 
-export function DashboardClient({ entries, profile, pinnedUser, pinnedEntry, myComparisonEntry }: DashboardClientProps) {
+export function DashboardClient({ entries, profile, pinnedUser, pinnedEntry, myComparisonEntry, headerTitle, headerDescription }: DashboardClientProps) {
   const displayName = profile?.display_name || profile?.username || "User"
 
   const allEntries = useMemo(
@@ -109,8 +111,8 @@ export function DashboardClient({ entries, profile, pinnedUser, pinnedEntry, myC
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Welcome, {displayName}</h1>
-        <p className="text-muted-foreground">Your ranking dashboard</p>
+        <h1 className="text-2xl font-bold">{headerTitle ?? `Welcome, ${displayName}`}</h1>
+        <p className="text-muted-foreground">{headerDescription ?? "Your ranking dashboard"}</p>
       </div>
 
       {pinnedUser && pinnedEntry ? (

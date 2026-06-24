@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { Search, Pin, PinOff, UserPlus, UserCheck, Loader2 } from "lucide-react"
+import Link from "next/link"
+import { Search, Pin, PinOff, UserPlus, UserCheck, Loader2, ExternalLink } from "lucide-react"
 
 interface Profile {
   id: string
@@ -190,17 +191,24 @@ export default function SocialPage() {
                     </Avatar>
                     <span className="text-sm">{p.display_name || p.username}</span>
                   </div>
-                  <Button
-                    size="sm"
-                    variant={isFollowing(p.id) ? "secondary" : "outline"}
-                    onClick={() => toggleFollow(p.id)}
-                  >
-                    {isFollowing(p.id) ? (
-                      <><UserCheck className="h-3.5 w-3.5 mr-1" />Following</>
-                    ) : (
-                      <><UserPlus className="h-3.5 w-3.5 mr-1" />Follow</>
-                    )}
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href={`/users/${p.username}`}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={isFollowing(p.id) ? "secondary" : "outline"}
+                      onClick={() => toggleFollow(p.id)}
+                    >
+                      {isFollowing(p.id) ? (
+                        <><UserCheck className="h-3.5 w-3.5 mr-1" />Following</>
+                      ) : (
+                        <><UserPlus className="h-3.5 w-3.5 mr-1" />Follow</>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -230,6 +238,11 @@ export default function SocialPage() {
                       {isPinned && <span className="text-xs text-primary font-medium">Pinned</span>}
                     </div>
                     <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link href={`/users/${p.username}`}>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
                       <Button
                         size="sm"
                         variant={isPinned ? "default" : "ghost"}
