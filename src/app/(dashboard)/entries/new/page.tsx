@@ -6,6 +6,8 @@ import { TMDSearch } from "@/components/tmdb-search"
 import { GutRatingForm } from "@/components/gut-rating-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
+import { Label } from "@/components/ui/label"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
@@ -22,6 +24,7 @@ export default function NewEntryPage() {
   const [selected, setSelected] = useState<TMDBResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [weight, setWeight] = useState(0)
 
   const handleSelect = (item: TMDBResult) => {
     setSelected(item)
@@ -41,6 +44,7 @@ export default function NewEntryPage() {
         poster_path: selected!.poster_path,
         year: selected!.year ? parseInt(selected!.year) : null,
         gut_rating: data.gut_rating,
+        weight,
         notes: data.notes,
       }),
     })
@@ -68,10 +72,27 @@ export default function NewEntryPage() {
           <CardHeader>
             <CardTitle>{selected.title}</CardTitle>
             <CardDescription>
-              {selected.year} &middot; {selected.media_type === "tv" ? "TV Show" : "Movie"}
+              {selected.year} &middot; {selected.media_type === "tv" ? "TV Show" : selected.media_type === "misc" ? "Misc" : "Movie"}
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-6">
+              <Label htmlFor="weight" className="text-sm font-medium">
+                Tiebreaker Weight: {weight}
+              </Label>
+              <Slider
+                id="weight"
+                min={0}
+                max={100}
+                step={1}
+                value={[weight]}
+                onValueChange={([v]) => setWeight(v)}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Higher weight ranks this entry above others with the same score.
+              </p>
+            </div>
             <GutRatingForm onSubmit={handleSubmit} loading={loading} />
             {error && <p className="text-sm text-destructive mt-2">{error}</p>}
           </CardContent>

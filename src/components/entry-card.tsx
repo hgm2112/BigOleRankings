@@ -66,7 +66,7 @@ export function EntryCard({ entry, onDelete }: EntryCardProps) {
               </Link>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{entry.year}</span>
-                <span>{entry.media_type === "tv" ? "TV Show" : "Movie"}</span>
+                <span>{entry.media_type === "tv" ? "TV Show" : entry.media_type === "misc" ? "Misc" : "Movie"}</span>
               </div>
             </div>
           </div>
@@ -77,22 +77,26 @@ export function EntryCard({ entry, onDelete }: EntryCardProps) {
               <span className="font-medium">{entry.gut_rating ?? "—"}</span>
             </div>
             {hasDetailed && (
-              <>
-                <div>
-                  <span className="text-muted-foreground">Detailed: </span>
-                  <span className="font-medium">{detailedTotal}</span>
-                </div>
-                {diff !== null && (
-                  <div>
-                    <span className="text-muted-foreground">Diff: </span>
-                    <span className={`font-medium ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
-                      {diff > 0 ? "+" : ""}{diff}
-                    </span>
-                  </div>
-                )}
-              </>
+              <div>
+                <span className="text-muted-foreground">Detailed: </span>
+                <span className="font-medium">{detailedTotal}</span>
+                <span className="text-xs text-muted-foreground ml-1">
+                  (Enjoyment: {entry.detailed_enjoyment}, Impact: {entry.detailed_impact}, Recommend: {entry.detailed_recommend}, Watch Again: {entry.detailed_watch_again})
+                </span>
+              </div>
             )}
           </div>
+
+          {diff !== null && (
+            <div className="flex items-center gap-4 text-sm mt-0.5">
+              <div>
+                <span className="text-muted-foreground">Diff: </span>
+                <span className={`font-medium ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
+                  {diff > 0 ? "+" : ""}{diff}
+                </span>
+              </div>
+            </div>
+          )}
 
           {entry.notes && (
             <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{entry.notes}</p>

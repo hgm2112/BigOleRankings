@@ -1,9 +1,9 @@
 -- Run this in your Supabase SQL editor
 
 -- Grant API access
-grant usage on schema public to anon, authenticated;
-grant all on all tables in schema public to anon, authenticated;
-grant all on all sequences in schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to anon, authenticated, service_role;
+grant all on all sequences in schema public to anon, authenticated, service_role;
 
 -- 1. Profiles table
 create table if not exists profiles (
@@ -63,6 +63,7 @@ create table if not exists entries (
   detailed_recommend int check (detailed_recommend >= 0 and detailed_recommend <= 10),
   detailed_watch_again int check (detailed_watch_again >= 0 and detailed_watch_again <= 10),
   detailed_rated_at timestamptz,
+  weight int not null default 0 check (weight >= 0 and weight <= 100),
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   unique(user_id, tmdb_id, media_type)

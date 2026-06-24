@@ -22,6 +22,7 @@ interface Entry {
   detailed_watch_again: number | null
   detailed_rated_at: string | null
   notes: string | null
+  weight: number
 }
 
 export function EntryDetailClient({ entry }: { entry: Entry }) {
@@ -54,7 +55,7 @@ export function EntryDetailClient({ entry }: { entry: Entry }) {
           <div>
             <h1 className="text-2xl font-bold">{entry.title}</h1>
             <p className="text-muted-foreground">
-              {entry.year} &middot; {entry.media_type === "tv" ? "TV Show" : "Movie"}
+              {entry.year} &middot; {entry.media_type === "tv" ? "TV Show" : entry.media_type === "misc" ? "Misc" : "Movie"}
             </p>
           </div>
 
@@ -124,6 +125,15 @@ export function EntryDetailClient({ entry }: { entry: Entry }) {
               </div>
             </>
           )}
+
+          <Separator />
+          <div>
+            <h2 className="font-semibold mb-2">Tiebreaker Weight</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold">{entry.weight}</span>
+              <span className="text-sm text-muted-foreground">/100</span>
+            </div>
+          </div>
 
           {entry.notes && (
             <>

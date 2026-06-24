@@ -118,6 +118,7 @@ export default function ComparePage() {
 
   const movies = avgEntries.filter((e) => e.media_type === "movie")
   const tvShows = avgEntries.filter((e) => e.media_type === "tv")
+  const misc = avgEntries.filter((e) => e.media_type === "misc")
 
   const top = (list: typeof avgEntries) => [...list].sort((a, b) => b.score - a.score).slice(0, 10)
   const worst = (list: typeof avgEntries) => [...list].sort((a, b) => a.score - b.score).slice(0, 10)
@@ -293,6 +294,16 @@ export default function ComparePage() {
                     <Card>
                       <CardHeader className="py-3">
                         <CardTitle className="text-sm flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4 text-green-600" /> Top 10 Misc
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RankingList title="" entries={top(misc).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="best" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-1">
                           <TrendingUp className="h-4 w-4 text-green-600" /> Top 10 Overall
                         </CardTitle>
                       </CardHeader>
@@ -318,6 +329,16 @@ export default function ComparePage() {
                       </CardHeader>
                       <CardContent>
                         <RankingList title="" entries={worst(tvShows).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="worst" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-1">
+                          <TrendingDown className="h-4 w-4 text-destructive" /> Worst 10 Misc
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RankingList title="" entries={worst(misc).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="worst" />
                       </CardContent>
                     </Card>
                     <Card>
@@ -366,6 +387,16 @@ export default function ComparePage() {
                     <Card>
                       <CardHeader className="py-3">
                         <CardTitle className="text-sm flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4 text-green-600" /> Top 10 Misc
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RankingList title="" entries={top(misc.filter((e) => e.score > 0))} type="best" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-1">
                           <TrendingUp className="h-4 w-4 text-green-600" /> Top 10 Overall
                         </CardTitle>
                       </CardHeader>
@@ -391,6 +422,16 @@ export default function ComparePage() {
                       </CardHeader>
                       <CardContent>
                         <RankingList title="" entries={worst(tvShows.filter((e) => e.score > 0))} type="worst" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-1">
+                          <TrendingDown className="h-4 w-4 text-destructive" /> Worst 10 Misc
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RankingList title="" entries={worst(misc.filter((e) => e.score > 0))} type="worst" />
                       </CardContent>
                     </Card>
                     <Card>

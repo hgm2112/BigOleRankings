@@ -18,6 +18,7 @@ interface Entry {
   detailed_recommend: number | null
   detailed_watch_again: number | null
   notes: string | null
+  weight: number
 }
 
 interface DashboardClientProps {
@@ -34,7 +35,13 @@ function computeRankings(entries: Entry[], useDetailed: boolean, ascending: bool
 
       return { ...e, score }
     })
-    .sort((a, b) => ascending ? a.score - b.score : b.score - a.score)
+    .sort((a, b) => {
+      const scoreDiff = ascending ? a.score - b.score : b.score - a.score
+      if (scoreDiff !== 0) return scoreDiff
+      const weightDiff = ascending ? (a.weight ?? 0) - (b.weight ?? 0) : (b.weight ?? 0) - (a.weight ?? 0)
+      if (weightDiff !== 0) return weightDiff
+      return a.title.localeCompare(b.title)
+    })
     .slice(0, 10)
 }
 
@@ -47,22 +54,27 @@ export function DashboardClient({ entries, profile }: DashboardClientProps) {
   )
   const movies = useMemo(() => allEntries.filter((e) => e.media_type === "movie"), [allEntries])
   const tvShows = useMemo(() => allEntries.filter((e) => e.media_type === "tv"), [allEntries])
+  const misc = useMemo(() => allEntries.filter((e) => e.media_type === "misc"), [allEntries])
 
   const sections = [
     { label: "Top 10 Movies", entries: movies, useDetailed: false, ascending: false, type: "best" as const },
     { label: "Top 10 TV Shows", entries: tvShows, useDetailed: false, ascending: false, type: "best" as const },
+    { label: "Top 10 Misc", entries: misc, useDetailed: false, ascending: false, type: "best" as const },
     { label: "Top 10 Overall", entries: allEntries, useDetailed: false, ascending: false, type: "best" as const },
     { label: "Worst 10 Movies", entries: movies, useDetailed: false, ascending: true, type: "worst" as const },
     { label: "Worst 10 TV Shows", entries: tvShows, useDetailed: false, ascending: true, type: "worst" as const },
+    { label: "Worst 10 Misc", entries: misc, useDetailed: false, ascending: true, type: "worst" as const },
     { label: "Worst 10 Overall", entries: allEntries, useDetailed: false, ascending: true, type: "worst" as const },
   ]
 
   const sectionsDetailed = [
     { label: "Top 10 Movies", entries: movies.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: false, type: "best" as const },
     { label: "Top 10 TV Shows", entries: tvShows.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: false, type: "best" as const },
+    { label: "Top 10 Misc", entries: misc.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: false, type: "best" as const },
     { label: "Top 10 Overall", entries: allEntries.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: false, type: "best" as const },
     { label: "Worst 10 Movies", entries: movies.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
     { label: "Worst 10 TV Shows", entries: tvShows.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
+    { label: "Worst 10 Misc", entries: misc.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
     { label: "Worst 10 Overall", entries: allEntries.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
   ]
 
@@ -70,11 +82,22 @@ export function DashboardClient({ entries, profile }: DashboardClientProps) {
     { label: "Total Entries", value: allEntries.length, icon: BarChart3 },
     { label: "Movies", value: movies.length, icon: BarChart3 },
     { label: "TV Shows", value: tvShows.length, icon: BarChart3 },
+    { label: "Misc", value: misc.length, icon: BarChart3 },
     {
       label: "Avg Gut Rating",
       value: allEntries.length > 0
         ? (allEntries.reduce((sum, e) => sum + (e.gut_rating ?? 0), 0) / allEntries.length).toFixed(1)
         : "—",
+      icon: TrendingUp,
+    },
+    {
+      label: "Avg Detailed Rating",
+      value: (() => {
+        const detailed = allEntries.filter((e) => e.detailed_enjoyment !== null)
+        return detailed.length > 0
+          ? (detailed.reduce((sum, e) => sum + (e.detailed_enjoyment ?? 0) + (e.detailed_impact ?? 0) + (e.detailed_recommend ?? 0) + (e.detailed_watch_again ?? 0), 0) / detailed.length).toFixed(1)
+          : "—"
+      })(),
       icon: TrendingUp,
     },
   ]

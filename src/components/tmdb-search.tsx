@@ -107,7 +107,7 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
                   <p className="font-medium text-sm truncate">{item.title}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{item.year}</span>
-                    <span>{item.media_type === "tv" ? "TV Show" : "Movie"}</span>
+                    <span>{item.media_type === "tv" ? "TV Show" : item.media_type === "misc" ? "Misc" : "Movie"}</span>
                   </div>
                   {item.overview && (
                     <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.overview}</p>

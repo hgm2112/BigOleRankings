@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     year: body.year,
     gut_rating: body.gut_rating,
     gut_rated_at: new Date().toISOString(),
+    weight: body.weight ?? 0,
     notes: body.notes || "",
   })
 
