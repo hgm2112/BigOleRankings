@@ -169,6 +169,46 @@ export function DashboardClient({ entries, profile, pinnedUser, pinnedEntry, myC
                     <p className="text-xs text-muted-foreground">You haven't rated this yet.</p>
                   )}
                 </div>
+
+                {pinnedEntry.detailed_enjoyment != null && (
+                  <div className="space-y-0.5 pt-1.5 border-t border-border/50">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">{pinnedUser.display_name || pinnedUser.username}: </span>
+                      <span className="font-medium">
+                        {pinnedEntry.detailed_enjoyment + (pinnedEntry.detailed_impact ?? 0) + (pinnedEntry.detailed_recommend ?? 0) + (pinnedEntry.detailed_watch_again ?? 0)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {' '}E {pinnedEntry.detailed_enjoyment}/60 · I {pinnedEntry.detailed_impact ?? 0}/20 · R {pinnedEntry.detailed_recommend ?? 0}/10 · W {pinnedEntry.detailed_watch_again ?? 0}/10
+                      </span>
+                    </div>
+                    {myComparisonEntry?.detailed_enjoyment != null ? (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Your rating: </span>
+                        <span className="font-medium">
+                          {myComparisonEntry.detailed_enjoyment + (myComparisonEntry.detailed_impact ?? 0) + (myComparisonEntry.detailed_recommend ?? 0) + (myComparisonEntry.detailed_watch_again ?? 0)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {' '}E {myComparisonEntry.detailed_enjoyment}/60 · I {myComparisonEntry.detailed_impact ?? 0}/20 · R {myComparisonEntry.detailed_recommend ?? 0}/10 · W {myComparisonEntry.detailed_watch_again ?? 0}/10
+                        </span>
+                        {(() => {
+                          const pinTotal = pinnedEntry.detailed_enjoyment! + (pinnedEntry.detailed_impact ?? 0) + (pinnedEntry.detailed_recommend ?? 0) + (pinnedEntry.detailed_watch_again ?? 0)
+                          const myTotal = myComparisonEntry.detailed_enjoyment! + (myComparisonEntry.detailed_impact ?? 0) + (myComparisonEntry.detailed_recommend ?? 0) + (myComparisonEntry.detailed_watch_again ?? 0)
+                          const diff = myTotal - pinTotal
+                          return (
+                            <span>
+                              <span className="text-muted-foreground"> · Δ </span>
+                              <span className={`font-medium ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
+                                {diff > 0 ? "+" : ""}{diff}
+                              </span>
+                            </span>
+                          )
+                        })()}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">You haven't rated this with detailed scoring.</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

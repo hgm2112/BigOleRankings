@@ -31,6 +31,13 @@ export default function SocialPage() {
   const [pinnedUserId, setPinnedUserId] = useState<string | null>(null)
   const [followingProfiles, setFollowingProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const showError = (msg: string) => {
+    console.error(msg)
+    setError(msg)
+    setTimeout(() => setError(null), 5000)
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -86,26 +93,33 @@ export default function SocialPage() {
 
   const toggleFollow = async (targetId: string) => {
     if (isFollowing(targetId)) {
-      const { error } = await supabase
+      const { error: delErr } = await supabase
         .from("follows")
         .delete()
         .eq("follower_id", userId!)
         .eq("following_id", targetId)
 
-      if (!error) {
-        setFollowing((prev) => prev.filter((f) => f.following_id !== targetId))
-        setFollowingProfiles((prev) => prev.filter((p) => p.id !== targetId))
-        if (pinnedUserId === targetId) {
-          await supabase.from("profiles").update({ pinned_user_id: null }).eq("id", userId!)
-          setPinnedUserId(null)
-        }
+      if (delErr) {
+        showError(`Unfollow error: ${delErr.message} (${delErr.code})`)
+        return
+      }
+      setFollowing((prev) => prev.filter((f) => f.following_id !== targetId))
+      setFollowingProfiles((prev) => prev.filter((p) => p.id !== targetId))
+      if (pinnedUserId === targetId) {
+        await supabase.from("profiles").update({ pinned_user_id: null }).eq("id", userId!)
+        setPinnedUserId(null)
       }
     } else {
-      const { data } = await supabase
+      const { data, error: insErr } = await supabase
         .from("follows")
         .insert({ follower_id: userId!, following_id: targetId })
         .select("id, following_id")
         .single()
+
+      if (insErr) {
+        showError(`Follow error: ${insErr.message} (${insErr.code})`)
+        return
+      }
 
       if (data) {
         setFollowing((prev) => [...prev, data])
@@ -141,6 +155,12 @@ export default function SocialPage() {
         <h1 className="text-2xl font-bold">Social</h1>
         <p className="text-muted-foreground">Follow users and pin them to your dashboard</p>
       </div>
+
+      {error && (
+        <div className="bg-destructive/10 border border-destructive text-destructive text-sm rounded-md p-3">
+          {error}
+        </div>
+      )}
 
       <Card>
         <CardHeader>

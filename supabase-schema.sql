@@ -129,5 +129,7 @@ create policy "Users can unfollow"
   on follows for delete
   using (auth.uid() = follower_id);
 
+grant all on follows to authenticated, anon;
+
 -- Add pinned_user_id to profiles
 alter table profiles add column if not exists pinned_user_id uuid references profiles(id) on delete set null;
