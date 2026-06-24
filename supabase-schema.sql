@@ -11,6 +11,7 @@ create table if not exists profiles (
   username text unique not null,
   display_name text,
   avatar_url text,
+  theme text not null default 'default',
   created_at timestamptz default now()
 );
 
