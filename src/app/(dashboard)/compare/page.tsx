@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
-import { Search, TrendingUp, TrendingDown, Users } from "lucide-react"
+import { Search, TrendingUp, TrendingDown, Users, ArrowUp, ArrowDown } from "lucide-react"
 
 interface Profile {
   id: string
@@ -33,6 +33,8 @@ interface Entry {
   user_id: string
 }
 
+type SortField = "title" | "user1_gut" | "user2_gut" | "delta_gut" | "user1_det" | "user2_det" | "delta_det"
+
 export default function ComparePage() {
   const supabase = createClient()
   const [searchQuery, setSearchQuery] = useState("")
@@ -43,6 +45,8 @@ export default function ComparePage() {
   const [entries2, setEntries2] = useState<Entry[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortAsc, setSortAsc] = useState(true)
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -131,6 +135,69 @@ export default function ComparePage() {
   const diff = (a: number | null, b: number | null) => {
     if (a === null || b === null) return null
     return a - b
+  }
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      if (!sortAsc) {
+        setSortField(null)
+        setSortAsc(true)
+      } else {
+        setSortAsc(false)
+      }
+    } else {
+      setSortField(field)
+      setSortAsc(true)
+    }
+  }
+
+  const sortedIntersection = useMemo(() => {
+    if (!sortField) return intersection
+
+    return [...intersection].sort((a, b) => {
+      const { entry: e1, user2Entry: u2e1 } = a
+      const { entry: e2, user2Entry: u2e2 } = b
+      let cmp = 0
+      switch (sortField) {
+        case "title":
+          cmp = e1.title.localeCompare(e2.title)
+          break
+        case "user1_gut":
+          cmp = (e1.gut_rating ?? 0) - (e2.gut_rating ?? 0)
+          break
+        case "user2_gut":
+          cmp = (u2e1.gut_rating ?? 0) - (u2e2.gut_rating ?? 0)
+          break
+        case "delta_gut":
+          cmp = ((e1.gut_rating ?? 0) - (u2e1.gut_rating ?? 0)) - ((e2.gut_rating ?? 0) - (u2e2.gut_rating ?? 0))
+          break
+        case "user1_det":
+          cmp = (detailedTotal(e1) ?? 0) - (detailedTotal(e2) ?? 0)
+          break
+        case "user2_det":
+          cmp = (detailedTotal(u2e1) ?? 0) - (detailedTotal(u2e2) ?? 0)
+          break
+        case "delta_det":
+          cmp = ((detailedTotal(e1) ?? 0) - (detailedTotal(u2e1) ?? 0)) - ((detailedTotal(e2) ?? 0) - (detailedTotal(u2e2) ?? 0))
+          break
+      }
+      return sortAsc ? cmp : -cmp
+    })
+  }, [intersection, sortField, sortAsc])
+
+  const SortHeader = ({ field, children, className }: { field: SortField; children: React.ReactNode; className?: string }) => {
+    const isActive = sortField === field
+    return (
+      <th
+        className={`cursor-pointer select-none py-2 hover:bg-accent/50 ${className ?? ""} ${isActive ? "font-bold" : ""}`}
+        onClick={() => handleSort(field)}
+      >
+        <span className="inline-flex items-center gap-1">
+          {children}
+          {isActive && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+        </span>
+      </th>
+    )
   }
 
   return (
@@ -222,17 +289,17 @@ export default function ComparePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 pr-4">Title</th>
-                      <th className="text-center py-2 px-2">{user1.display_name || user1.username} Gut</th>
-                      <th className="text-center py-2 px-2">{user2.display_name || user2.username} Gut</th>
-                      <th className="text-center py-2 px-2">Δ Gut</th>
-                      <th className="text-center py-2 px-2">{user1.display_name || user1.username} Det</th>
-                      <th className="text-center py-2 px-2">{user2.display_name || user2.username} Det</th>
-                      <th className="text-center py-2 pl-2">Δ Det</th>
+                      <SortHeader field="title" className="text-left pr-4">Title</SortHeader>
+                      <SortHeader field="user1_gut" className="text-center px-2">{user1.display_name || user1.username} Gut</SortHeader>
+                      <SortHeader field="user2_gut" className="text-center px-2">{user2.display_name || user2.username} Gut</SortHeader>
+                      <SortHeader field="delta_gut" className="text-center px-2">Δ Gut</SortHeader>
+                      <SortHeader field="user1_det" className="text-center px-2">{user1.display_name || user1.username} Det</SortHeader>
+                      <SortHeader field="user2_det" className="text-center px-2">{user2.display_name || user2.username} Det</SortHeader>
+                      <SortHeader field="delta_det" className="text-center pl-2">Δ Det</SortHeader>
                     </tr>
                   </thead>
                   <tbody>
-                    {intersection.map(({ entry, user2Entry }) => {
+                    {sortedIntersection.map(({ entry, user2Entry }) => {
                       const det1 = detailedTotal(entry)
                       const det2 = detailedTotal(user2Entry)
                       const gutDiff = diff(entry.gut_rating, user2Entry.gut_rating)
