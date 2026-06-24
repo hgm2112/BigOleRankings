@@ -59,22 +59,18 @@ export function DashboardClient({ entries, profile }: DashboardClientProps) {
   const sections = [
     { label: "Top 10 Movies", entries: movies, useDetailed: false, ascending: false, type: "best" as const },
     { label: "Top 10 TV Shows", entries: tvShows, useDetailed: false, ascending: false, type: "best" as const },
-    { label: "Top 10 Misc", entries: misc, useDetailed: false, ascending: false, type: "best" as const },
     { label: "Top 10 Overall", entries: allEntries, useDetailed: false, ascending: false, type: "best" as const },
     { label: "Worst 10 Movies", entries: movies, useDetailed: false, ascending: true, type: "worst" as const },
     { label: "Worst 10 TV Shows", entries: tvShows, useDetailed: false, ascending: true, type: "worst" as const },
-    { label: "Worst 10 Misc", entries: misc, useDetailed: false, ascending: true, type: "worst" as const },
     { label: "Worst 10 Overall", entries: allEntries, useDetailed: false, ascending: true, type: "worst" as const },
   ]
 
   const sectionsDetailed = [
     { label: "Top 10 Movies", entries: movies.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: false, type: "best" as const },
     { label: "Top 10 TV Shows", entries: tvShows.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: false, type: "best" as const },
-    { label: "Top 10 Misc", entries: misc.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: false, type: "best" as const },
     { label: "Top 10 Overall", entries: allEntries.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: false, type: "best" as const },
     { label: "Worst 10 Movies", entries: movies.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
     { label: "Worst 10 TV Shows", entries: tvShows.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
-    { label: "Worst 10 Misc", entries: misc.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
     { label: "Worst 10 Overall", entries: allEntries.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
   ]
 
