@@ -10,9 +10,19 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { use } from "react"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export default function EditEntryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -22,10 +32,14 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [gutRating, setGutRating] = useState(50)
+  const [notes, setNotes] = useState("")
   const [weight, setWeight] = useState(0)
-  const [detailedInitial, setDetailedInitial] = useState<{
-    enjoyment: number; impact: number; recommend: number; watch_again: number
-  } | undefined>(undefined)
+  const [enjoyment, setEnjoyment] = useState(30)
+  const [impact, setImpact] = useState(10)
+  const [recommend, setRecommend] = useState(5)
+  const [watchAgain, setWatchAgain] = useState(5)
 
   useEffect(() => {
     const fetchEntry = async () => {
@@ -40,30 +54,34 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
         return
       }
       setEntry(data)
+      setGutRating(data.gut_rating ?? 50)
+      setNotes(data.notes ?? "")
       setWeight(data.weight ?? 0)
-      if (data.detailed_enjoyment != null) {
-        setDetailedInitial({
-          enjoyment: data.detailed_enjoyment,
-          impact: data.detailed_impact,
-          recommend: data.detailed_recommend,
-          watch_again: data.detailed_watch_again,
-        })
-      }
+      setEnjoyment(data.detailed_enjoyment ?? 30)
+      setImpact(data.detailed_impact ?? 10)
+      setRecommend(data.detailed_recommend ?? 5)
+      setWatchAgain(data.detailed_watch_again ?? 5)
       setLoading(false)
     }
     fetchEntry()
   }, [id, supabase, router])
 
-  const handleSubmit = async (data: { gut_rating: number; notes: string }) => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
     setSaving(true)
     setError(null)
 
     const { error: updateError } = await supabase
       .from("entries")
       .update({
-        gut_rating: data.gut_rating,
-        notes: data.notes,
+        gut_rating: gutRating,
+        notes,
         weight,
+        detailed_enjoyment: enjoyment,
+        detailed_impact: impact,
+        detailed_recommend: recommend,
+        detailed_watch_again: watchAgain,
+        detailed_rated_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -78,32 +96,20 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
     router.refresh()
   }
 
-  const handleDetailedSubmit = async (data: {
-    detailed_enjoyment: number
-    detailed_impact: number
-    detailed_recommend: number
-    detailed_watch_again: number
-  }) => {
-    setSaving(true)
-    setError(null)
+  const handleDelete = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    const { error: updateError } = await supabase
+    const { error } = await supabase
       .from("entries")
-      .update({
-        ...data,
-        detailed_rated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .delete()
       .eq("id", id)
+      .eq("user_id", user.id)
 
-    if (updateError) {
-      setError(updateError.message)
-      setSaving(false)
-      return
+    if (!error) {
+      router.push("/entries")
+      router.refresh()
     }
-
-    router.push(`/entries/${id}`)
-    router.refresh()
   }
 
   if (loading) {
@@ -122,39 +128,77 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
           <CardDescription>Update your ratings and notes</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-6">
-            <Label htmlFor="weight" className="text-sm font-medium">
-              Tiebreaker Weight: {weight}
-            </Label>
-            <Slider
-              id="weight"
-              min={0}
-              max={100}
-              step={1}
-              value={[weight]}
-              onValueChange={([v]) => setWeight(v)}
-              className="mt-2"
+          <form onSubmit={handleSave} className="space-y-6">
+            <GutRatingForm
+              gutRating={gutRating}
+              notes={notes}
+              onGutRatingChange={setGutRating}
+              onNotesChange={setNotes}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Higher weight ranks this entry above others with the same score.
-            </p>
-          </div>
-          <GutRatingForm
-            initialGut={entry.gut_rating ?? 50}
-            initialNotes={entry.notes ?? ""}
-            onSubmit={handleSubmit}
-            loading={saving}
-          />
 
-          <Separator className="my-6" />
-          <h3 className="font-semibold mb-4">Detailed Rating</h3>
-          <DetailedRatingForm
-            initialValues={detailedInitial}
-            gutRating={entry.gut_rating}
-            onSubmit={handleDetailedSubmit}
-            loading={saving}
-          />
-          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+            <Separator />
+            <h3 className="font-semibold">Detailed Rating</h3>
+            <DetailedRatingForm
+              enjoyment={enjoyment}
+              impact={impact}
+              recommend={recommend}
+              watchAgain={watchAgain}
+              onEnjoymentChange={setEnjoyment}
+              onImpactChange={setImpact}
+              onRecommendChange={setRecommend}
+              onWatchAgainChange={setWatchAgain}
+              gutRating={gutRating}
+            />
+
+            <Separator />
+            <div>
+              <Label htmlFor="weight" className="text-sm font-medium">
+                Tiebreaker Weight: {weight}
+              </Label>
+              <Slider
+                id="weight"
+                min={0}
+                max={100}
+                step={1}
+                value={[weight]}
+                onValueChange={([v]) => setWeight(v)}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Higher weight ranks this entry above others with the same score.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="text-destructive">
+                    <Trash2 className="h-4 w-4 mr-1" />Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Entry</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete &ldquo;{entry.title}&rdquo;? This cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </form>
         </CardContent>
       </Card>
     </div>

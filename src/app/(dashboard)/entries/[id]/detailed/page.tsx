@@ -18,6 +18,10 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [enjoyment, setEnjoyment] = useState(30)
+  const [impact, setImpact] = useState(10)
+  const [recommend, setRecommend] = useState(5)
+  const [watchAgain, setWatchAgain] = useState(5)
 
   useEffect(() => {
     const fetchEntry = async () => {
@@ -37,19 +41,18 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
     fetchEntry()
   }, [id, supabase, router])
 
-  const handleSubmit = async (data: {
-    detailed_enjoyment: number
-    detailed_impact: number
-    detailed_recommend: number
-    detailed_watch_again: number
-  }) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setSaving(true)
     setError(null)
 
     const { error: updateError } = await supabase
       .from("entries")
       .update({
-        ...data,
+        detailed_enjoyment: enjoyment,
+        detailed_impact: impact,
+        detailed_recommend: recommend,
+        detailed_watch_again: watchAgain,
         detailed_rated_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -102,8 +105,23 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <DetailedRatingForm gutRating={entry.gut_rating} onSubmit={handleSubmit} loading={saving} />
-          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <DetailedRatingForm
+              enjoyment={enjoyment}
+              impact={impact}
+              recommend={recommend}
+              watchAgain={watchAgain}
+              onEnjoymentChange={setEnjoyment}
+              onImpactChange={setImpact}
+              onRecommendChange={setRecommend}
+              onWatchAgainChange={setWatchAgain}
+              gutRating={entry.gut_rating}
+            />
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save Detailed Rating"}
+            </Button>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </form>
         </CardContent>
       </Card>
     </div>

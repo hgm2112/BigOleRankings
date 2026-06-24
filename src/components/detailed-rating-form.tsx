@@ -1,67 +1,55 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 
 interface DetailedRatingFormProps {
-  initialValues?: {
-    enjoyment: number
-    impact: number
-    recommend: number
-    watch_again: number
-  }
+  enjoyment: number
+  impact: number
+  recommend: number
+  watchAgain: number
+  onEnjoymentChange: (value: number) => void
+  onImpactChange: (value: number) => void
+  onRecommendChange: (value: number) => void
+  onWatchAgainChange: (value: number) => void
   gutRating?: number
-  onSubmit: (data: {
-    detailed_enjoyment: number
-    detailed_impact: number
-    detailed_recommend: number
-    detailed_watch_again: number
-  }) => void
-  loading?: boolean
 }
 
-export function DetailedRatingForm({ initialValues, gutRating, onSubmit, loading }: DetailedRatingFormProps) {
-  const [enjoyment, setEnjoyment] = useState(initialValues?.enjoyment ?? 30)
-  const [impact, setImpact] = useState(initialValues?.impact ?? 10)
-  const [recommend, setRecommend] = useState(initialValues?.recommend ?? 5)
-  const [watchAgain, setWatchAgain] = useState(initialValues?.watch_again ?? 5)
-
+export function DetailedRatingForm({
+  enjoyment,
+  impact,
+  recommend,
+  watchAgain,
+  onEnjoymentChange,
+  onImpactChange,
+  onRecommendChange,
+  onWatchAgainChange,
+  gutRating,
+}: DetailedRatingFormProps) {
   const total = enjoyment + impact + recommend + watchAgain
   const diff = gutRating !== undefined ? total - gutRating : null
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit({
-      detailed_enjoyment: enjoyment,
-      detailed_impact: impact,
-      detailed_recommend: recommend,
-      detailed_watch_again: watchAgain,
-    })
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div className="space-y-3">
         <Label>Enjoyment: {enjoyment}/60</Label>
-        <Slider value={[enjoyment]} onValueChange={([v]) => setEnjoyment(v)} min={0} max={60} step={1} />
+        <Slider value={[enjoyment]} onValueChange={([v]) => onEnjoymentChange(v)} min={0} max={60} step={1} />
       </div>
 
       <div className="space-y-3">
         <Label>Impact: {impact}/20</Label>
-        <Slider value={[impact]} onValueChange={([v]) => setImpact(v)} min={0} max={20} step={1} />
+        <Slider value={[impact]} onValueChange={([v]) => onImpactChange(v)} min={0} max={20} step={1} />
       </div>
 
       <div className="space-y-3">
         <Label>Recommend: {recommend}/10</Label>
-        <Slider value={[recommend]} onValueChange={([v]) => setRecommend(v)} min={0} max={10} step={1} />
+        <Slider value={[recommend]} onValueChange={([v]) => onRecommendChange(v)} min={0} max={10} step={1} />
       </div>
 
       <div className="space-y-3">
         <Label>Watch Again: {watchAgain}/10</Label>
-        <Slider value={[watchAgain]} onValueChange={([v]) => setWatchAgain(v)} min={0} max={10} step={1} />
+        <Slider value={[watchAgain]} onValueChange={([v]) => onWatchAgainChange(v)} min={0} max={10} step={1} />
       </div>
 
       <Card>
@@ -77,10 +65,6 @@ export function DetailedRatingForm({ initialValues, gutRating, onSubmit, loading
           </div>
         </CardContent>
       </Card>
-
-      <Button type="submit" disabled={loading}>
-        {loading ? "Saving..." : "Save Detailed Rating"}
-      </Button>
-    </form>
+    </div>
   )
 }

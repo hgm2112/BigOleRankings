@@ -25,12 +25,15 @@ export default function NewEntryPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [weight, setWeight] = useState(0)
+  const [gutRating, setGutRating] = useState(50)
+  const [notes, setNotes] = useState("")
 
   const handleSelect = (item: TMDBResult) => {
     setSelected(item)
   }
 
-  const handleSubmit = async (data: { gut_rating: number; notes: string }) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
     setError(null)
 
@@ -43,9 +46,9 @@ export default function NewEntryPage() {
         title: selected!.title,
         poster_path: selected!.poster_path,
         year: selected!.year ? parseInt(selected!.year) : null,
-        gut_rating: data.gut_rating,
+        gut_rating: gutRating,
         weight,
-        notes: data.notes,
+        notes,
       }),
     })
 
@@ -76,25 +79,35 @@ export default function NewEntryPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-6">
-              <Label htmlFor="weight" className="text-sm font-medium">
-                Tiebreaker Weight: {weight}
-              </Label>
-              <Slider
-                id="weight"
-                min={0}
-                max={100}
-                step={1}
-                value={[weight]}
-                onValueChange={([v]) => setWeight(v)}
-                className="mt-2"
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <Label htmlFor="weight" className="text-sm font-medium">
+                  Tiebreaker Weight: {weight}
+                </Label>
+                <Slider
+                  id="weight"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[weight]}
+                  onValueChange={([v]) => setWeight(v)}
+                  className="mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Higher weight ranks this entry above others with the same score.
+                </p>
+              </div>
+              <GutRatingForm
+                gutRating={gutRating}
+                notes={notes}
+                onGutRatingChange={setGutRating}
+                onNotesChange={setNotes}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Higher weight ranks this entry above others with the same score.
-              </p>
-            </div>
-            <GutRatingForm onSubmit={handleSubmit} loading={loading} />
-            {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+              <Button type="submit" disabled={loading}>
+                {loading ? "Saving..." : "Save Rating"}
+              </Button>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </form>
           </CardContent>
         </Card>
       </div>
