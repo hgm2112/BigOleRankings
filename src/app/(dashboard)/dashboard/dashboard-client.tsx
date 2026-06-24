@@ -105,7 +105,7 @@ export function DashboardClient({ entries, profile }: DashboardClientProps) {
         <p className="text-muted-foreground">Your ranking dashboard</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
