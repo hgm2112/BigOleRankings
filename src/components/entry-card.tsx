@@ -51,7 +51,7 @@ export function EntryCard({ entry, onDelete }: EntryCardProps) {
     <Card className="overflow-hidden">
       <div className="flex gap-3 p-3">
         {posterUrl ? (
-          <Image src={posterUrl} alt={entry.title} width={77} height={115} className="rounded object-cover flex-shrink-0" />
+          <Image src={posterUrl} alt={entry.title} width={77} height={115} className="rounded object-contain flex-shrink-0 bg-muted" />
         ) : (
           <div className="w-[77px] h-[115px] rounded bg-muted flex items-center justify-center flex-shrink-0">
             {entry.media_type === "tv" ? <Tv className="h-6 w-6 text-muted-foreground" /> : <Film className="h-6 w-6 text-muted-foreground" />}
