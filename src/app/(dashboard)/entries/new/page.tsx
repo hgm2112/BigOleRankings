@@ -17,6 +17,15 @@ interface TMDBResult {
   poster_path: string | null
   year: string
   media_type: string
+  runtime?: number | null
+}
+
+function formatRuntime(minutes: number | null): string | null {
+  if (minutes == null) return null
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `${m}m`
+  return `${h}h ${m}m`
 }
 
 export default function NewEntryPage() {
@@ -28,8 +37,17 @@ export default function NewEntryPage() {
   const [gutRating, setGutRating] = useState(50)
   const [notes, setNotes] = useState("")
 
-  const handleSelect = (item: TMDBResult) => {
-    setSelected(item)
+  const handleSelect = async (item: TMDBResult) => {
+    setSelected({ ...item, runtime: null })
+    try {
+      const res = await fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
+      if (res.ok) {
+        const details = await res.json()
+        setSelected(details)
+      }
+    } catch {
+      // fall through with null runtime
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,6 +67,7 @@ export default function NewEntryPage() {
         gut_rating: gutRating,
         weight,
         notes,
+        runtime: selected!.runtime,
       }),
     })
 
@@ -76,6 +95,7 @@ export default function NewEntryPage() {
             <CardTitle>{selected.title}</CardTitle>
             <CardDescription>
               {selected.year} &middot; {selected.media_type === "tv" ? "TV Show" : selected.media_type === "misc" ? "Misc" : "Movie"}
+              {selected.runtime != null && <> &middot; {formatRuntime(selected.runtime)}</>}
             </CardDescription>
           </CardHeader>
           <CardContent>

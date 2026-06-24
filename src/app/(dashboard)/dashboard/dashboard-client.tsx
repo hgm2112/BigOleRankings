@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
-import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv } from "lucide-react"
+import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock } from "lucide-react"
 
 interface Entry {
   id: string
@@ -21,6 +21,7 @@ interface Entry {
   detailed_watch_again: number | null
   notes: string | null
   weight: number
+  runtime: number | null
   user_id?: string
   tmdb_id?: number
   created_at?: string
@@ -83,6 +84,23 @@ export function DashboardClient({ entries, profile, pinnedUser, pinnedEntry, myC
     { label: "Worst 10 TV Shows", entries: tvShows.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
     { label: "Worst 10 Overall", entries: allEntries.filter((e) => e.detailed_enjoyment !== null), useDetailed: true, ascending: true, type: "worst" as const },
   ]
+
+  const formatMinutes = (minutes: number) => {
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    if (h === 0) return `${m}m`
+    return `${h}h ${m}m`
+  }
+
+  const movieWatchTime = useMemo(
+    () => movies.reduce((sum, e) => sum + (e.runtime ?? 0), 0),
+    [movies]
+  )
+  const tvWatchTime = useMemo(
+    () => tvShows.reduce((sum, e) => sum + (e.runtime ?? 0), 0),
+    [tvShows]
+  )
+  const totalWatchTime = movieWatchTime + tvWatchTime
 
   const stats = [
     { label: "Total Entries", value: allEntries.length, icon: BarChart3 },
@@ -309,6 +327,39 @@ export function DashboardClient({ entries, profile, pinnedUser, pinnedEntry, myC
           )}
         </TabsContent>
       </Tabs>
+
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Watch Time</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card>
+            <CardContent className="flex items-center gap-3 pt-6">
+              <Clock className="h-8 w-8 text-muted-foreground" />
+              <div>
+                <p className="text-2xl font-bold">{movieWatchTime > 0 ? formatMinutes(movieWatchTime) : "—"}</p>
+                <p className="text-xs text-muted-foreground">Movies</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 pt-6">
+              <Clock className="h-8 w-8 text-muted-foreground" />
+              <div>
+                <p className="text-2xl font-bold">{tvWatchTime > 0 ? formatMinutes(tvWatchTime) : "—"}</p>
+                <p className="text-xs text-muted-foreground">TV Shows</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 pt-6">
+              <Clock className="h-8 w-8 text-muted-foreground" />
+              <div>
+                <p className="text-2xl font-bold">{totalWatchTime > 0 ? formatMinutes(totalWatchTime) : "—"}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

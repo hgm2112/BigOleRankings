@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     gut_rated_at: new Date().toISOString(),
     weight: body.weight ?? 0,
     notes: body.notes || "",
+    runtime: body.runtime ?? null,
   })
 
   if (error) {

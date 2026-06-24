@@ -16,6 +16,7 @@ interface TMDBResult {
   year: string
   media_type: string
   overview: string
+  runtime?: number | null
 }
 
 interface TMDBSearchProps {

@@ -28,6 +28,10 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: item.status_message || "TMDB request failed" }, { status: res.status })
     }
 
+    const runtime = type === "tv"
+      ? (item.episode_run_time?.[0] || 0) * (item.number_of_episodes || 0)
+      : item.runtime ?? null
+
     const result = {
       tmdb_id: item.id,
       title: type === "tv" ? item.name : item.title,
@@ -35,6 +39,7 @@ export async function GET(request: NextRequest) {
       year: (item.release_date || item.first_air_date || "").slice(0, 4),
       media_type: type,
       overview: item.overview,
+      runtime,
     }
 
     return Response.json(result)
