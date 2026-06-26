@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.08 0.015 261);
+  --background: oklch(0 0 0);
   --foreground: oklch(0.92 0.01 261);
   --card: oklch(0.12 0.02 261);
   --card-foreground: oklch(0.92 0.01 261);
@@ -138,10 +138,5 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    background-image:
-      radial-gradient(ellipse 60% 40% at 50% 0%, color-mix(in oklch, var(--primary) 8%, transparent) 0%, transparent 100%),
-      radial-gradient(ellipse 40% 30% at 30% 10%, color-mix(in oklch, var(--secondary) 6%, transparent) 0%, transparent 100%),
-      radial-gradient(ellipse 40% 30% at 70% 10%, color-mix(in oklch, var(--secondary) 6%, transparent) 0%, transparent 100%);
-    background-attachment: fixed;
   }
 }
