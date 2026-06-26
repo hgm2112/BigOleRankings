@@ -27,6 +27,16 @@ export default async function DashboardPage() {
     ? profile
     : { username: fallbackName, display_name: fallbackName }
 
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: pendingDetailed } = await supabase
+    .from("entries")
+    .select("id, title, media_type")
+    .eq("user_id", user.id)
+    .not("gut_rating", "is", null)
+    .is("detailed_enjoyment", null)
+    .lte("gut_rated_at", sevenDaysAgo)
+
   const pinColumns = [profile?.pinned_user_id, profile?.pinned_user_id_2, profile?.pinned_user_id_3]
   const pinnedUsers: { username: string | null; display_name: string | null }[] = []
   const pinnedEntries: any[] = []
@@ -84,6 +94,7 @@ export default async function DashboardPage() {
       pinnedUsers={pinnedUsers}
       pinnedEntries={pinnedEntries}
       myComparisonEntries={myComparisonEntries}
+      pendingDetailedEntries={pendingDetailed || []}
     />
   )
 }

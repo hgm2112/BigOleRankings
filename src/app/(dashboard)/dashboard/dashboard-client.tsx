@@ -33,6 +33,7 @@ interface DashboardClientProps {
   pinnedUsers?: { username: string | null; display_name: string | null }[]
   pinnedEntries?: (Entry | null)[]
   myComparisonEntries?: (Entry | null)[]
+  pendingDetailedEntries?: { id: string; title: string; media_type: string }[]
   headerTitle?: string
   headerDescription?: string
 }
@@ -56,7 +57,7 @@ function computeRankings(entries: Entry[], useDetailed: boolean, ascending: bool
     .slice(0, 10)
 }
 
-export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], headerTitle, headerDescription }: DashboardClientProps) {
+export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pendingDetailedEntries = [], headerTitle, headerDescription }: DashboardClientProps) {
   const displayName = profile?.display_name || profile?.username || "User"
 
   const allEntries = useMemo(
@@ -132,6 +133,17 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
         <h1 className="text-2xl font-bold">{headerTitle ?? `Welcome, ${displayName}`}</h1>
         <p className="text-muted-foreground">{headerDescription ?? "Your ranking dashboard"}</p>
       </div>
+
+      {pendingDetailedEntries.length > 0 && (
+        <div className="bg-destructive/10 border border-destructive text-destructive rounded-md p-4 space-y-1.5">
+          <p className="font-semibold">Time&rsquo;s up, time to do detailed rating!</p>
+          {pendingDetailedEntries.map((e) => (
+            <Link key={e.id} href={`/entries/${e.id}/detailed`} className="block text-sm hover:underline">
+              &rarr; {e.title}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {pinnedUsers.length > 0 ? (
         <div className="space-y-3">
