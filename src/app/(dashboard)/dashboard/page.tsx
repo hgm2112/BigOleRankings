@@ -15,7 +15,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, display_name, pinned_user_id")
+    .select("username, display_name, pinned_user_id, pinned_user_id_2, pinned_user_id_3")
     .eq("id", user.id)
     .maybeSingle()
 
@@ -27,32 +27,39 @@ export default async function DashboardPage() {
     ? profile
     : { username: fallbackName, display_name: fallbackName }
 
-  let pinnedUser: { username: string | null; display_name: string | null } | null = null
-  let pinnedEntry: any = null
-  let myComparisonEntry: any = null
+  const pinColumns = [profile?.pinned_user_id, profile?.pinned_user_id_2, profile?.pinned_user_id_3]
+  const pinnedUsers: { username: string | null; display_name: string | null }[] = []
+  const pinnedEntries: any[] = []
+  const myComparisonEntries: (any | null)[] = []
 
-  if (profile?.pinned_user_id) {
+  for (const pinnedUserId of pinColumns) {
+    if (!pinnedUserId) {
+      pinnedEntries.push(null)
+      myComparisonEntries.push(null)
+      continue
+    }
+
     const { data: pinUser } = await supabase
       .from("profiles")
       .select("username, display_name")
-      .eq("id", profile.pinned_user_id)
-      .single()
+      .eq("id", pinnedUserId)
+      .maybeSingle()
 
     if (pinUser) {
-      pinnedUser = pinUser
+      pinnedUsers.push(pinUser)
 
       const { data: latest } = await supabase
         .from("entries")
         .select("*")
-        .eq("user_id", profile.pinned_user_id)
+        .eq("user_id", pinnedUserId)
         .not("gut_rating", "is", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle()
 
-      if (latest) {
-        pinnedEntry = latest
+      pinnedEntries.push(latest ?? null)
 
+      if (latest) {
         const { data: mine } = await supabase
           .from("entries")
           .select("*")
@@ -60,9 +67,13 @@ export default async function DashboardPage() {
           .eq("tmdb_id", latest.tmdb_id)
           .eq("media_type", latest.media_type)
           .maybeSingle()
-
-        myComparisonEntry = mine
+        myComparisonEntries.push(mine ?? null)
+      } else {
+        myComparisonEntries.push(null)
       }
+    } else {
+      pinnedEntries.push(null)
+      myComparisonEntries.push(null)
     }
   }
 
@@ -70,9 +81,9 @@ export default async function DashboardPage() {
     <DashboardClient
       entries={entries || []}
       profile={resolvedProfile}
-      pinnedUser={pinnedUser}
-      pinnedEntry={pinnedEntry}
-      myComparisonEntry={myComparisonEntry}
+      pinnedUsers={pinnedUsers}
+      pinnedEntries={pinnedEntries}
+      myComparisonEntries={myComparisonEntries}
     />
   )
 }

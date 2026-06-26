@@ -136,3 +136,7 @@ alter table profiles add column if not exists pinned_user_id uuid references pro
 
 -- Add runtime to entries (minutes for movies, episode_runtime × number_of_episodes for TV)
 alter table entries add column if not exists runtime int;
+
+-- Add 2 more pinned slots (was single pinned_user_id)
+alter table profiles add column if not exists pinned_user_id_2 uuid references profiles(id) on delete set null;
+alter table profiles add column if not exists pinned_user_id_3 uuid references profiles(id) on delete set null;

@@ -31,6 +31,7 @@ interface Entry {
   detailed_recommend: number | null
   detailed_watch_again: number | null
   user_id: string
+  created_at: string
 }
 
 type SortField = "title" | "user1_gut" | "user2_gut" | "delta_gut" | "user1_det" | "user2_det" | "delta_det"
@@ -122,10 +123,10 @@ export default function ComparePage() {
 
   const movies = avgEntries.filter((e) => e.media_type === "movie")
   const tvShows = avgEntries.filter((e) => e.media_type === "tv")
-  const misc = avgEntries.filter((e) => e.media_type === "misc")
 
   const top = (list: typeof avgEntries) => [...list].sort((a, b) => b.score - a.score).slice(0, 10)
   const worst = (list: typeof avgEntries) => [...list].sort((a, b) => a.score - b.score).slice(0, 10)
+  const last10 = (list: Entry[]) => [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10)
 
   const detailedTotal = (e: Entry) =>
     e.detailed_enjoyment !== null
@@ -169,7 +170,7 @@ export default function ComparePage() {
           cmp = (u2e1.gut_rating ?? 0) - (u2e2.gut_rating ?? 0)
           break
         case "delta_gut":
-          cmp = ((e1.gut_rating ?? 0) - (u2e1.gut_rating ?? 0)) - ((e2.gut_rating ?? 0) - (u2e2.gut_rating ?? 0))
+          cmp = Math.abs((e1.gut_rating ?? 0) - (u2e1.gut_rating ?? 0)) - Math.abs((e2.gut_rating ?? 0) - (u2e2.gut_rating ?? 0))
           break
         case "user1_det":
           cmp = (detailedTotal(e1) ?? 0) - (detailedTotal(e2) ?? 0)
@@ -178,7 +179,7 @@ export default function ComparePage() {
           cmp = (detailedTotal(u2e1) ?? 0) - (detailedTotal(u2e2) ?? 0)
           break
         case "delta_det":
-          cmp = ((detailedTotal(e1) ?? 0) - (detailedTotal(u2e1) ?? 0)) - ((detailedTotal(e2) ?? 0) - (detailedTotal(u2e2) ?? 0))
+          cmp = Math.abs((detailedTotal(e1) ?? 0) - (detailedTotal(u2e1) ?? 0)) - Math.abs((detailedTotal(e2) ?? 0) - (detailedTotal(u2e2) ?? 0))
           break
       }
       return sortAsc ? cmp : -cmp
@@ -345,7 +346,7 @@ export default function ComparePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <RankingList title="" entries={top(movies).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="best" />
+                        <RankingList title="" entries={top(movies.map((e) => ({ ...e, score: e.gut_rating || 0 })))} type="best" />
                       </CardContent>
                     </Card>
                     <Card>
@@ -355,17 +356,7 @@ export default function ComparePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <RankingList title="" entries={top(tvShows).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="best" />
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="py-3">
-                        <CardTitle className="text-sm flex items-center gap-1">
-                          <TrendingUp className="h-4 w-4 text-green-600" /> Top 10 Misc
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RankingList title="" entries={top(misc).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="best" />
+                        <RankingList title="" entries={top(tvShows.map((e) => ({ ...e, score: e.gut_rating || 0 })))} type="best" />
                       </CardContent>
                     </Card>
                     <Card>
@@ -375,7 +366,7 @@ export default function ComparePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <RankingList title="" entries={top(avgEntries).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="best" />
+                        <RankingList title="" entries={top(avgEntries.map((e) => ({ ...e, score: e.gut_rating || 0 })))} type="best" />
                       </CardContent>
                     </Card>
                     <Card>
@@ -385,7 +376,7 @@ export default function ComparePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <RankingList title="" entries={worst(movies).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="worst" />
+                        <RankingList title="" entries={worst(movies.map((e) => ({ ...e, score: e.gut_rating || 0 })))} type="worst" />
                       </CardContent>
                     </Card>
                     <Card>
@@ -395,17 +386,7 @@ export default function ComparePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <RankingList title="" entries={worst(tvShows).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="worst" />
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="py-3">
-                        <CardTitle className="text-sm flex items-center gap-1">
-                          <TrendingDown className="h-4 w-4 text-destructive" /> Worst 10 Misc
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RankingList title="" entries={worst(misc).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="worst" />
+                        <RankingList title="" entries={worst(tvShows.map((e) => ({ ...e, score: e.gut_rating || 0 })))} type="worst" />
                       </CardContent>
                     </Card>
                     <Card>
@@ -415,7 +396,27 @@ export default function ComparePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <RankingList title="" entries={worst(avgEntries).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="worst" />
+                        <RankingList title="" entries={worst(avgEntries.map((e) => ({ ...e, score: e.gut_rating || 0 })))} type="worst" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4 text-primary" /> Last 10 Rated: {user1.display_name || user1.username}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RankingList title="" entries={last10(entries1).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="best" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4 text-primary" /> Last 10 Rated: {user2.display_name || user2.username}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RankingList title="" entries={last10(entries2).map((e) => ({ ...e, score: e.gut_rating || 0 }))} type="best" />
                       </CardContent>
                     </Card>
                   </div>
@@ -454,16 +455,6 @@ export default function ComparePage() {
                     <Card>
                       <CardHeader className="py-3">
                         <CardTitle className="text-sm flex items-center gap-1">
-                          <TrendingUp className="h-4 w-4 text-green-600" /> Top 10 Misc
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RankingList title="" entries={top(misc.filter((e) => e.score > 0))} type="best" />
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="py-3">
-                        <CardTitle className="text-sm flex items-center gap-1">
                           <TrendingUp className="h-4 w-4 text-green-600" /> Top 10 Overall
                         </CardTitle>
                       </CardHeader>
@@ -494,21 +485,37 @@ export default function ComparePage() {
                     <Card>
                       <CardHeader className="py-3">
                         <CardTitle className="text-sm flex items-center gap-1">
-                          <TrendingDown className="h-4 w-4 text-destructive" /> Worst 10 Misc
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RankingList title="" entries={worst(misc.filter((e) => e.score > 0))} type="worst" />
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="py-3">
-                        <CardTitle className="text-sm flex items-center gap-1">
                           <TrendingDown className="h-4 w-4 text-destructive" /> Worst 10 Overall
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <RankingList title="" entries={worst(avgEntries.filter((e) => e.score > 0))} type="worst" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4 text-primary" /> Last 10 Rated: {user1.display_name || user1.username}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RankingList title="" entries={last10(entries1).filter((e) => e.detailed_enjoyment !== null).map((e) => {
+                          const score = (e.detailed_enjoyment ?? 0) + (e.detailed_impact ?? 0) + (e.detailed_recommend ?? 0) + (e.detailed_watch_again ?? 0)
+                          return { ...e, score }
+                        })} type="best" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4 text-primary" /> Last 10 Rated: {user2.display_name || user2.username}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RankingList title="" entries={last10(entries2).filter((e) => e.detailed_enjoyment !== null).map((e) => {
+                          const score = (e.detailed_enjoyment ?? 0) + (e.detailed_impact ?? 0) + (e.detailed_recommend ?? 0) + (e.detailed_watch_again ?? 0)
+                          return { ...e, score }
+                        })} type="best" />
                       </CardContent>
                     </Card>
                   </div>

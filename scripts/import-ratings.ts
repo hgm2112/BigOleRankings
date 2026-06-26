@@ -9,8 +9,8 @@ dotenv.config({ path: path.resolve(__dirname, "../.env.local") })
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const TMDB_ACCESS_TOKEN = process.env.TMDB_ACCESS_TOKEN
-const USERNAME = "rise"
-const XLSX_PATH = path.resolve(__dirname, "../Hill's Ranking.xlsx")
+const USERNAME = "Iluvhilly"
+const XLSX_PATH = path.resolve(__dirname, "../Cutter Rankings.xlsx")
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !TMDB_ACCESS_TOKEN) {
   console.error("Missing required env vars")
@@ -138,24 +138,14 @@ function readExcel(): RowData[] {
     const name = String(row[0]).trim()
     if (!name) continue
 
-    const sourceType = String(row[1] || "").trim()
-    let mediaType: string
-    if (sourceType.toLowerCase() === "tv show") {
-      mediaType = "tv"
-    } else if (sourceType.toLowerCase() === "misc") {
-      mediaType = "misc"
-    } else {
-      mediaType = "movie"
-    }
-
     data.push({
       name,
-      sourceType: mediaType,
-      gutRating: parseInt(row[2]) || 0,
-      enjoyment: parseInt(row[3]) || 0,
-      impact: parseInt(row[4]) || 0,
-      recommend: parseInt(row[5]) || 0,
-      watchAgain: parseInt(row[6]) || 0,
+      sourceType: "tv",
+      gutRating: parseInt(row[1]) || 0,
+      enjoyment: parseInt(row[2]) || 0,
+      impact: parseInt(row[3]) || 0,
+      recommend: parseInt(row[4]) || 0,
+      watchAgain: parseInt(row[5]) || 0,
     })
   }
 

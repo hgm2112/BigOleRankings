@@ -29,7 +29,7 @@ export default function SocialPage() {
   const [searched, setSearched] = useState(false)
   const [searching, setSearching] = useState(false)
   const [following, setFollowing] = useState<Follow[]>([])
-  const [pinnedUserId, setPinnedUserId] = useState<string | null>(null)
+  const [pinnedUserIds, setPinnedUserIds] = useState<(string | null)[]>([null, null, null])
   const [followingProfiles, setFollowingProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -48,10 +48,14 @@ export default function SocialPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("pinned_user_id")
+        .select("pinned_user_id, pinned_user_id_2, pinned_user_id_3")
         .eq("id", user.id)
         .single()
-      setPinnedUserId(profile?.pinned_user_id ?? null)
+      setPinnedUserIds([
+        profile?.pinned_user_id ?? null,
+        profile?.pinned_user_id_2 ?? null,
+        profile?.pinned_user_id_3 ?? null,
+      ])
 
       const { data: followsData } = await supabase
         .from("follows")
@@ -106,9 +110,16 @@ export default function SocialPage() {
       }
       setFollowing((prev) => prev.filter((f) => f.following_id !== targetId))
       setFollowingProfiles((prev) => prev.filter((p) => p.id !== targetId))
-      if (pinnedUserId === targetId) {
-        await supabase.from("profiles").update({ pinned_user_id: null }).eq("id", userId!)
-        setPinnedUserId(null)
+
+      const slotIdx = pinnedUserIds.indexOf(targetId)
+      if (slotIdx !== -1) {
+        const col = slotIdx === 0 ? "pinned_user_id" : slotIdx === 1 ? "pinned_user_id_2" : "pinned_user_id_3"
+        await supabase.from("profiles").update({ [col]: null }).eq("id", userId!)
+        setPinnedUserIds((prev) => {
+          const next = [...prev]
+          next[slotIdx] = null
+          return next
+        })
       }
     } else {
       const { data, error: insErr } = await supabase
@@ -137,12 +148,25 @@ export default function SocialPage() {
   }
 
   const togglePin = async (targetId: string) => {
-    if (pinnedUserId === targetId) {
-      await supabase.from("profiles").update({ pinned_user_id: null }).eq("id", userId!)
-      setPinnedUserId(null)
+    const slotIdx = pinnedUserIds.indexOf(targetId)
+    if (slotIdx !== -1) {
+      const col = slotIdx === 0 ? "pinned_user_id" : slotIdx === 1 ? "pinned_user_id_2" : "pinned_user_id_3"
+      await supabase.from("profiles").update({ [col]: null }).eq("id", userId!)
+      setPinnedUserIds((prev) => {
+        const next = [...prev]
+        next[slotIdx] = null
+        return next
+      })
     } else {
-      await supabase.from("profiles").update({ pinned_user_id: targetId }).eq("id", userId!)
-      setPinnedUserId(targetId)
+      const firstEmpty = pinnedUserIds.indexOf(null)
+      if (firstEmpty === -1) return
+      const col = firstEmpty === 0 ? "pinned_user_id" : firstEmpty === 1 ? "pinned_user_id_2" : "pinned_user_id_3"
+      await supabase.from("profiles").update({ [col]: targetId }).eq("id", userId!)
+      setPinnedUserIds((prev) => {
+        const next = [...prev]
+        next[firstEmpty] = targetId
+        return next
+      })
     }
   }
 
@@ -227,7 +251,9 @@ export default function SocialPage() {
           ) : (
             <div className="space-y-1">
               {followingProfiles.map((p) => {
-                const isPinned = pinnedUserId === p.id
+                const pinSlotIdx = pinnedUserIds.indexOf(p.id)
+                const isPinned = pinSlotIdx !== -1
+                const allSlotsFull = pinnedUserIds.every((id) => id !== null)
                 return (
                   <div key={p.id} className="flex items-center justify-between p-2 rounded hover:bg-accent">
                     <div className="flex items-center gap-2">
@@ -235,7 +261,7 @@ export default function SocialPage() {
                         <AvatarFallback className="text-xs">{(p.display_name || p.username || "U").charAt(0)}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm">{p.display_name || p.username}</span>
-                      {isPinned && <span className="text-xs text-primary font-medium">Pinned</span>}
+                      {isPinned && <span className="text-xs text-primary font-medium">Pinned ({pinSlotIdx + 1})</span>}
                     </div>
                     <div className="flex gap-1">
                       <Button size="sm" variant="ghost" asChild>
@@ -247,6 +273,8 @@ export default function SocialPage() {
                         size="sm"
                         variant={isPinned ? "default" : "ghost"}
                         onClick={() => togglePin(p.id)}
+                        disabled={!isPinned && allSlotsFull}
+                        title={!isPinned && allSlotsFull ? "Unpin someone first (max 3)" : ""}
                       >
                         {isPinned ? <PinOff className="h-3.5 w-3.5 mr-1" /> : <Pin className="h-3.5 w-3.5 mr-1" />}
                         {isPinned ? "Unpin" : "Pin"}
