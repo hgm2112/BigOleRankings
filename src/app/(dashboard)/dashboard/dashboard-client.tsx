@@ -145,7 +145,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
                     <Pin className="h-4 w-4" />
-                    Pinned ({idx + 1}): {pinnedUser.display_name || pinnedUser.username}
+                    Pinned ({idx + 1}): <Link href={`/users/${pinnedUser.username}`} className="hover:underline">{pinnedUser.display_name || pinnedUser.username}</Link>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
