@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ interface Entry {
   detailed_rated_at: string | null
   notes: string | null
   weight: number
+  tmdb_id: number
 }
 
 export function EntryDetailClient({ entry }: { entry: Entry }) {
@@ -35,6 +37,15 @@ export function EntryDetailClient({ entry }: { entry: Entry }) {
     ? entry.detailed_enjoyment! + entry.detailed_impact! + entry.detailed_recommend! + entry.detailed_watch_again!
     : null
   const diff = hasDetailed && entry.gut_rating !== null ? detailedTotal! - entry.gut_rating : null
+
+  const [overview, setOverview] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/tmdb/details?id=${entry.tmdb_id}&type=${entry.media_type}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setOverview(data?.overview ?? null))
+      .catch(() => setOverview(null))
+  }, [entry.tmdb_id, entry.media_type])
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -134,6 +145,16 @@ export function EntryDetailClient({ entry }: { entry: Entry }) {
               <span className="text-sm text-muted-foreground">/100</span>
             </div>
           </div>
+
+          {overview && (
+            <>
+              <Separator />
+              <div>
+                <h2 className="font-semibold mb-1">Synopsis</h2>
+                <p className="text-sm text-muted-foreground">{overview}</p>
+              </div>
+            </>
+          )}
 
           {entry.notes && (
             <>
