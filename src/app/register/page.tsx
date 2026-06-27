@@ -28,6 +28,7 @@ export default function RegisterPage() {
       password,
       options: {
         data: { username },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
       },
     })
 
