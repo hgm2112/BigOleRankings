@@ -39,12 +39,24 @@ export function EntryDetailClient({ entry }: { entry: Entry }) {
   const diff = hasDetailed && entry.gut_rating !== null ? detailedTotal! - entry.gut_rating : null
 
   const [overview, setOverview] = useState<string | null>(null)
+  const [overviewLoading, setOverviewLoading] = useState(true)
+  const [overviewError, setOverviewError] = useState(false)
 
   useEffect(() => {
+    setOverviewLoading(true)
+    setOverviewError(false)
     fetch(`/api/tmdb/details?id=${entry.tmdb_id}&type=${entry.media_type}`)
       .then(res => res.ok ? res.json() : null)
-      .then(data => setOverview(data?.overview ?? null))
-      .catch(() => setOverview(null))
+      .then(data => {
+        setOverview(data?.overview ?? null)
+        if (!data?.overview) setOverviewError(true)
+        setOverviewLoading(false)
+      })
+      .catch(() => {
+        setOverview(null)
+        setOverviewError(true)
+        setOverviewLoading(false)
+      })
   }, [entry.tmdb_id, entry.media_type])
 
   return (
@@ -146,15 +158,17 @@ export function EntryDetailClient({ entry }: { entry: Entry }) {
             </div>
           </div>
 
-          {overview && (
-            <>
-              <Separator />
-              <div>
-                <h2 className="font-semibold mb-1">Synopsis</h2>
-                <p className="text-sm text-muted-foreground">{overview}</p>
-              </div>
-            </>
-          )}
+          <Separator />
+          <div>
+            <h2 className="font-semibold mb-1">Synopsis</h2>
+            {overviewLoading ? (
+              <p className="text-sm text-muted-foreground italic">Loading synopsis...</p>
+            ) : overviewError ? (
+              <p className="text-sm text-muted-foreground italic">Could not load synopsis</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{overview}</p>
+            )}
+          </div>
 
           {entry.notes && (
             <>
