@@ -28,6 +28,7 @@ export default async function UserPage({ params }: { params: Promise<{ username:
       profile={profile}
       headerTitle={`${profile.display_name || profile.username}'s Rankings`}
       headerDescription=""
+      showPinSection={false}
     />
   )
 }
