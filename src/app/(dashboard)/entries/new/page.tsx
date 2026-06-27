@@ -136,11 +136,14 @@ export default function NewEntryPage() {
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Add New Rating</h1>
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/entries"><ArrowLeft className="h-4 w-4 mr-1" />Back</Link>
-        </Button>
+      <div>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Add New Rating</h1>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/entries"><ArrowLeft className="h-4 w-4 mr-1" />Back</Link>
+          </Button>
+        </div>
+        <p className="text-muted-foreground">Hey whatcha got there? Something new?</p>
       </div>
 
       <Card>

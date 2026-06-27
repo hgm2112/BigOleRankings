@@ -90,9 +90,12 @@ export function EntriesClient({ entries, userId }: Props) {
   if (currentEntries.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">My Ratings</h1>
-          <Button asChild><Link href="/entries/new"><Plus className="h-4 w-4 mr-1" />Add Entry</Link></Button>
+        <div>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">My Ratings</h1>
+            <Button asChild><Link href="/entries/new"><Plus className="h-4 w-4 mr-1" />Add Entry</Link></Button>
+          </div>
+          <p className="text-muted-foreground">It's mine, my own. My precious! ... ratings</p>
         </div>
         <div className="text-center py-12">
           <p className="text-muted-foreground">No entries yet. Start by rating a movie or TV show!</p>
@@ -104,9 +107,12 @@ export function EntriesClient({ entries, userId }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Ratings ({currentEntries.length})</h1>
-        <Button asChild><Link href="/entries/new"><Plus className="h-4 w-4 mr-1" />Add Entry</Link></Button>
+      <div>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">My Ratings ({currentEntries.length})</h1>
+          <Button asChild><Link href="/entries/new"><Plus className="h-4 w-4 mr-1" />Add Entry</Link></Button>
+        </div>
+        <p className="text-muted-foreground">It's mine, my own. My precious! ... ratings</p>
       </div>
 
       <Tabs defaultValue="all">

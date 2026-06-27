@@ -130,8 +130,8 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{headerTitle ?? `Welcome, ${displayName}`}</h1>
-        <p className="text-muted-foreground">{headerDescription ?? "Your ranking dashboard"}</p>
+        <h1 className="text-2xl font-bold">{headerTitle ?? `Hello, ${displayName}`}</h1>
+        <p className="text-muted-foreground">{headerDescription ?? "Welcome to the island of misfit toys"}</p>
       </div>
 
       {pendingDetailedEntries.length > 0 && (

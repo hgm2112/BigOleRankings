@@ -178,7 +178,7 @@ export default function SocialPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Social</h1>
-        <p className="text-muted-foreground">Follow users and pin them to your dashboard</p>
+        <p className="text-muted-foreground">See mom?! I have friends!</p>
       </div>
 
       {error && (

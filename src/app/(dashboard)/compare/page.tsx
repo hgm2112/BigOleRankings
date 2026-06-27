@@ -205,7 +205,7 @@ export default function ComparePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Compare Users</h1>
-        <p className="text-muted-foreground">Compare ratings side by side with another user</p>
+        <p className="text-muted-foreground">Who cares what they think? I do. That's why I'm here.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
