@@ -4,13 +4,14 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Edit3, ArrowLeft, ClipboardList } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
 interface Entry {
   id: string
+  user_id: string
   title: string
   media_type: string
   poster_path: string | null
@@ -27,7 +28,31 @@ interface Entry {
   tmdb_id: number
 }
 
-export function EntryDetailClient({ entry }: { entry: Entry }) {
+interface FollowerRating {
+  username: string
+  display_name: string | null
+  gut_rating: number
+  gut_rated_at: string | null
+  detailed_enjoyment: number | null
+  detailed_impact: number | null
+  detailed_recommend: number | null
+  detailed_watch_again: number | null
+  detailed_rated_at: string | null
+}
+
+export function EntryDetailClient({
+  entry,
+  ownerProfile,
+  isOwner,
+  myComparisonEntry,
+  followerRatings,
+}: {
+  entry: Entry
+  ownerProfile: { username: string; display_name: string | null } | null
+  isOwner: boolean
+  myComparisonEntry: Entry | null
+  followerRatings: FollowerRating[]
+}) {
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w342${entry.poster_path}`
     : null
@@ -80,18 +105,25 @@ export function EntryDetailClient({ entry }: { entry: Entry }) {
             <p className="text-muted-foreground">
               {entry.year} &middot; {entry.media_type === "tv" ? "TV Show" : entry.media_type === "misc" ? "Misc" : "Movie"}
             </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/entries/${entry.id}/edit`}><Edit3 className="h-4 w-4 mr-1" />Edit</Link>
-            </Button>
-            {!hasDetailed && (
-              <Button size="sm" asChild>
-                <Link href={`/entries/${entry.id}/detailed`}><ClipboardList className="h-4 w-4 mr-1" />Add Detailed Rating</Link>
-              </Button>
+            {!isOwner && ownerProfile && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Entry by <span className="font-medium">{ownerProfile.display_name || ownerProfile.username}</span>
+              </p>
             )}
           </div>
+
+          {isOwner && (
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/entries/${entry.id}/edit`}><Edit3 className="h-4 w-4 mr-1" />Edit</Link>
+              </Button>
+              {!hasDetailed && (
+                <Button size="sm" asChild>
+                  <Link href={`/entries/${entry.id}/detailed`}><ClipboardList className="h-4 w-4 mr-1" />Add Detailed Rating</Link>
+                </Button>
+              )}
+            </div>
+          )}
 
           <Separator />
 
@@ -181,6 +213,119 @@ export function EntryDetailClient({ entry }: { entry: Entry }) {
           )}
         </div>
       </div>
+
+      {isOwner && followerRatings.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <h2 className="font-semibold mb-3">Followers&apos; Ratings</h2>
+            <div className="space-y-3">
+              {followerRatings.map((fr, idx) => (
+                <div key={idx}>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Link href={`/users/${fr.username}`} className="font-medium hover:underline">
+                      {fr.display_name || fr.username}
+                    </Link>
+                    <span className="text-muted-foreground">rated</span>
+                    <span className="font-medium">{fr.gut_rating}</span>
+                    <span className="text-xs text-muted-foreground">/100</span>
+                    {entry.gut_rating != null && (
+                      <span className={`font-medium ${fr.gut_rating > entry.gut_rating ? "text-green-600" : fr.gut_rating < entry.gut_rating ? "text-destructive" : ""}`}>
+                        Δ {fr.gut_rating - entry.gut_rating > 0 ? "+" : ""}{fr.gut_rating - entry.gut_rating}
+                      </span>
+                    )}
+                  </div>
+                  {fr.detailed_enjoyment != null && entry.detailed_enjoyment != null && (
+                    <div className="flex gap-x-3 items-baseline text-sm flex-wrap mt-1">
+                      {(() => {
+                        const frTotal = fr.detailed_enjoyment! + (fr.detailed_impact ?? 0) + (fr.detailed_recommend ?? 0) + (fr.detailed_watch_again ?? 0)
+                        const myTotal = entry.detailed_enjoyment! + (entry.detailed_impact ?? 0) + (entry.detailed_recommend ?? 0) + (entry.detailed_watch_again ?? 0)
+                        const diff = frTotal - myTotal
+                        return (
+                          <>
+                            <span className="text-muted-foreground text-xs">Detailed:</span>
+                            <span className="font-medium tabular-nums">{frTotal}/100</span>
+                            <span className="text-xs text-muted-foreground tabular-nums">E {fr.detailed_enjoyment}/60</span>
+                            <span className="text-xs text-muted-foreground tabular-nums">I {fr.detailed_impact ?? 0}/20</span>
+                            <span className="text-xs text-muted-foreground tabular-nums">R {fr.detailed_recommend ?? 0}/10</span>
+                            <span className="text-xs text-muted-foreground tabular-nums">W {fr.detailed_watch_again ?? 0}/10</span>
+                            <span className={`font-medium tabular-nums ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
+                              Δ {diff > 0 ? "+" : ""}{diff}
+                            </span>
+                          </>
+                        )
+                      })()}
+                    </div>
+                  )}
+                  {idx < followerRatings.length - 1 && <Separator />}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isOwner && (
+        <Card>
+          <CardContent className="pt-6">
+            <h2 className="font-semibold mb-3">Your Rating</h2>
+            {myComparisonEntry ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <Link href={`/entries/${myComparisonEntry.id}`} className="hover:underline">
+                    <span className="text-muted-foreground">You rated: </span>
+                    <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
+                    <span className="text-xs text-muted-foreground">/100</span>
+                  </Link>
+                  {entry.gut_rating != null && myComparisonEntry.gut_rating != null && (
+                    <div>
+                      <span className="text-muted-foreground">Δ </span>
+                      <span className={`font-medium ${myComparisonEntry.gut_rating > entry.gut_rating ? "text-green-600" : myComparisonEntry.gut_rating < entry.gut_rating ? "text-destructive" : ""}`}>
+                        {myComparisonEntry.gut_rating - entry.gut_rating > 0 ? "+" : ""}{myComparisonEntry.gut_rating - entry.gut_rating}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {myComparisonEntry.detailed_enjoyment != null && (
+                  <div className="space-y-1">
+                    {(() => {
+                      const myDetailedTotal = myComparisonEntry.detailed_enjoyment! + (myComparisonEntry.detailed_impact ?? 0) + (myComparisonEntry.detailed_recommend ?? 0) + (myComparisonEntry.detailed_watch_again ?? 0)
+                      const entryHasDetailed = entry.detailed_enjoyment != null
+                      const entryDetailedTotal = entryHasDetailed
+                        ? entry.detailed_enjoyment! + (entry.detailed_impact ?? 0) + (entry.detailed_recommend ?? 0) + (entry.detailed_watch_again ?? 0)
+                        : 0
+                      const diff = entryHasDetailed ? myDetailedTotal - entryDetailedTotal : 0
+
+                      return (
+                        <div className="flex gap-x-3 items-baseline text-sm flex-wrap">
+                          <span className="text-muted-foreground">Detailed:</span>
+                          <span className="font-medium tabular-nums">{myDetailedTotal}/100</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">E {myComparisonEntry.detailed_enjoyment}/60</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">I {myComparisonEntry.detailed_impact ?? 0}/20</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">R {myComparisonEntry.detailed_recommend ?? 0}/10</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">W {myComparisonEntry.detailed_watch_again ?? 0}/10</span>
+                          {entryHasDetailed && (
+                            <span className={`font-medium tabular-nums ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
+                              {diff > 0 ? "+" : ""}{diff}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                You haven't rated this yet.{" "}
+                <Link href={`/entries/new?tmdb_id=${entry.tmdb_id}&media_type=${entry.media_type}&title=${encodeURIComponent(entry.title)}${entry.year != null ? `&year=${entry.year}` : ""}`} className="underline hover:text-foreground">
+                  Add your rating
+                </Link>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
