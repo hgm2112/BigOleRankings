@@ -18,6 +18,7 @@ interface TMDBResult {
   year: string
   media_type: string
   runtime?: number | null
+  status?: string | null
 }
 
 function formatRuntime(minutes: number | null): string | null {
@@ -68,6 +69,7 @@ export default function NewEntryPage() {
         weight,
         notes,
         runtime: selected!.runtime,
+        status: selected!.status ?? null,
       }),
     })
 

@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
+import { StatusBadge } from "@/components/status-badge"
 import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock } from "lucide-react"
 
 interface Entry {
@@ -24,6 +25,7 @@ interface Entry {
   notes: string | null
   weight: number
   runtime: number | null
+  status?: string | null
   user_id?: string
   tmdb_id?: number
   created_at?: string
@@ -196,9 +198,12 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                         </div>
                       )}
                       <div className="flex-1 min-w-0 space-y-1">
-                        <Link href={`/entries/${pinnedEntry.id}`} className="font-semibold hover:underline line-clamp-1">
-                          {pinnedEntry.title}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/entries/${pinnedEntry.id}`} className="font-semibold hover:underline line-clamp-1">
+                            {pinnedEntry.title}
+                          </Link>
+                          <StatusBadge status={pinnedEntry.status ?? null} mediaType={pinnedEntry.media_type} />
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {pinnedEntry.year} &middot; {pinnedEntry.media_type === "tv" ? "TV Show" : pinnedEntry.media_type === "misc" ? "Misc" : "Movie"}
                         </p>
@@ -405,6 +410,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                             </div>
                           )}
                           <span className="text-sm truncate flex-1">{entry.title}</span>
+                          <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
                           <span className="text-sm font-medium tabular-nums shrink-0">{entry.gut_rating}/100</span>
                           <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                             {new Date(entry.gut_rated_at!).toLocaleDateString()}
@@ -450,6 +456,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                             </div>
                           )}
                           <span className="text-sm truncate flex-1">{entry.title}</span>
+                          <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
                           <span className="text-sm font-medium tabular-nums shrink-0">{detailedTotal}/100</span>
                           <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                             {new Date(entry.detailed_rated_at!).toLocaleDateString()}

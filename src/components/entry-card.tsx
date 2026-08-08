@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { StatusBadge } from "@/components/status-badge"
 import { Film, Tv, Trash2, Edit3 } from "lucide-react"
 import {
   Dialog,
@@ -28,6 +29,7 @@ interface Entry {
   detailed_recommend: number | null
   detailed_watch_again: number | null
   notes: string | null
+  status?: string | null
 }
 
 interface EntryCardProps {
@@ -61,9 +63,12 @@ export function EntryCard({ entry, onDelete }: EntryCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <Link href={`/entries/${entry.id}`} className="font-semibold hover:underline line-clamp-1">
-                {entry.title}
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link href={`/entries/${entry.id}`} className="font-semibold hover:underline line-clamp-1">
+                  {entry.title}
+                </Link>
+                <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
+              </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{entry.year}</span>
                 <span>{entry.media_type === "tv" ? "TV Show" : entry.media_type === "misc" ? "Misc" : "Movie"}</span>

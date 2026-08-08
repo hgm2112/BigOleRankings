@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { StatusBadge } from "@/components/status-badge"
 import { Edit3, ArrowLeft, ClipboardList } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
@@ -26,6 +28,7 @@ interface Entry {
   notes: string | null
   weight: number
   tmdb_id: number
+  status: string | null
 }
 
 interface FollowerRating {
@@ -66,6 +69,8 @@ export function EntryDetailClient({
   const [overview, setOverview] = useState<string | null>(null)
   const [overviewLoading, setOverviewLoading] = useState(true)
   const [overviewError, setOverviewError] = useState(false)
+  const [liveStatus, setLiveStatus] = useState<string | null>(null)
+  const [liveNextAirDate, setLiveNextAirDate] = useState<string | null>(null)
 
   useEffect(() => {
     setOverviewLoading(true)
@@ -75,6 +80,15 @@ export function EntryDetailClient({
       .then(data => {
         setOverview(data?.overview ?? null)
         if (!data?.overview) setOverviewError(true)
+        if (data?.status != null) {
+          setLiveStatus(data.status)
+          setLiveNextAirDate(data.next_air_date ?? null)
+          if (isOwner && data.status !== entry.status) {
+            createClient().from("entries").update({ status: data.status }).eq("id", entry.id).then((res: { error: { message: string } | null }) => {
+              if (res.error) console.error("Failed to update entry status", res.error)
+            })
+          }
+        }
         setOverviewLoading(false)
       })
       .catch(() => {
@@ -82,7 +96,7 @@ export function EntryDetailClient({
         setOverviewError(true)
         setOverviewLoading(false)
       })
-  }, [entry.tmdb_id, entry.media_type])
+  }, [entry.tmdb_id, entry.media_type, entry.status, entry.id, isOwner])
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -101,7 +115,10 @@ export function EntryDetailClient({
 
         <div className="flex-1 space-y-4">
           <div>
-            <h1 className="text-2xl font-bold">{entry.title}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold">{entry.title}</h1>
+              <StatusBadge status={liveStatus ?? entry.status} mediaType={entry.media_type} nextAirDate={liveNextAirDate} />
+            </div>
             <p className="text-muted-foreground">
               {entry.year} &middot; {entry.media_type === "tv" ? "TV Show" : entry.media_type === "misc" ? "Misc" : "Movie"}
             </p>

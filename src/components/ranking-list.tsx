@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { StatusBadge } from "@/components/status-badge"
 import { Film, Tv } from "lucide-react"
 
 interface RankedEntry {
@@ -12,6 +13,7 @@ interface RankedEntry {
   year: number | null
   score: number
   gut_rating: number | null
+  status?: string | null
 }
 
 interface RankingListProps {
@@ -56,6 +58,7 @@ export function RankingList({ title, entries, type = "best" }: RankingListProps)
                 </div>
               )}
               <span className="text-sm truncate flex-1">{entry.title}</span>
+              <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
               <span className="text-sm font-medium tabular-nums">{entry.score}</span>
             </Link>
           )

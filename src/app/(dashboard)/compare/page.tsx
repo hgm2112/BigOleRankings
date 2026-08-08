@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
+import { StatusBadge } from "@/components/status-badge"
 import { Search, TrendingUp, TrendingDown, Users, ArrowUp, ArrowDown } from "lucide-react"
 
 interface Profile {
@@ -31,6 +32,7 @@ interface Entry {
   detailed_recommend: number | null
   detailed_watch_again: number | null
   user_id: string
+  status?: string | null
   created_at: string
 }
 
@@ -117,6 +119,7 @@ export default function ComparePage() {
       poster_path: entry.poster_path,
       year: entry.year,
       gut_rating: gutAvg,
+      status: entry.status ?? null,
       score: hasDetailed ? detAvg : gutAvg,
     }
   })
@@ -308,7 +311,12 @@ export default function ComparePage() {
 
                       return (
                         <tr key={entry.id} className="border-b last:border-0 hover:bg-accent/50">
-                          <td className="py-2 pr-4 font-medium">{entry.title}</td>
+                          <td className="py-2 pr-4 font-medium">
+                            <div className="flex items-center gap-2">
+                              {entry.title}
+                              <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
+                            </div>
+                          </td>
                           <td className="text-center py-2 px-2">{entry.gut_rating ?? "—"}</td>
                           <td className="text-center py-2 px-2">{user2Entry.gut_rating ?? "—"}</td>
                           <td className={`text-center py-2 px-2 ${gutDiff !== null ? (gutDiff > 0 ? "text-green-600" : gutDiff < 0 ? "text-destructive" : "") : ""}`}>

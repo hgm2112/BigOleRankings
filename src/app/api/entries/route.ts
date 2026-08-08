@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     weight: body.weight ?? 0,
     notes: body.notes || "",
     runtime: body.runtime ?? null,
+    status: body.status ?? null,
   })
 
   if (error) {

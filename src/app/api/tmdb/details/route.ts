@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
       media_type: type,
       overview: item.overview,
       runtime,
+      status: type === "tv" ? item.status ?? null : null,
+      next_air_date: type === "tv" ? item.next_episode_to_air?.air_date ?? null : null,
     }
 
     return Response.json(result)
