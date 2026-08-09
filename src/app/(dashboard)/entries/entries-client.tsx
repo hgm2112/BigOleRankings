@@ -23,6 +23,7 @@ interface SupabaseEntry {
   detailed_watch_again: number | null
   notes: string | null
   created_at: string
+  status?: string | null
 }
 
 interface Props {
@@ -37,7 +38,7 @@ export function EntriesClient({ entries, userId }: Props) {
   const [sortField, setSortField] = useState("recent")
   const [sortDir, setSortDir] = useState("desc")
 
-  const showOrder = !["recent", "name"].includes(sortField)
+  const showOrder = !["recent", "name", "status"].includes(sortField)
 
   const sorted = useMemo(() => {
     const list = [...currentEntries]
@@ -53,6 +54,13 @@ export function EntriesClient({ entries, userId }: Props) {
     switch (sortField) {
       case "name":
         list.sort((a, b) => a.title.localeCompare(b.title))
+        break
+      case "status":
+        list.sort((a, b) => {
+          const rank = (s: string | null | undefined) =>
+            s === "Returning Series" ? 0 : s === "Canceled" ? 1 : s === "Ended" ? 2 : 3
+          return rank(a.status) - rank(b.status) || a.title.localeCompare(b.title)
+        })
         break
       case "gut":
         list.sort((a, b) => dir * ((a.gut_rating ?? -1) - (b.gut_rating ?? -1)))
@@ -131,6 +139,7 @@ export function EntriesClient({ entries, userId }: Props) {
               <SelectContent>
                 <SelectItem value="recent">Most Recent</SelectItem>
                 <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="status">Status</SelectItem>
                 <SelectItem value="gut">Gut Rating</SelectItem>
                 <SelectItem value="detailed">Detailed Rating</SelectItem>
                 <SelectItem value="diff">Gut vs Detail</SelectItem>
