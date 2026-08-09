@@ -6,8 +6,6 @@ import { TMDSearch } from "@/components/tmdb-search"
 import { GutRatingForm } from "@/components/gut-rating-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
-import { Label } from "@/components/ui/label"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
@@ -35,7 +33,6 @@ export default function NewEntryPage() {
   const [selected, setSelected] = useState<TMDBResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [weight, setWeight] = useState(0)
   const [gutRating, setGutRating] = useState(50)
   const [notes, setNotes] = useState("")
 
@@ -87,7 +84,6 @@ export default function NewEntryPage() {
         poster_path: selected!.poster_path,
         year: selected!.year ? parseInt(selected!.year) : null,
         gut_rating: gutRating,
-        weight,
         notes,
         runtime: selected!.runtime,
         status: selected!.status ?? null,
@@ -123,23 +119,6 @@ export default function NewEntryPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <Label htmlFor="weight" className="text-sm font-medium">
-                  Tiebreaker Weight: {weight}
-                </Label>
-                <Slider
-                  id="weight"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={[weight]}
-                  onValueChange={([v]) => setWeight(v)}
-                  className="mt-2"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Higher weight ranks this entry above others with the same score.
-                </p>
-              </div>
               <GutRatingForm
                 gutRating={gutRating}
                 notes={notes}
