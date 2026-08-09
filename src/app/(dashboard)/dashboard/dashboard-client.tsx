@@ -71,7 +71,6 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
   )
   const movies = useMemo(() => allEntries.filter((e) => e.media_type === "movie"), [allEntries])
   const tvShows = useMemo(() => allEntries.filter((e) => e.media_type === "tv"), [allEntries])
-  const misc = useMemo(() => allEntries.filter((e) => e.media_type === "misc"), [allEntries])
 
   const sections = [
     { label: "Top 10 Movies", entries: movies, useDetailed: false, ascending: false, type: "best" as const },
@@ -128,7 +127,6 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
     { label: "Total Entries", value: allEntries.length, icon: BarChart3 },
     { label: "Movies", value: movies.length, icon: BarChart3 },
     { label: "TV Shows", value: tvShows.length, icon: BarChart3 },
-    { label: "Misc", value: misc.length, icon: BarChart3 },
     {
       label: "Avg Gut Rating",
       value: allEntries.length > 0
@@ -205,7 +203,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                           <StatusBadge status={pinnedEntry.status ?? null} mediaType={pinnedEntry.media_type} />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {pinnedEntry.year} &middot; {pinnedEntry.media_type === "tv" ? "TV Show" : pinnedEntry.media_type === "misc" ? "Misc" : "Movie"}
+                          {pinnedEntry.year} &middot; {pinnedEntry.media_type === "tv" ? "TV Show" : "Movie"}
                         </p>
                         <div className="flex items-center gap-4 text-sm">
                           <div>

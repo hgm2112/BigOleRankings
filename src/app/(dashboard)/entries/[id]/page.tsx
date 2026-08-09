@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { notFound } from "next/navigation"
 import { EntryDetailClient } from "./entry-detail-client"
+import { ENTRY_SELECT, flattenEntry } from "@/lib/entry-queries"
 
 export default async function EntryDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sort?: string; dir?: string }> }) {
   const { id } = await params
@@ -14,13 +15,15 @@ export default async function EntryDetailPage({ params, searchParams }: { params
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: entry } = await supabase
-    .from("entries")
-    .select("*")
+  const { data: row } = await supabase
+    .from("ratings")
+    .select(ENTRY_SELECT)
     .eq("id", id)
     .single()
 
-  if (!entry) notFound()
+  if (!row) notFound()
+
+  const entry = flattenEntry(row)
 
   const { data: ownerProfile } = await supabase
     .from("profiles")
@@ -33,11 +36,10 @@ export default async function EntryDetailPage({ params, searchParams }: { params
   const { data: myComparisonEntry } = isOwner
     ? { data: null }
     : await supabase
-        .from("entries")
-        .select("*")
+        .from("ratings")
+        .select(ENTRY_SELECT)
         .eq("user_id", user.id)
-        .eq("tmdb_id", entry.tmdb_id)
-        .eq("media_type", entry.media_type)
+        .eq("media_id", entry.media_id)
         .maybeSingle()
 
   let followerRatings: {
@@ -67,11 +69,10 @@ export default async function EntryDetailPage({ params, searchParams }: { params
         .in("id", followerIds)
 
       const { data: followerEntries } = await supabase
-        .from("entries")
+        .from("ratings")
         .select("user_id, gut_rating, gut_rated_at, detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again, detailed_rated_at")
         .in("user_id", followerIds)
-        .eq("tmdb_id", entry.tmdb_id)
-        .eq("media_type", entry.media_type)
+        .eq("media_id", entry.media_id)
         .not("gut_rating", "is", null)
 
       if (followerEntries && followerProfiles) {
@@ -94,14 +95,49 @@ export default async function EntryDetailPage({ params, searchParams }: { params
     }
   }
 
+  let seasons: {
+    season_number: number
+    name: string | null
+    air_year: number | null
+    episode_count: number | null
+  }[] = []
+
+  let seasonRatings: {
+    media_id: string
+    season_number: number
+    rating: number | null
+    dnf: boolean
+  }[] = []
+
+  if (entry.media_type === "tv") {
+    const { data: seasonRows } = await supabase
+      .from("seasons")
+      .select("season_number, name, air_year, episode_count")
+      .eq("media_id", entry.media_id)
+      .order("season_number")
+
+    seasons = seasonRows ?? []
+
+    const { data: seasonRatingRows } = await supabase
+      .from("season_ratings")
+      .select("media_id, season_number, rating, dnf")
+      .eq("user_id", user.id)
+      .eq("media_id", entry.media_id)
+
+    seasonRatings = seasonRatingRows ?? []
+  }
+
   return (
     <EntryDetailClient
       entry={entry}
       ownerProfile={ownerProfile}
       isOwner={isOwner}
-      myComparisonEntry={myComparisonEntry}
+      myComparisonEntry={myComparisonEntry ? flattenEntry(myComparisonEntry) : null}
       followerRatings={followerRatings}
       backUrl={backUrl}
+      userId={user.id}
+      seasons={seasons}
+      seasonRatings={seasonRatings}
     />
   )
 }

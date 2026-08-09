@@ -16,7 +16,16 @@ interface TMDBResult {
   year: string
   media_type: string
   runtime?: number | null
+  episode_runtime?: number | null
   status?: string | null
+  next_air_date?: string | null
+  network?: string | null
+  seasons?: {
+    season_number: number
+    name: string | null
+    air_year: number | null
+    episode_count: number
+  }[]
 }
 
 function formatRuntime(minutes: number | null): string | null {
@@ -87,6 +96,10 @@ export default function NewEntryPage() {
         notes,
         runtime: selected!.runtime,
         status: selected!.status ?? null,
+        next_air_date: selected!.next_air_date ?? null,
+        episode_runtime: selected!.episode_runtime ?? null,
+        network: selected!.network ?? null,
+        seasons: selected!.seasons ?? null,
       }),
     })
 
@@ -113,8 +126,9 @@ export default function NewEntryPage() {
           <CardHeader>
             <CardTitle>{selected.title}</CardTitle>
             <CardDescription>
-              {selected.year} &middot; {selected.media_type === "tv" ? "TV Show" : selected.media_type === "misc" ? "Misc" : "Movie"}
-              {selected.runtime != null && <> &middot; {formatRuntime(selected.runtime)}</>}
+              {selected.year} &middot; {selected.media_type === "tv" ? "TV Show" : "Movie"}
+              {selected.media_type === "tv" && selected.episode_runtime != null && <> &middot; {formatRuntime(selected.episode_runtime)}/episode</>}
+              {selected.media_type !== "tv" && selected.runtime != null && <> &middot; {formatRuntime(selected.runtime)}</>}
             </CardDescription>
           </CardHeader>
           <CardContent>

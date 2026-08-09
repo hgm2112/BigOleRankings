@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
 import { StatusBadge } from "@/components/status-badge"
+import { ENTRY_SELECT, flattenEntries } from "@/lib/entry-queries"
 import { Search, TrendingUp, TrendingDown, Users, ArrowUp, ArrowDown } from "lucide-react"
 
 interface Profile {
@@ -21,6 +22,7 @@ interface Profile {
 
 interface Entry {
   id: string
+  media_id: string
   tmdb_id: number
   title: string
   media_type: string
@@ -70,12 +72,12 @@ export default function ComparePage() {
   const selectUser = async (profile: Profile, slot: 1 | 2) => {
     if (slot === 1) {
       setUser1(profile)
-      const { data } = await supabase.from("entries").select("*").eq("user_id", profile.id).not("gut_rating", "is", null)
-      setEntries1(data || [])
+      const { data } = await supabase.from("ratings").select(ENTRY_SELECT).eq("user_id", profile.id).not("gut_rating", "is", null)
+      setEntries1(flattenEntries(data))
     } else {
       setUser2(profile)
-      const { data } = await supabase.from("entries").select("*").eq("user_id", profile.id).not("gut_rating", "is", null)
-      setEntries2(data || [])
+      const { data } = await supabase.from("ratings").select(ENTRY_SELECT).eq("user_id", profile.id).not("gut_rating", "is", null)
+      setEntries2(flattenEntries(data))
     }
     setSearchResults([])
     setSearchQuery("")
@@ -83,12 +85,11 @@ export default function ComparePage() {
 
   const intersection = (() => {
     if (!user1 || !user2) return []
-    const map2 = new Map(entries2.map((e) => [`${e.tmdb_id}-${e.media_type}`, e]))
+    const map2 = new Map(entries2.map((e) => [e.media_id, e]))
     const result: Array<{ entry: Entry; user2Entry: Entry }> = []
 
     for (const e1 of entries1) {
-      const key = `${(e1 as any).tmdb_id}-${e1.media_type}`
-      const e2 = map2.get(key)
+      const e2 = map2.get(e1.media_id)
       if (e2) {
         result.push({ entry: e1, user2Entry: e2 })
       }

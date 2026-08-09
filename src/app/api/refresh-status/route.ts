@@ -22,34 +22,86 @@ async function refreshStatuses() {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
-  const { data: entries } = await supabase
-    .from("entries")
-    .select("id, tmdb_id, status")
-    .eq("media_type", "tv")
-    .or("status.eq.Returning Series,status.is.null")
+  const { data: shows } = await supabase
+    .from("tv_shows")
+    .select("id, status, media:media_id(tmdb_id)")
 
-  if (!entries || entries.length === 0) return
+  if (!shows || shows.length === 0) return
+
+  // Determine which shows already have seasons stored so we know which ones need
+  // a season refresh even if their status is terminal (Ended/Canceled).
+  const showIds = shows.map((s) => s.id)
+  const { data: seasonRows } = await supabase
+    .from("seasons")
+    .select("media_id")
+    .in("media_id", showIds)
+
+  const withSeasons = new Set((seasonRows || []).map((s) => s.media_id))
 
   let updated = 0
-  for (const entry of entries) {
+  for (const show of shows) {
+    const tmdbId = (show.media as any)?.tmdb_id
+    if (!tmdbId) continue
+
+    const needsRefresh =
+      show.status == null ||
+      show.status === "Returning Series" ||
+      !withSeasons.has(show.id)
+
+    if (!needsRefresh) continue
+
     await delay(DELAY_MS)
     try {
-      const res = await fetch(`${TMDB_BASE}/tv/${entry.tmdb_id}?language=en-US`, {
+      const res = await fetch(`${TMDB_BASE}/tv/${tmdbId}?language=en-US`, {
         headers: { Authorization: `Bearer ${TMDB_TOKEN}` },
       })
       if (!res.ok) continue
       const item = await res.json()
+
       const status: string | null = item.status ?? null
-      if (status && status !== entry.status) {
-        await supabase.from("entries").update({ status }).eq("id", entry.id)
-        updated++
+
+      const { error: tvError } = await supabase
+        .from("tv_shows")
+        .update({
+          status,
+          next_air_date: item.next_episode_to_air?.air_date ?? null,
+          episode_runtime: item.episode_run_time?.[0] ?? null,
+          network: item.networks?.[0]?.name ?? null,
+        })
+        .eq("id", show.id)
+
+      if (tvError) {
+        console.error(`refresh-status: failed to update tv_shows/${show.id}`, tvError)
+        continue
       }
+
+      const seasons = (item.seasons || [])
+        .filter((s: any) => s.season_number >= 1)
+        .map((s: any) => ({
+          media_id: show.id,
+          season_number: s.season_number,
+          name: s.name,
+          air_year: s.air_date ? Number(s.air_date.slice(0, 4)) : null,
+          episode_count: s.episode_count ?? 0,
+        }))
+
+      if (seasons.length > 0) {
+        const { error: seasonsError } = await supabase.from("seasons").upsert(seasons, {
+          onConflict: "media_id,season_number",
+        })
+        if (seasonsError) {
+          console.error(`refresh-status: failed to upsert seasons for ${show.id}`, seasonsError)
+          continue
+        }
+      }
+
+      updated++
     } catch (error) {
-      console.error(`refresh-status: failed for tv/${entry.tmdb_id}`, error)
+      console.error(`refresh-status: failed for tv/${tmdbId}`, error)
     }
   }
 
-  console.log(`refresh-status: checked ${entries.length}, updated ${updated}`)
+  console.log(`refresh-status: checked ${shows.length}, updated ${updated}`)
 }
 
 export async function GET(request: NextRequest) {

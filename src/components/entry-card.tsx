@@ -75,7 +75,7 @@ export function EntryCard({ entry, onDelete, backQuery }: EntryCardProps) {
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{entry.year}</span>
-                <span>{entry.media_type === "tv" ? "TV Show" : entry.media_type === "misc" ? "Misc" : "Movie"}</span>
+                <span>{entry.media_type === "tv" ? "TV Show" : "Movie"}</span>
               </div>
             </div>
           </div>

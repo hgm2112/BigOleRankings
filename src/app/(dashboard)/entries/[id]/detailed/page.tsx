@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { use } from "react"
+import { ENTRY_SELECT, flattenEntry } from "@/lib/entry-queries"
 
 export default function DetailedRatingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -26,8 +27,8 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
   useEffect(() => {
     const fetchEntry = async () => {
       const { data, error } = await supabase
-        .from("entries")
-        .select("*")
+        .from("ratings")
+        .select(ENTRY_SELECT)
         .eq("id", id)
         .single()
 
@@ -35,7 +36,7 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
         router.push("/entries")
         return
       }
-      setEntry(data)
+      setEntry(flattenEntry(data))
       setLoading(false)
     }
     fetchEntry()
@@ -47,7 +48,7 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
     setError(null)
 
     const { error: updateError } = await supabase
-      .from("entries")
+      .from("ratings")
       .update({
         detailed_enjoyment: enjoyment,
         detailed_impact: impact,

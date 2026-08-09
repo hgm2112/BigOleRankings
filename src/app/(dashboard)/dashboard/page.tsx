@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { DashboardClient } from "./dashboard-client"
+import { ENTRY_SELECT, flattenEntry, flattenEntries } from "@/lib/entry-queries"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -9,8 +10,8 @@ export default async function DashboardPage() {
   if (!user) redirect("/login")
 
   const { data: entries } = await supabase
-    .from("entries")
-    .select("*")
+    .from("ratings")
+    .select(ENTRY_SELECT)
     .eq("user_id", user.id)
 
   const { data: profile } = await supabase
@@ -30,8 +31,8 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
   const { data: pendingDetailed } = await supabase
-    .from("entries")
-    .select("id, title, media_type")
+    .from("ratings")
+    .select(ENTRY_SELECT)
     .eq("user_id", user.id)
     .not("gut_rating", "is", null)
     .is("detailed_enjoyment", null)
@@ -59,25 +60,25 @@ export default async function DashboardPage() {
       pinnedUsers.push(pinUser)
 
       const { data: latest } = await supabase
-        .from("entries")
-        .select("*")
+        .from("ratings")
+        .select(ENTRY_SELECT)
         .eq("user_id", pinnedUserId)
         .not("gut_rating", "is", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle()
 
-      pinnedEntries.push(latest ?? null)
+      const latestEntry = latest ? flattenEntry(latest) : null
+      pinnedEntries.push(latestEntry)
 
-      if (latest) {
+      if (latestEntry) {
         const { data: mine } = await supabase
-          .from("entries")
-          .select("*")
+          .from("ratings")
+          .select(ENTRY_SELECT)
           .eq("user_id", user.id)
-          .eq("tmdb_id", latest.tmdb_id)
-          .eq("media_type", latest.media_type)
+          .eq("media_id", latestEntry.media_id)
           .maybeSingle()
-        myComparisonEntries.push(mine ?? null)
+        myComparisonEntries.push(mine ? flattenEntry(mine) : null)
       } else {
         myComparisonEntries.push(null)
       }
@@ -89,12 +90,12 @@ export default async function DashboardPage() {
 
   return (
     <DashboardClient
-      entries={entries || []}
+      entries={flattenEntries(entries)}
       profile={resolvedProfile}
       pinnedUsers={pinnedUsers}
       pinnedEntries={pinnedEntries}
       myComparisonEntries={myComparisonEntries}
-      pendingDetailedEntries={pendingDetailed || []}
+      pendingDetailedEntries={flattenEntries(pendingDetailed)}
     />
   )
 }

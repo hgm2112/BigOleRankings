@@ -28,20 +28,36 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: item.status_message || "TMDB request failed" }, { status: res.status })
     }
 
-    const runtime = type === "tv"
+    const isTv = type === "tv"
+
+    const runtime = isTv
       ? (item.episode_run_time?.[0] || 0) * (item.number_of_episodes || 0)
       : item.runtime ?? null
 
+    const seasons = isTv
+      ? (item.seasons || [])
+          .filter((s: any) => s.season_number >= 1)
+          .map((s: any) => ({
+            season_number: s.season_number,
+            name: s.name,
+            air_year: s.air_date ? Number(s.air_date.slice(0, 4)) : null,
+            episode_count: s.episode_count ?? 0,
+          }))
+      : null
+
     const result = {
       tmdb_id: item.id,
-      title: type === "tv" ? item.name : item.title,
+      title: isTv ? item.name : item.title,
       poster_path: item.poster_path,
       year: (item.release_date || item.first_air_date || "").slice(0, 4),
       media_type: type,
       overview: item.overview,
       runtime,
-      status: type === "tv" ? item.status ?? null : null,
-      next_air_date: type === "tv" ? item.next_episode_to_air?.air_date ?? null : null,
+      episode_runtime: isTv ? (item.episode_run_time?.[0] || null) : null,
+      seasons,
+      status: isTv ? item.status ?? null : null,
+      next_air_date: isTv ? item.next_episode_to_air?.air_date ?? null : null,
+      network: isTv ? (item.networks?.[0]?.name ?? null) : null,
     }
 
     return Response.json(result)

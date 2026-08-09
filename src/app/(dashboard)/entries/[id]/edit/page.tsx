@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { use } from "react"
+import { ENTRY_SELECT, flattenEntry } from "@/lib/entry-queries"
 import {
   Dialog,
   DialogClose,
@@ -44,8 +45,8 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
   useEffect(() => {
     const fetchEntry = async () => {
       const { data, error } = await supabase
-        .from("entries")
-        .select("*")
+        .from("ratings")
+        .select(ENTRY_SELECT)
         .eq("id", id)
         .single()
 
@@ -53,14 +54,15 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
         router.push("/entries")
         return
       }
-      setEntry(data)
-      setGutRating(data.gut_rating ?? 50)
-      setNotes(data.notes ?? "")
-      setWeight(data.weight ?? 0)
-      setEnjoyment(data.detailed_enjoyment ?? 30)
-      setImpact(data.detailed_impact ?? 10)
-      setRecommend(data.detailed_recommend ?? 5)
-      setWatchAgain(data.detailed_watch_again ?? 5)
+      const entry = flattenEntry(data)
+      setEntry(entry)
+      setGutRating(entry.gut_rating ?? 50)
+      setNotes(entry.notes ?? "")
+      setWeight(entry.weight ?? 0)
+      setEnjoyment(entry.detailed_enjoyment ?? 30)
+      setImpact(entry.detailed_impact ?? 10)
+      setRecommend(entry.detailed_recommend ?? 5)
+      setWatchAgain(entry.detailed_watch_again ?? 5)
       setLoading(false)
     }
     fetchEntry()
@@ -72,7 +74,7 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
     setError(null)
 
     const { error: updateError } = await supabase
-      .from("entries")
+      .from("ratings")
       .update({
         gut_rating: gutRating,
         notes,
@@ -101,7 +103,7 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
     if (!user) return
 
     const { error } = await supabase
-      .from("entries")
+      .from("ratings")
       .delete()
       .eq("id", id)
       .eq("user_id", user.id)

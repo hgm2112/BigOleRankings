@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { StatusBadge } from "@/components/status-badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Edit3, ArrowLeft, ClipboardList } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
 interface Entry {
   id: string
   user_id: string
+  media_id: string
   title: string
   media_type: string
   poster_path: string | null
@@ -29,6 +31,20 @@ interface Entry {
   weight: number
   tmdb_id: number
   status: string | null
+}
+
+interface Season {
+  season_number: number
+  name: string | null
+  air_year: number | null
+  episode_count: number | null
+}
+
+interface SeasonRating {
+  media_id: string
+  season_number: number
+  rating: number | null
+  dnf: boolean
 }
 
 interface FollowerRating {
@@ -50,6 +66,9 @@ export function EntryDetailClient({
   myComparisonEntry,
   followerRatings,
   backUrl,
+  userId,
+  seasons,
+  seasonRatings,
 }: {
   entry: Entry
   ownerProfile: { username: string; display_name: string | null } | null
@@ -57,6 +76,9 @@ export function EntryDetailClient({
   myComparisonEntry: Entry | null
   followerRatings: FollowerRating[]
   backUrl?: string
+  userId: string
+  seasons: Season[]
+  seasonRatings: SeasonRating[]
 }) {
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w342${entry.poster_path}`
@@ -68,11 +90,64 @@ export function EntryDetailClient({
     : null
   const diff = hasDetailed && entry.gut_rating !== null ? detailedTotal! - entry.gut_rating : null
 
+  const canRateSeasons = isOwner || !!myComparisonEntry
+
   const [overview, setOverview] = useState<string | null>(null)
   const [overviewLoading, setOverviewLoading] = useState(true)
   const [overviewError, setOverviewError] = useState(false)
   const [liveStatus, setLiveStatus] = useState<string | null>(null)
   const [liveNextAirDate, setLiveNextAirDate] = useState<string | null>(null)
+  const [localSeasonRatings, setLocalSeasonRatings] = useState<SeasonRating[]>(seasonRatings)
+
+  const supabaseClient = createClient()
+
+  const seasonRatingMap = new Map(localSeasonRatings.map((sr) => [sr.season_number, sr]))
+
+  useEffect(() => {
+    setLocalSeasonRatings(seasonRatings)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry.id])
+
+  const saveSeasonRating = async (seasonNumber: number, rating: number | null, dnf: boolean) => {
+    const payload = {
+      user_id: userId,
+      media_id: entry.media_id,
+      season_number: seasonNumber,
+      rating,
+      dnf,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (rating == null && !dnf) {
+      const { error } = await supabaseClient
+        .from("season_ratings")
+        .delete()
+        .eq("user_id", userId)
+        .eq("media_id", entry.media_id)
+        .eq("season_number", seasonNumber)
+      if (error) {
+        console.error("Failed to clear season rating", error)
+        return
+      }
+      setLocalSeasonRatings((prev) => prev.filter((sr) => sr.season_number !== seasonNumber))
+      return
+    }
+
+    const { error } = await supabaseClient
+      .from("season_ratings")
+      .upsert(payload, { onConflict: "user_id,media_id,season_number" })
+    if (error) {
+      console.error("Failed to save season rating", error)
+      return
+    }
+    setLocalSeasonRatings((prev) => {
+      const existing = prev.find((sr) => sr.season_number === seasonNumber)
+      if (existing) {
+        return prev.map((sr) => (sr.season_number === seasonNumber ? { ...sr, rating, dnf } : sr))
+      }
+      return [...prev, payload]
+    })
+  }
 
   useEffect(() => {
     setOverviewLoading(true)
@@ -85,11 +160,6 @@ export function EntryDetailClient({
         if (data?.status != null) {
           setLiveStatus(data.status)
           setLiveNextAirDate(data.next_air_date ?? null)
-          if (isOwner && data.status !== entry.status) {
-            createClient().from("entries").update({ status: data.status }).eq("id", entry.id).then((res: { error: { message: string } | null }) => {
-              if (res.error) console.error("Failed to update entry status", res.error)
-            })
-          }
         }
         setOverviewLoading(false)
       })
@@ -98,7 +168,7 @@ export function EntryDetailClient({
         setOverviewError(true)
         setOverviewLoading(false)
       })
-  }, [entry.tmdb_id, entry.media_type, entry.status, entry.id, isOwner])
+  }, [entry.tmdb_id, entry.media_type, entry.id])
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -122,7 +192,7 @@ export function EntryDetailClient({
               <StatusBadge status={liveStatus ?? entry.status} mediaType={entry.media_type} nextAirDate={liveNextAirDate} />
             </div>
             <p className="text-muted-foreground">
-              {entry.year} &middot; {entry.media_type === "tv" ? "TV Show" : entry.media_type === "misc" ? "Misc" : "Movie"}
+              {entry.year} &middot; {entry.media_type === "tv" ? "TV Show" : "Movie"}
             </p>
             {!isOwner && ownerProfile && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -232,6 +302,64 @@ export function EntryDetailClient({
           )}
         </div>
       </div>
+
+      {entry.media_type === "tv" && (
+        <Card>
+          <CardContent className="pt-6">
+            <h2 className="font-semibold mb-3">Seasons</h2>
+            {seasons.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No season data yet. Check back after the next refresh.</p>
+            ) : (
+              <div className="space-y-3">
+                {seasons.map((s) => {
+                  const sr = seasonRatingMap.get(s.season_number)
+                  return (
+                    <div key={s.season_number} className="flex items-center justify-between gap-3 flex-wrap border-b border-border/50 pb-2 last:border-0 last:pb-0">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-medium">Season {s.season_number}</span>
+                        {s.name && s.name !== `Season ${s.season_number}` && (
+                          <span className="text-sm text-muted-foreground">({s.name})</span>
+                        )}
+                        {s.air_year != null && <span className="text-xs text-muted-foreground">{s.air_year}</span>}
+                      </div>
+                      {canRateSeasons ? (
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={sr?.dnf ?? false}
+                              onChange={(e) => saveSeasonRating(s.season_number, sr?.rating ?? null, e.target.checked)}
+                            />
+                            DNF
+                          </label>
+                          <Select
+                            value={sr?.rating != null ? String(sr.rating) : ""}
+                            onValueChange={(v) => saveSeasonRating(s.season_number, v ? Number(v) : null, sr?.dnf ?? false)}
+                          >
+                            <SelectTrigger className="w-[90px] h-8">
+                              <SelectValue placeholder="—" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                                <SelectItem key={n} value={String(n)}>{n}/10</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 text-sm">
+                          {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
+                          {sr?.rating != null && <span className="font-medium">{sr.rating}/10</span>}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {isOwner && followerRatings.length > 0 && (
         <Card>

@@ -109,10 +109,9 @@ export function EntriesClient({ entries, userId, initialSort, initialDir }: Prop
 
   const movies = sorted.filter((e) => e.media_type === "movie")
   const tvShows = sorted.filter((e) => e.media_type === "tv")
-  const misc = sorted.filter((e) => e.media_type === "misc")
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("entries").delete().eq("id", id).eq("user_id", userId)
+    const { error } = await supabase.from("ratings").delete().eq("id", id).eq("user_id", userId)
     if (!error) {
       setCurrentEntries((prev) => prev.filter((e) => e.id !== id))
       router.refresh()
@@ -153,7 +152,6 @@ export function EntriesClient({ entries, userId, initialSort, initialDir }: Prop
             <TabsTrigger value="all">All ({currentEntries.length})</TabsTrigger>
             <TabsTrigger value="movies">Movies ({movies.length})</TabsTrigger>
             <TabsTrigger value="tv">TV Shows ({tvShows.length})</TabsTrigger>
-            <TabsTrigger value="misc">Misc ({misc.length})</TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
             <Select value={sortField} onValueChange={updateSort}>
@@ -210,11 +208,6 @@ export function EntriesClient({ entries, userId, initialSort, initialDir }: Prop
         </TabsContent>
         <TabsContent value="tv" className="space-y-3">
           {tvShows.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
-          ))}
-        </TabsContent>
-        <TabsContent value="misc" className="space-y-3">
-          {misc.map((entry) => (
             <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
           ))}
         </TabsContent>

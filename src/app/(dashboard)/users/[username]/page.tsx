@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import { DashboardClient } from "../../dashboard/dashboard-client"
+import { ENTRY_SELECT, flattenEntries } from "@/lib/entry-queries"
 
 export default async function UserPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params
@@ -18,13 +19,13 @@ export default async function UserPage({ params }: { params: Promise<{ username:
   if (!profile) notFound()
 
   const { data: entries } = await supabase
-    .from("entries")
-    .select("*")
+    .from("ratings")
+    .select(ENTRY_SELECT)
     .eq("user_id", profile.id)
 
   return (
     <DashboardClient
-      entries={entries || []}
+      entries={flattenEntries(entries)}
       profile={profile}
       headerTitle={`${profile.display_name || profile.username}'s Rankings`}
       headerDescription=""
