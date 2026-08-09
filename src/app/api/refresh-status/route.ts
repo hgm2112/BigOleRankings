@@ -24,7 +24,7 @@ async function refreshStatuses() {
 
   const { data: shows } = await supabase
     .from("tv_shows")
-    .select("id, status, media:media_id(tmdb_id)")
+    .select("id, status, media:media(tmdb_id)")
 
   if (!shows || shows.length === 0) return
 
