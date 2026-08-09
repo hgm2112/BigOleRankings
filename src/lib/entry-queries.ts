@@ -3,6 +3,9 @@
 // consuming a flat "entry" object.
 
 export const ENTRY_SELECT = `id, user_id, media_id,
+  gut_rating, gut_rated_at,
+  detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again, detailed_rated_at,
+  notes, weight, created_at, updated_at,
   media:media_id (id, tmdb_id, media_type, title, poster_path, year,
     movies:movies (id, runtime),
     tv_shows:tv_shows (id, status, next_air_date, episode_runtime, network),

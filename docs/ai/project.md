@@ -25,30 +25,49 @@ A Next.js app for rating and comparing movies and TV shows with friends. Users c
 
 ## Database
 
-### `entries` table
+The model was split (2026-08-08) from one denormalized `entries` table into shared media + per-user ratings. `src/lib/entry-queries.ts` (`ENTRY_SELECT` + `flattenEntry`) joins the pieces back into a flat "entry" shape so the rest of the app doesn't care. A fresh install uses `supabase-schema.sql`; an existing install migrates via `supabase-migration.sql` (preserves the old table as `entries_old`).
+
+### `media` table — shared metadata, deduped by `(tmdb_id, media_type)`
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid | PK, auto-generated |
-| user_id | uuid | FK to auth.users |
 | tmdb_id | int | TMDB content ID |
-| media_type | text | `'movie'`, `'tv'`, or `'misc'` |
+| media_type | text | `'movie'` or `'tv'` (legacy `'misc'` is reclassified to `'movie'` on migrate) |
 | title | text | Display title |
 | poster_path | text | TMDB poster path (appended to `https://image.tmdb.org/t/p/w342`) |
 | year | int | Release year |
-| runtime | int | Total minutes (nullable) |
+| created_at / updated_at | timestamptz | |
+| Unique | (tmdb_id, media_type) | |
+
+### `movies` / `tv_shows` — per-type extensions (PK is `media.id`)
+
+- `movies`: `runtime` (int, minutes)
+- `tv_shows`: `status` (`'Returning Series'`, `'Ended'`, `'Canceled'`, …), `next_air_date` (date), `episode_runtime` (int), `network`
+
+### `seasons` — real seasons from TMDB (special "season 0" never stored)
+
+Columns: `id`, `media_id` (FK), `season_number`, `name`, `air_year`, `episode_count`. Unique `(media_id, season_number)`. Populated by the refresh-status cron / TMDB details, not backfilled by the migration.
+
+### `ratings` — one row per `(user_id, media_id)`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| user_id | uuid | FK to auth.users |
+| media_id | uuid | FK to media |
+| notes | text | |
 | gut_rating | int | 1-100 |
 | gut_rated_at | timestamptz | |
-| detailed_enjoyment | int | 0-60 |
-| detailed_impact | int | 0-20 |
-| detailed_recommend | int | 0-10 |
-| detailed_watch_again | int | 0-10 |
+| detailed_enjoyment / impact / recommend / watch_again | int | 0-60 / 0-20 / 0-10 / 0-10 |
 | detailed_rated_at | timestamptz | |
 | weight | int | 0-100, tiebreaker |
-| status | text | TV show status from TMDB: `'Returning Series'`, `'Ended'`, `'Canceled'`, etc. (nullable) |
-| notes | text | |
 | created_at / updated_at | timestamptz | |
-| Unique | (user_id, tmdb_id, media_type) | |
+| Unique | (user_id, media_id) | |
+
+### `season_ratings` — per-user per-season 1-10 + DNF
+
+Columns: `id`, `user_id`, `media_id`, `season_number`, `rating` (1-10), `dnf` (bool, default false), `updated_at`. Unique `(user_id, media_id, season_number)`. Composite FK `(media_id, season_number)` → `seasons` guarantees a rating can only exist for a real season.
 
 ### `profiles` table
 
@@ -56,16 +75,15 @@ Key columns: `id` (uuid), `username` (text), `display_name` (text), `theme` (tex
 
 ## Runtime Calculation
 
-- **Movies**: TMDB `item.runtime` (direct value in minutes)
-- **TV shows**: `episode_run_time[0] * number_of_episodes` from main endpoint; if `episode_run_time` is empty, individual season endpoints are fetched and episode runtimes are summed
-- **misc**: Treated as movie for TMDB lookups
+- **Movies**: `movies.runtime` from TMDB (direct value in minutes)
+- **TV shows**: `tv_shows.episode_runtime * total_episodes` (sum of `seasons.episode_count`); `runtime` null on the flat entry if episode runtime unknown
 
 ## Conventions
 
 - **Font**: Geist via `next/font/google`, wired through `--font-geist-sans`/`--font-geist-mono` CSS variables → `--font-sans`/`--font-mono` in `@theme inline`, applied via `font-sans` class on `<body>`
 - **Colors**: All defined as CSS custom properties using `oklch()`, mapped in `@theme inline` block in `globals.css`
 - **Numeric alignment**: Use `tabular-nums` for scores and ratings
-- **TV status badge**: `StatusBadge` renders next to TV titles — `Returning Series` → "Renewed" (green), `Ended` (muted), `Canceled` (red). The next air date (`next_episode_to_air.air_date` from TMDB, returned by `/api/tmdb/details` as `next_air_date`) shows only on the entry detail page (live fetch) and only within 30 days of the air date. Stored `entries.status` is refreshed weekly by the `/api/refresh-status` cron (targets only `Returning Series`/null statuses) and opportunistically patched on the detail page when the live status differs (owner only, via `@/lib/supabase/client` RLS)
+- **TV status badge**: `StatusBadge` renders next to TV titles — `Returning Series` → "Renewed" (green), `Ended` (muted), `Canceled` (red). The next air date (`next_episode_to_air.air_date` from TMDB, returned by `/api/tmdb/details` as `next_air_date`) shows only on the entry detail page (live fetch) and only within 30 days of the air date. Stored `tv_shows.status` is refreshed weekly by the `/api/refresh-status` cron (targets only `Returning Series`/null statuses) and opportunistically patched on the detail page when the live status differs (owner only, via `@/lib/supabase/client` RLS). The same cron upserts `seasons` rows for each TV show (once per show), which are required before per-season ratings can be written.
 - **Auth**: Server components call `createClient()` from `@/lib/supabase/server`, redirect to `/login` if unauthenticated. Client components use `@/lib/supabase/client`.
 - **TMDB access**: Never exposed to client — proxied through `/api/tmdb/search` and `/api/tmdb/details`
 - **Entry IDs**: Always scoped to the authenticated user — queries filter by `user_id` in addition to `id`

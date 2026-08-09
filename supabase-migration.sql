@@ -2,11 +2,11 @@
 -- that has the old denormalized `entries` table to the new media/ratings model.
 -- Safe to re-run (idempotent). The old `entries` table is preserved as `entries_old`.
 
--- 0. Safety check: only run if the old entries table exists
+-- 0. Safety check: only run if the old entries table exists (or already migrated)
 do $$
 begin
-  if not exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'entries') then
-    raise exception 'No entries table found; nothing to migrate.';
+  if not exists (select 1 from information_schema.tables where table_schema = 'public' and table_name in ('entries', 'entries_old')) then
+    raise exception 'No entries or entries_old table found; nothing to migrate.';
   end if;
 end $$;
 
@@ -78,86 +78,138 @@ create table if not exists season_ratings (
     on delete restrict
 );
 
--- 2. Backfill media (dedupe by tmdb_id + media_type, keep the most complete row)
-insert into media (tmdb_id, media_type, title, poster_path, year, created_at, updated_at)
-select distinct on (tmdb_id, media_type)
-  tmdb_id,
-  media_type,
-  title,
-  poster_path,
-  year,
-  created_at,
-  updated_at
-from entries
-order by tmdb_id, media_type,
-  (poster_path is not null) desc,
-  coalesce(year, 0) desc,
-  updated_at desc nulls last;
+-- 1b. Grant API access (mirrors supabase-schema.sql; required or the new tables
+--     return 403 to anon/authenticated/service_role via PostgREST).
+--     Must come after the tables exist so the grant actually applies.
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to anon, authenticated, service_role;
+grant all on all sequences in schema public to anon, authenticated, service_role;
 
--- 3. Backfill movies / tv_shows extensions
-insert into movies (id, runtime)
-select distinct on (m.id) m.id, e.runtime
-from media m
-join entries e on e.tmdb_id = m.tmdb_id and e.media_type = m.media_type
-where m.media_type = 'movie'
-  and e.runtime is not null
-order by m.id, e.updated_at desc nulls last;
+-- 2/3/4. Backfill media, extensions, and ratings from the old `entries` table.
+--    Guarded: on a re-run after a completed migration (entries renamed to
+--    entries_old), the backfills are skipped instead of erroring.
+do $$
+begin
+  if not exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'entries') then
+    raise notice 'No entries table; skipping backfills.';
+    return;
+  end if;
 
-insert into tv_shows (id, status, episode_runtime)
-select distinct on (m.id) m.id, e.status, null
-from media m
-join entries e on e.tmdb_id = m.tmdb_id and e.media_type = m.media_type
-where m.media_type = 'tv'
-  and e.status is not null
-order by m.id, e.updated_at desc nulls last;
+  -- 2. Backfill media (dedupe by tmdb_id + media_type, keep the most complete row).
+  --    Legacy 'misc' entries are reclassified as 'movie' (concerts/specials are real
+  --    TMDB movie IDs, and the app treats misc as movie for TMDB lookups).
+  insert into media (tmdb_id, media_type, title, poster_path, year, created_at, updated_at)
+  select distinct on (tmdb_id, media_type)
+    tmdb_id,
+    media_type,
+    title,
+    poster_path,
+    year,
+    created_at,
+    updated_at
+  from (
+    select tmdb_id,
+      case when media_type = 'misc' then 'movie' else media_type end as media_type,
+      title,
+      poster_path,
+      year,
+      created_at,
+      updated_at
+    from entries
+  ) e
+  order by tmdb_id, media_type,
+    (poster_path is not null) desc,
+    coalesce(year, 0) desc,
+    updated_at desc nulls last
+  on conflict (tmdb_id, media_type) do nothing;
 
--- Note: seasons are NOT backfillable from the old schema (TMDB metadata).
--- They will be populated by the refresh-status cron, which now upserts seasons.
+  -- 3. Backfill movies / tv_shows extensions
+  insert into movies (id, runtime)
+  select distinct on (m.id) m.id, e.runtime
+  from media m
+  join (
+    select tmdb_id,
+      case when media_type = 'misc' then 'movie' else media_type end as media_type,
+      runtime,
+      updated_at
+    from entries
+    where runtime is not null
+  ) e on e.tmdb_id = m.tmdb_id and e.media_type = m.media_type
+  where m.media_type = 'movie'
+  order by m.id, e.updated_at desc nulls last
+  on conflict (id) do nothing;
 
--- 4. Backfill ratings
-insert into ratings (user_id, media_id, notes, gut_rating, gut_rated_at,
-  detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again,
-  detailed_rated_at, weight, created_at, updated_at)
-select e.user_id, m.id, e.notes, e.gut_rating, e.gut_rated_at,
-  e.detailed_enjoyment, e.detailed_impact, e.detailed_recommend, e.detailed_watch_again,
-  e.detailed_rated_at, e.weight, e.created_at, e.updated_at
-from entries e
-join media m on e.tmdb_id = m.tmdb_id and e.media_type = m.media_type;
+  insert into tv_shows (id, status, episode_runtime)
+  select distinct on (m.id) m.id, e.status, null
+  from media m
+  join entries e on e.tmdb_id = m.tmdb_id and e.media_type = m.media_type
+  where m.media_type = 'tv'
+    and e.status is not null
+  order by m.id, e.updated_at desc nulls last
+  on conflict (id) do nothing;
+
+  -- Note: seasons are NOT backfillable from the old schema (TMDB metadata).
+  -- They will be populated by the refresh-status cron, which now upserts seasons.
+
+  -- 4. Backfill ratings
+  insert into ratings (user_id, media_id, notes, gut_rating, gut_rated_at,
+    detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again,
+    detailed_rated_at, weight, created_at, updated_at)
+  select e.user_id, m.id, e.notes, e.gut_rating, e.gut_rated_at,
+    e.detailed_enjoyment, e.detailed_impact, e.detailed_recommend, e.detailed_watch_again,
+    e.detailed_rated_at, e.weight, e.created_at, e.updated_at
+  from entries e
+  join media m on e.tmdb_id = m.tmdb_id
+    and case when e.media_type = 'misc' then 'movie' else e.media_type end = m.media_type
+  on conflict (user_id, media_id) do nothing;
+end $$;
 
 -- 5. RLS (same as supabase-schema.sql)
 alter table media enable row level security;
+drop policy if exists "Media is viewable by all authenticated users" on media;
 create policy "Media is viewable by all authenticated users"
   on media for select using (auth.role() = 'authenticated');
 
 alter table movies enable row level security;
+drop policy if exists "Movies are viewable by all authenticated users" on movies;
 create policy "Movies are viewable by all authenticated users"
   on movies for select using (auth.role() = 'authenticated');
 
 alter table tv_shows enable row level security;
+drop policy if exists "TV shows are viewable by all authenticated users" on tv_shows;
 create policy "TV shows are viewable by all authenticated users"
   on tv_shows for select using (auth.role() = 'authenticated');
 
 alter table seasons enable row level security;
+drop policy if exists "Seasons are viewable by all authenticated users" on seasons;
 create policy "Seasons are viewable by all authenticated users"
   on seasons for select using (auth.role() = 'authenticated');
 
 alter table ratings enable row level security;
+drop policy if exists "Ratings are viewable by all authenticated users" on ratings;
 create policy "Ratings are viewable by all authenticated users"
   on ratings for select using (auth.role() = 'authenticated');
+drop policy if exists "Users can insert their own ratings" on ratings;
 create policy "Users can insert their own ratings"
   on ratings for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can update their own ratings" on ratings;
 create policy "Users can update their own ratings"
   on ratings for update using (auth.uid() = user_id);
+drop policy if exists "Users can delete their own ratings" on ratings;
 create policy "Users can delete their own ratings"
   on ratings for delete using (auth.uid() = user_id);
 
 alter table season_ratings enable row level security;
+drop policy if exists "Season ratings are viewable by all authenticated users" on season_ratings;
 create policy "Season ratings are viewable by all authenticated users"
   on season_ratings for select using (auth.role() = 'authenticated');
+drop policy if exists "Users can insert their own season ratings" on season_ratings;
 create policy "Users can insert their own season ratings"
   on season_ratings for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can update their own season ratings" on season_ratings;
 create policy "Users can update their own season ratings"
   on season_ratings for update using (auth.uid() = user_id);
+drop policy if exists "Users can delete their own season ratings" on season_ratings;
 create policy "Users can delete their own season ratings"
   on season_ratings for delete using (auth.uid() = user_id);
 
@@ -182,7 +234,8 @@ create or replace trigger on_season_rating_updated
   before update on season_ratings
   for each row execute function public.handle_updated_at();
 
--- 7. Verify counts, then preserve the old table (renamed, not dropped)
+-- 7. Verify counts, then preserve the old table (renamed, not dropped).
+--    Guarded so a completed migration is a no-op on re-run.
 do $$
 declare
   rating_count bigint;
@@ -191,11 +244,30 @@ declare
 begin
   select count(*) into rating_count from ratings;
   select count(*) into media_count from media;
-  select count(*) into old_count from entries;
-  if rating_count <> old_count then
+
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'entries') then
+    select count(*) into old_count from entries;
+  elsif exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'entries_old') then
+    select count(*) into old_count from entries_old;
+  else
+    old_count := -1;
+  end if;
+
+  if old_count >= 0 and rating_count <> old_count then
     raise notice 'WARNING: ratings count (%) does not match entries count (%). Inspect before removing entries_old.', rating_count, old_count;
   end if;
-  raise notice 'Migrated % entries into % media rows.', old_count, media_count;
+  if old_count >= 0 then
+    raise notice 'Migrated % entries into % media rows.', old_count, media_count;
+  else
+    raise notice 'Already migrated: % ratings, % media rows. No entries table to migrate.', rating_count, media_count;
+  end if;
 end $$;
 
-alter table entries rename to entries_old;
+do $$
+begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'entries')
+     and not exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'entries_old') then
+    alter table entries rename to entries_old;
+    raise notice 'Renamed entries to entries_old.';
+  end if;
+end $$;
