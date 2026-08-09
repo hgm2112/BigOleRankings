@@ -49,12 +49,14 @@ export function EntryDetailClient({
   isOwner,
   myComparisonEntry,
   followerRatings,
+  backUrl,
 }: {
   entry: Entry
   ownerProfile: { username: string; display_name: string | null } | null
   isOwner: boolean
   myComparisonEntry: Entry | null
   followerRatings: FollowerRating[]
+  backUrl?: string
 }) {
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w342${entry.poster_path}`
@@ -101,7 +103,7 @@ export function EntryDetailClient({
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <Button variant="ghost" size="sm" asChild>
-        <Link href="/entries"><ArrowLeft className="h-4 w-4 mr-1" />Back to entries</Link>
+        <Link href={backUrl ?? "/entries"}><ArrowLeft className="h-4 w-4 mr-1" />Back to entries</Link>
       </Button>
 
       <div className="flex gap-6 flex-col sm:flex-row">

@@ -3,8 +3,13 @@ import { redirect } from "next/navigation"
 import { notFound } from "next/navigation"
 import { EntryDetailClient } from "./entry-detail-client"
 
-export default async function EntryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EntryDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sort?: string; dir?: string }> }) {
   const { id } = await params
+  const query = await searchParams
+  const backParams = new URLSearchParams()
+  if (query.sort && query.sort !== "recent") backParams.set("sort", query.sort)
+  if (query.dir) backParams.set("dir", query.dir)
+  const backUrl = backParams.toString() ? `/entries?${backParams.toString()}` : "/entries"
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -96,6 +101,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
       isOwner={isOwner}
       myComparisonEntry={myComparisonEntry}
       followerRatings={followerRatings}
+      backUrl={backUrl}
     />
   )
 }

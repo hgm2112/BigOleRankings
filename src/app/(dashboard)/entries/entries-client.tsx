@@ -29,16 +29,40 @@ interface SupabaseEntry {
 interface Props {
   entries: SupabaseEntry[]
   userId: string
+  initialSort?: string
+  initialDir?: string
 }
 
-export function EntriesClient({ entries, userId }: Props) {
+export function EntriesClient({ entries, userId, initialSort, initialDir }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [currentEntries, setCurrentEntries] = useState(entries)
-  const [sortField, setSortField] = useState("recent")
-  const [sortDir, setSortDir] = useState("desc")
+  const [sortField, setSortField] = useState(initialSort || "recent")
+  const [sortDir, setSortDir] = useState(initialDir || "desc")
 
   const showOrder = !["recent", "name", "status"].includes(sortField)
+
+  const applySort = (field: string, dir: string) => {
+    setSortField(field)
+    setSortDir(dir)
+    const params = new URLSearchParams()
+    if (field !== "recent") params.set("sort", field)
+    if (dir && showOrderFor(field)) params.set("dir", dir)
+    const qs = params.toString()
+    router.replace(qs ? `/entries?${qs}` : "/entries", { scroll: false })
+  }
+
+  const showOrderFor = (field: string) => !["recent", "name", "status"].includes(field)
+
+  const updateSort = (field: string) => applySort(field, sortDir)
+  const updateDir = (dir: string) => applySort(sortField, dir)
+
+  const backQuery = (() => {
+    const params = new URLSearchParams()
+    if (sortField !== "recent") params.set("sort", sortField)
+    if (sortDir && showOrderFor(sortField)) params.set("dir", sortDir)
+    return params.toString()
+  })()
 
   const sorted = useMemo(() => {
     const list = [...currentEntries]
@@ -132,7 +156,7 @@ export function EntriesClient({ entries, userId }: Props) {
             <TabsTrigger value="misc">Misc ({misc.length})</TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
-            <Select value={sortField} onValueChange={setSortField}>
+            <Select value={sortField} onValueChange={updateSort}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -148,7 +172,7 @@ export function EntriesClient({ entries, userId }: Props) {
               </SelectContent>
             </Select>
             {showOrder && (
-              <Select value={sortDir} onValueChange={setSortDir}>
+              <Select value={sortDir} onValueChange={updateDir}>
                 <SelectTrigger className="w-[130px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -176,22 +200,22 @@ export function EntriesClient({ entries, userId }: Props) {
         </div>
         <TabsContent value="all" className="space-y-3">
           {sorted.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} />
+            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
           ))}
         </TabsContent>
         <TabsContent value="movies" className="space-y-3">
           {movies.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} />
+            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
           ))}
         </TabsContent>
         <TabsContent value="tv" className="space-y-3">
           {tvShows.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} />
+            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
           ))}
         </TabsContent>
         <TabsContent value="misc" className="space-y-3">
           {misc.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} />
+            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
           ))}
         </TabsContent>
       </Tabs>

@@ -35,9 +35,10 @@ interface Entry {
 interface EntryCardProps {
   entry: Entry
   onDelete?: (id: string) => void
+  backQuery?: string
 }
 
-export function EntryCard({ entry, onDelete }: EntryCardProps) {
+export function EntryCard({ entry, onDelete, backQuery }: EntryCardProps) {
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w154${entry.poster_path}`
     : null
@@ -64,7 +65,10 @@ export function EntryCard({ entry, onDelete }: EntryCardProps) {
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
-                <Link href={`/entries/${entry.id}`} className="font-semibold hover:underline line-clamp-1">
+                <Link
+                  href={`/entries/${entry.id}${backQuery ? `?${backQuery}` : ""}`}
+                  className="font-semibold hover:underline line-clamp-1"
+                >
                   {entry.title}
                 </Link>
                 <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />

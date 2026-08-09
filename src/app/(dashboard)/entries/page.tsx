@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { EntriesClient } from "./entries-client"
 
-export default async function EntriesPage() {
+export default async function EntriesPage({ searchParams }: { searchParams: Promise<{ sort?: string; dir?: string }> }) {
+  const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -14,5 +15,5 @@ export default async function EntriesPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 
-  return <EntriesClient entries={entries || []} userId={user.id} />
+  return <EntriesClient entries={entries || []} userId={user.id} initialSort={params.sort} initialDir={params.dir} />
 }
