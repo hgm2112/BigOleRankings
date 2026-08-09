@@ -8,8 +8,8 @@ export const ENTRY_SELECT = `id, user_id, media_id,
   notes, weight, created_at, updated_at,
   media:media_id (id, tmdb_id, media_type, title, poster_path, year,
     movies:movies (id, runtime),
-    tv_shows:tv_shows (id, status, next_air_date, episode_runtime, network),
-    seasons:seasons (id, season_number, name, air_year, episode_count)
+    tv_shows:tv_shows (id, status, next_air_date, network),
+    seasons:seasons (id, season_number, name, air_year, episode_count, episode_runtime)
   )`
 
 export interface FlatEntry {
@@ -24,7 +24,6 @@ export interface FlatEntry {
   status: string | null
   next_air_date: string | null
   runtime: number | null
-  episode_runtime: number | null
   network: string | null
   total_episodes: number
   gut_rating: number | null
@@ -46,6 +45,7 @@ export function flattenEntry(row: any): FlatEntry {
   const movie = m?.movies ?? null
   const seasons: any[] = m?.seasons ?? []
   const totalEpisodes = seasons.reduce((sum: number, s: any) => sum + (s.episode_count ?? 0), 0)
+  const totalRuntime = seasons.reduce((sum: number, s: any) => sum + (s.episode_runtime ?? 0) * (s.episode_count ?? 0), 0)
 
   const isTv = m?.media_type === "tv"
 
@@ -60,8 +60,7 @@ export function flattenEntry(row: any): FlatEntry {
     year: m?.year ?? null,
     status: isTv ? (tv?.status ?? null) : null,
     next_air_date: isTv ? (tv?.next_air_date ?? null) : null,
-    runtime: isTv ? ((tv?.episode_runtime ?? 0) * totalEpisodes) || null : (movie?.runtime ?? null),
-    episode_runtime: isTv ? (tv?.episode_runtime ?? null) : null,
+    runtime: isTv ? totalRuntime || null : (movie?.runtime ?? null),
     network: isTv ? (tv?.network ?? null) : null,
     total_episodes: isTv ? totalEpisodes : 0,
     gut_rating: row.gut_rating,

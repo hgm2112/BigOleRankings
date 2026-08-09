@@ -98,7 +98,6 @@ async function main() {
     const patched = await patchShow(show.id, {
       status: item.status ?? null,
       next_air_date: item.next_episode_to_air?.air_date ?? null,
-      episode_runtime: item.episode_run_time?.[0] ?? null,
       network: item.networks?.[0]?.name ?? null,
     })
 

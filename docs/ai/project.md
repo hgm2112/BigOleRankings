@@ -43,11 +43,11 @@ The model was split (2026-08-08) from one denormalized `entries` table into shar
 ### `movies` / `tv_shows` — per-type extensions (PK is `media.id`)
 
 - `movies`: `runtime` (int, minutes)
-- `tv_shows`: `status` (`'Returning Series'`, `'Ended'`, `'Canceled'`, …), `next_air_date` (date), `episode_runtime` (int), `network`
+- `tv_shows`: `status` (`'Returning Series'`, `'Ended'`, `'Canceled'`, …), `next_air_date` (date), `network`
 
 ### `seasons` — real seasons from TMDB (special "season 0" never stored)
 
-Columns: `id`, `media_id` (FK), `season_number`, `name`, `air_year`, `episode_count`. Unique `(media_id, season_number)`. Populated by the refresh-status cron / TMDB details, not backfilled by the migration.
+Columns: `id`, `media_id` (FK), `season_number`, `name`, `air_year`, `episode_count`, `episode_runtime`. Unique `(media_id, season_number)`. Rows are populated by the refresh-status cron / `scripts/backfill-seasons.ts`; `episode_runtime` is the median episode length for that season, derived from TMDB season endpoints by `scripts/backfill-season-runtime.ts` (the show-level `tv_shows.episode_runtime` column was dropped because TMDB's `episode_run_time` is empty for many shows and runtimes vary per season).
 
 ### `ratings` — one row per `(user_id, media_id)`
 
@@ -76,7 +76,7 @@ Key columns: `id` (uuid), `username` (text), `display_name` (text), `theme` (tex
 ## Runtime Calculation
 
 - **Movies**: `movies.runtime` from TMDB (direct value in minutes)
-- **TV shows**: `tv_shows.episode_runtime * total_episodes` (sum of `seasons.episode_count`); `runtime` null on the flat entry if episode runtime unknown
+- **TV shows**: `Σ(season.episode_runtime × season.episode_count)` across seasons; `runtime` null on the flat entry if no season runtime is known
 
 ## Conventions
 
@@ -107,6 +107,8 @@ Key columns: `id` (uuid), `username` (text), `display_name` (text), `theme` (tex
 | `scripts/backfill-runtime.ts` | Backfill runtime from TMDB main endpoint |
 | `scripts/backfill-runtime-pass2.ts` | Backfill runtime from TMDB season endpoints |
 | `scripts/backfill-status.ts` | Backfill TV status from TMDB |
+| `scripts/backfill-seasons.ts` | Backfill `seasons` rows from TMDB |
+| `scripts/backfill-season-runtime.ts` | Backfill `seasons.episode_runtime` (median of per-episode runtimes) |
 
 ## Deployment
 

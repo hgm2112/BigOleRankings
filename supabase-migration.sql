@@ -32,7 +32,6 @@ create table if not exists tv_shows (
   id uuid references media(id) on delete cascade primary key,
   status text,
   next_air_date date,
-  episode_runtime int,
   network text
 );
 
@@ -43,8 +42,14 @@ create table if not exists seasons (
   name text,
   air_year int,
   episode_count int,
+  episode_runtime int,
   unique(media_id, season_number)
 );
+
+-- Migrate episode runtime from tv_shows to seasons (per-season median, filled by
+-- scripts/backfill-season-runtime.ts). Idempotent for fresh + already-migrated DBs.
+alter table seasons add column if not exists episode_runtime int;
+alter table tv_shows drop column if exists episode_runtime;
 
 create table if not exists ratings (
   id uuid default gen_random_uuid() primary key,
@@ -139,8 +144,8 @@ begin
   order by m.id, e.updated_at desc nulls last
   on conflict (id) do nothing;
 
-  insert into tv_shows (id, status, episode_runtime)
-  select distinct on (m.id) m.id, e.status, null
+  insert into tv_shows (id, status)
+  select distinct on (m.id) m.id, e.status
   from media m
   join entries e on e.tmdb_id = m.tmdb_id and e.media_type = m.media_type
   where m.media_type = 'tv'
@@ -150,6 +155,9 @@ begin
 
   -- Note: seasons are NOT backfillable from the old schema (TMDB metadata).
   -- They will be populated by the refresh-status cron, which now upserts seasons.
+  -- Per-season episode_runtime is derived from TMDB season endpoints by
+  -- scripts/backfill-season-runtime.ts (the old tv_shows.episode_runtime column
+  -- is dropped; the migration above handles the column move).
 
   -- 4. Backfill ratings
   insert into ratings (user_id, media_id, notes, gut_rating, gut_rated_at,

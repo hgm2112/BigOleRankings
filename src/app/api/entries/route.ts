@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
           id: mediaId,
           status: body.status ?? null,
           next_air_date: body.next_air_date ?? null,
-          episode_runtime: body.episode_runtime ?? null,
           network: body.network ?? null,
         },
         { onConflict: "id" }

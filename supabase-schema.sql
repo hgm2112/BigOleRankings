@@ -86,7 +86,6 @@ create table if not exists tv_shows (
   id uuid references media(id) on delete cascade primary key,
   status text,
   next_air_date date,
-  episode_runtime int,
   network text
 );
 
@@ -105,6 +104,7 @@ create table if not exists seasons (
   name text,
   air_year int,
   episode_count int,
+  episode_runtime int,
   unique(media_id, season_number)
 );
 
