@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { TMDSearch } from "@/components/tmdb-search"
 import { GutRatingForm } from "@/components/gut-rating-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,12 +31,33 @@ function formatRuntime(minutes: number | null): string | null {
 
 export default function NewEntryPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [selected, setSelected] = useState<TMDBResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [weight, setWeight] = useState(0)
   const [gutRating, setGutRating] = useState(50)
   const [notes, setNotes] = useState("")
+
+  useEffect(() => {
+    const tmdbId = searchParams.get("tmdb_id")
+    const mediaType = searchParams.get("media_type")
+    if (!tmdbId || !mediaType) return
+    const item: TMDBResult = {
+      tmdb_id: Number(tmdbId),
+      media_type: mediaType,
+      title: searchParams.get("title") || "",
+      year: searchParams.get("year") || "",
+      poster_path: searchParams.get("poster_path") || null,
+    }
+    setSelected({ ...item, runtime: null })
+    fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((details) => {
+        if (details) setSelected(details)
+      })
+      .catch(() => {})
+  }, [searchParams])
 
   const handleSelect = async (item: TMDBResult) => {
     setSelected({ ...item, runtime: null })

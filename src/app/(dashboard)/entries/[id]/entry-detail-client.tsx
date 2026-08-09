@@ -337,7 +337,7 @@ export function EntryDetailClient({
             ) : (
               <p className="text-sm text-muted-foreground">
                 You haven't rated this yet.{" "}
-                <Link href={`/entries/new?tmdb_id=${entry.tmdb_id}&media_type=${entry.media_type}&title=${encodeURIComponent(entry.title)}${entry.year != null ? `&year=${entry.year}` : ""}`} className="underline hover:text-foreground">
+                <Link href={`/entries/new?tmdb_id=${entry.tmdb_id}&media_type=${entry.media_type}&title=${encodeURIComponent(entry.title)}${entry.year != null ? `&year=${entry.year}` : ""}${entry.poster_path ? `&poster_path=${encodeURIComponent(entry.poster_path)}` : ""}`} className="underline hover:text-foreground">
                   Add your rating
                 </Link>
               </p>
