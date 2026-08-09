@@ -69,6 +69,7 @@ export function EntryDetailClient({
   userId,
   seasons,
   seasonRatings,
+  mySeasonRatings,
 }: {
   entry: Entry
   ownerProfile: { username: string; display_name: string | null } | null
@@ -79,6 +80,7 @@ export function EntryDetailClient({
   userId: string
   seasons: Season[]
   seasonRatings: SeasonRating[]
+  mySeasonRatings: SeasonRating[]
 }) {
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w342${entry.poster_path}`
@@ -90,7 +92,7 @@ export function EntryDetailClient({
     : null
   const diff = hasDetailed && entry.gut_rating !== null ? detailedTotal! - entry.gut_rating : null
 
-  const canRateSeasons = isOwner || !!myComparisonEntry
+  const canRateSeasons = isOwner
 
   const [overview, setOverview] = useState<string | null>(null)
   const [overviewLoading, setOverviewLoading] = useState(true)
@@ -321,6 +323,7 @@ export function EntryDetailClient({
                           <span className="text-sm text-muted-foreground">({s.name})</span>
                         )}
                         {s.air_year != null && <span className="text-xs text-muted-foreground">{s.air_year}</span>}
+                        {s.episode_count != null && <span className="text-xs text-muted-foreground">· {s.episode_count} episodes</span>}
                       </div>
                       {canRateSeasons ? (
                         <div className="flex items-center gap-3">
@@ -469,6 +472,26 @@ export function EntryDetailClient({
                   Add your rating
                 </Link>
               </p>
+            )}
+            {mySeasonRatings.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <h3 className="font-semibold mb-2">Season Ratings</h3>
+                <div className="space-y-1.5">
+                  {mySeasonRatings.map((sr) => {
+                    const season = seasons.find((s) => s.season_number === sr.season_number)
+                    return (
+                      <div key={sr.season_number} className="flex items-center gap-2 text-sm flex-wrap">
+                        <span className="font-medium">Season {sr.season_number}</span>
+                        {season?.name && season.name !== `Season ${sr.season_number}` && (
+                          <span className="text-xs text-muted-foreground">({season.name})</span>
+                        )}
+                        {sr.dnf && <span className="font-medium text-destructive">DNF</span>}
+                        {sr.rating != null && <span className="font-medium">{sr.rating}/10</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

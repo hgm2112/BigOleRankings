@@ -109,6 +109,13 @@ export default async function EntryDetailPage({ params, searchParams }: { params
     dnf: boolean
   }[] = []
 
+  let mySeasonRatings: {
+    media_id: string
+    season_number: number
+    rating: number | null
+    dnf: boolean
+  }[] = []
+
   if (entry.media_type === "tv") {
     const { data: seasonRows } = await supabase
       .from("seasons")
@@ -121,10 +128,21 @@ export default async function EntryDetailPage({ params, searchParams }: { params
     const { data: seasonRatingRows } = await supabase
       .from("season_ratings")
       .select("media_id, season_number, rating, dnf")
-      .eq("user_id", user.id)
+      .eq("user_id", entry.user_id)
       .eq("media_id", entry.media_id)
 
     seasonRatings = seasonRatingRows ?? []
+
+    if (!isOwner) {
+      const { data: mySeasonRatingRows } = await supabase
+        .from("season_ratings")
+        .select("media_id, season_number, rating, dnf")
+        .eq("user_id", user.id)
+        .eq("media_id", entry.media_id)
+        .order("season_number")
+
+      mySeasonRatings = mySeasonRatingRows ?? []
+    }
   }
 
   return (
@@ -138,6 +156,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
       userId={user.id}
       seasons={seasons}
       seasonRatings={seasonRatings}
+      mySeasonRatings={mySeasonRatings}
     />
   )
 }
