@@ -24,12 +24,15 @@ export default async function UserPage({ params }: { params: Promise<{ username:
     .eq("user_id", profile.id)
 
   return (
-    <DashboardClient
-      entries={flattenEntries(entries)}
-      profile={profile}
-      headerTitle={`${profile.display_name || profile.username}'s Rankings`}
-      headerDescription=""
-      showPinSection={false}
-    />
+    <div className="space-y-6">
+      <DashboardClient
+        entries={flattenEntries(entries)}
+        profile={profile}
+        headerTitle={`${profile.display_name || profile.username}'s Rankings`}
+        headerDescription=""
+        showPinSection={false}
+        fullRankingsHref={`/users/${profile.username}/ratings`}
+      />
+    </div>
   )
 }

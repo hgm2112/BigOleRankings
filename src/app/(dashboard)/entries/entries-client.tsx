@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { EntryCard } from "@/components/entry-card"
@@ -31,9 +31,14 @@ interface Props {
   userId: string
   initialSort?: string
   initialDir?: string
+  title?: string
+  description?: ReactNode
+  showAddButton?: boolean
+  readOnly?: boolean
+  basePath?: string
 }
 
-export function EntriesClient({ entries, userId, initialSort, initialDir }: Props) {
+export function EntriesClient({ entries, userId, initialSort, initialDir, title = "My Ratings", description = "It's mine, my own. My precious! ... ratings", showAddButton = true, readOnly = false, basePath = "/entries" }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [currentEntries, setCurrentEntries] = useState(entries)
@@ -49,7 +54,7 @@ export function EntriesClient({ entries, userId, initialSort, initialDir }: Prop
     if (field !== "recent") params.set("sort", field)
     if (dir && showOrderFor(field)) params.set("dir", dir)
     const qs = params.toString()
-    router.replace(qs ? `/entries?${qs}` : "/entries", { scroll: false })
+    router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false })
   }
 
   const showOrderFor = (field: string) => !["recent", "name", "status"].includes(field)
@@ -59,6 +64,7 @@ export function EntriesClient({ entries, userId, initialSort, initialDir }: Prop
 
   const backQuery = (() => {
     const params = new URLSearchParams()
+    params.set("back", basePath)
     if (sortField !== "recent") params.set("sort", sortField)
     if (sortDir && showOrderFor(sortField)) params.set("dir", sortDir)
     return params.toString()
@@ -123,14 +129,16 @@ export function EntriesClient({ entries, userId, initialSort, initialDir }: Prop
       <div className="space-y-6">
         <div>
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">My Ratings</h1>
-            <Button asChild><Link href="/entries/new"><Plus className="h-4 w-4 mr-1" />Add Entry</Link></Button>
+            <h1 className="text-2xl font-bold">{title}</h1>
+            {showAddButton && <Button asChild><Link href="/entries/new"><Plus className="h-4 w-4 mr-1" />Add Entry</Link></Button>}
           </div>
-          <p className="text-muted-foreground">It's mine, my own. My precious! ... ratings</p>
+          <p className="text-muted-foreground">{description}</p>
         </div>
         <div className="text-center py-12">
           <p className="text-muted-foreground">No entries yet. Start by rating a movie or TV show!</p>
-          <Button asChild className="mt-4"><Link href="/entries/new">Add Your First Rating</Link></Button>
+          {showAddButton && (
+            <Button asChild className="mt-4"><Link href="/entries/new">Add Your First Rating</Link></Button>
+          )}
         </div>
       </div>
     )
@@ -140,10 +148,10 @@ export function EntriesClient({ entries, userId, initialSort, initialDir }: Prop
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">My Ratings ({currentEntries.length})</h1>
-          <Button asChild><Link href="/entries/new"><Plus className="h-4 w-4 mr-1" />Add Entry</Link></Button>
+          <h1 className="text-2xl font-bold">{title} ({currentEntries.length})</h1>
+          {showAddButton && <Button asChild><Link href="/entries/new"><Plus className="h-4 w-4 mr-1" />Add Entry</Link></Button>}
         </div>
-        <p className="text-muted-foreground">It's mine, my own. My precious! ... ratings</p>
+        <p className="text-muted-foreground">{description}</p>
       </div>
 
       <Tabs defaultValue="all">
@@ -198,17 +206,17 @@ export function EntriesClient({ entries, userId, initialSort, initialDir }: Prop
         </div>
         <TabsContent value="all" className="space-y-3">
           {sorted.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
+            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} />
           ))}
         </TabsContent>
         <TabsContent value="movies" className="space-y-3">
           {movies.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
+            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} />
           ))}
         </TabsContent>
         <TabsContent value="tv" className="space-y-3">
           {tvShows.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} backQuery={backQuery} />
+            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} />
           ))}
         </TabsContent>
       </Tabs>

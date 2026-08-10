@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
 import { StatusBadge } from "@/components/status-badge"
-import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock } from "lucide-react"
+import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks } from "lucide-react"
 
 interface Entry {
   id: string
@@ -41,6 +41,7 @@ interface DashboardClientProps {
   headerTitle?: string
   headerDescription?: string
   showPinSection?: boolean
+  fullRankingsHref?: string
 }
 
 function computeRankings(entries: Entry[], useDetailed: boolean, ascending: boolean) {
@@ -62,7 +63,7 @@ function computeRankings(entries: Entry[], useDetailed: boolean, ascending: bool
     .slice(0, 10)
 }
 
-export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true }: DashboardClientProps) {
+export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true, fullRankingsHref }: DashboardClientProps) {
   const displayName = profile?.display_name || profile?.username || "User"
 
   const allEntries = useMemo(
@@ -177,7 +178,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
                       <Pin className="h-4 w-4" />
-                      Pinned ({idx + 1}): <Link href={`/users/${pinnedUser.username}`} className="hover:underline">{pinnedUser.display_name || pinnedUser.username}</Link>
+                      Pinned ({idx + 1}): <Link href={`/users/${pinnedUser.username}`} className="font-semibold text-foreground hover:underline">{pinnedUser.display_name || pinnedUser.username}</Link>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -207,7 +208,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                         </p>
                         <div className="flex items-center gap-4 text-sm">
                           <div>
-                            <span className="text-muted-foreground">{pinnedUser.display_name || pinnedUser.username}: </span>
+                            <span className="font-medium text-foreground">{pinnedUser.display_name || pinnedUser.username}: </span>
                             <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
                             <span className="text-xs text-muted-foreground">/100</span>
                           </div>
@@ -245,7 +246,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                               return (
                                 <>
                                   <div className="flex gap-x-1 items-baseline text-sm">
-                                    <span className="text-muted-foreground shrink-0 w-24">{pinnedUser.display_name || pinnedUser.username}:</span>
+                                    <span className="font-medium text-foreground shrink-0 w-24">{pinnedUser.display_name || pinnedUser.username}:</span>
                                     <span className="font-medium tabular-nums shrink-0 mr-2">{pinTotal}</span>
                                     <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {pinnedEntry.detailed_enjoyment}/60</span>
                                     <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {pinnedEntry.detailed_impact ?? 0}/20</span>
@@ -309,6 +310,17 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
           )
         })}
       </div>
+
+      {fullRankingsHref && (
+        <Card>
+          <CardContent className="py-4">
+            <Link href={fullRankingsHref} className="text-sm font-medium flex items-center gap-2 hover:underline">
+              <ListChecks className="h-4 w-4" />
+              See {displayName}&rsquo;s full rankings
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="gut">
         <TabsList>

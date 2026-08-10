@@ -36,9 +36,10 @@ interface EntryCardProps {
   entry: Entry
   onDelete?: (id: string) => void
   backQuery?: string
+  readOnly?: boolean
 }
 
-export function EntryCard({ entry, onDelete, backQuery }: EntryCardProps) {
+export function EntryCard({ entry, onDelete, backQuery, readOnly = false }: EntryCardProps) {
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w154${entry.poster_path}`
     : null
@@ -112,13 +113,15 @@ export function EntryCard({ entry, onDelete, backQuery }: EntryCardProps) {
           )}
 
           <div className="flex items-center gap-1 mt-2">
-            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-              <Link href={`/entries/${entry.id}/edit`}>
-                <Edit3 className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
+            {!readOnly && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                <Link href={`/entries/${entry.id}/edit`}>
+                  <Edit3 className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            )}
 
-            {onDelete && (
+            {!readOnly && onDelete && (
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">

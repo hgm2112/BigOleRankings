@@ -4,13 +4,14 @@ import { notFound } from "next/navigation"
 import { EntryDetailClient } from "./entry-detail-client"
 import { ENTRY_SELECT, flattenEntry } from "@/lib/entry-queries"
 
-export default async function EntryDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sort?: string; dir?: string }> }) {
+export default async function EntryDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sort?: string; dir?: string; back?: string }> }) {
   const { id } = await params
   const query = await searchParams
   const backParams = new URLSearchParams()
   if (query.sort && query.sort !== "recent") backParams.set("sort", query.sort)
   if (query.dir) backParams.set("dir", query.dir)
-  const backUrl = backParams.toString() ? `/entries?${backParams.toString()}` : "/entries"
+  const backBase = query.back && query.back.startsWith("/") && !query.back.startsWith("//") ? query.back : "/entries"
+  const backUrl = backParams.toString() ? `${backBase}?${backParams.toString()}` : backBase
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
