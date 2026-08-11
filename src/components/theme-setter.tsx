@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 
-const THEMES = ["default", "ocean", "forest", "royal", "rose", "teal"]
+const THEMES = ["default", "ocean", "forest", "royal", "rose", "teal", "amber", "lime", "sky", "indigo", "pink", "crimson", "orange", "slate", "stone"]
 
 export function ThemeSetter({ theme }: { theme: string }) {
   useEffect(() => {

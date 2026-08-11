@@ -13,6 +13,15 @@ const themes = [
   { name: "royal", label: "Royal", primary: "oklch(0.5 0.22 280)" },
   { name: "rose", label: "Rose", primary: "oklch(0.55 0.22 10)" },
   { name: "teal", label: "Teal", primary: "oklch(0.55 0.18 190)" },
+  { name: "amber", label: "Amber", primary: "oklch(0.55 0.17 60)" },
+  { name: "lime", label: "Lime", primary: "oklch(0.6 0.18 115)" },
+  { name: "sky", label: "Sky", primary: "oklch(0.55 0.17 225)" },
+  { name: "indigo", label: "Indigo", primary: "oklch(0.5 0.2 265)" },
+  { name: "pink", label: "Pink", primary: "oklch(0.55 0.22 330)" },
+  { name: "crimson", label: "Crimson", primary: "oklch(0.55 0.22 22)" },
+  { name: "orange", label: "Orange", primary: "#FFA500" },
+  { name: "slate", label: "Slate", primary: "oklch(0.55 0.04 260)" },
+  { name: "stone", label: "Stone", primary: "oklch(0.55 0.1 50)" },
 ]
 
 export default function CustomizationPage() {
@@ -74,7 +83,7 @@ export default function CustomizationPage() {
       <Card>
         <CardContent className="pt-6">
           <h2 className="font-semibold mb-4">Theme</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
             {themes.map((theme) => {
               const isActive = currentTheme === theme.name
               return (
@@ -83,18 +92,18 @@ export default function CustomizationPage() {
                   type="button"
                   disabled={saving}
                   onClick={() => selectTheme(theme.name)}
-                  className={`relative rounded-lg border-2 p-3 text-left transition-all hover:scale-[1.02] ${
+                  className={`relative rounded-lg border-2 p-2 text-left transition-all hover:scale-[1.02] ${
                     isActive ? "border-primary" : "border-border"
                   }`}
                 >
                   <div
-                    className="h-16 rounded-md mb-2"
+                    className="h-10 rounded-md mb-1.5"
                     style={{ backgroundColor: theme.primary }}
                   />
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{theme.label}</span>
+                    <span className="text-xs font-medium truncate">{theme.label}</span>
                     {isActive && (
-                      <Check className="h-4 w-4 text-primary" />
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0 ml-1" />
                     )}
                   </div>
                 </button>
