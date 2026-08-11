@@ -17,11 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install postgres client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client-17
-
       - name: Dump database
-        run: mkdir -p backups && pg_dump "$SUPABASE_DB_URL" -Fc -f "backups/db-$(date -u +%Y-%m-%d).dump"
+        run: |
+          mkdir -p backups
+          docker run --rm \
+            -e SUPABASE_DB_URL \
+            -v "$PWD/backups":/backups \
+            postgres:17 \
+            pg_dump "$SUPABASE_DB_URL" -Fc -f "/backups/db-$(date -u +%Y-%m-%d).dump"
 
       - name: Encrypt dump
         run: |
