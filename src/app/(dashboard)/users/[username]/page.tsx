@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import { DashboardClient } from "../../dashboard/dashboard-client"
-import { ENTRY_SELECT, flattenEntries } from "@/lib/entry-queries"
+import { ENTRY_SELECT, flattenEntries, fetchDnfSeasonKeys } from "@/lib/entry-queries"
 
 export default async function UserPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params
@@ -26,7 +26,7 @@ export default async function UserPage({ params }: { params: Promise<{ username:
   return (
     <div className="space-y-6">
       <DashboardClient
-        entries={flattenEntries(entries)}
+        entries={flattenEntries(entries, await fetchDnfSeasonKeys(supabase, profile.id))}
         profile={profile}
         headerTitle={`${profile.display_name || profile.username}'s Rankings`}
         headerDescription=""

@@ -2,6 +2,8 @@
 // Used by both server pages and client components so the rest of the app keeps
 // consuming a flat "entry" object.
 
+import type { SupabaseClient } from "@supabase/supabase-js"
+
 export const ENTRY_SELECT = `id, user_id, media_id,
   gut_rating, gut_rated_at,
   detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again, detailed_rated_at,
@@ -49,13 +51,16 @@ export interface FlatEntry {
   updated_at: string
 }
 
-export function flattenEntry(row: any): FlatEntry {
+export function flattenEntry(row: any, dnfSeasonKeys?: Set<string>): FlatEntry {
   const m = row.media
   const tv = m?.tv_shows ?? null
   const movie = m?.movies ?? null
   const seasons: any[] = m?.seasons ?? []
   const totalEpisodes = seasons.reduce((sum: number, s: any) => sum + (s.episode_count ?? 0), 0)
-  const totalRuntime = seasons.reduce((sum: number, s: any) => sum + (s.episode_runtime ?? 0) * (s.episode_count ?? 0), 0)
+  const totalRuntime = seasons.reduce((sum: number, s: any) => {
+    if (dnfSeasonKeys?.has(`${m?.id}:${s.season_number}`)) return sum
+    return sum + (s.episode_runtime ?? 0) * (s.episode_count ?? 0)
+  }, 0)
 
   const isTv = m?.media_type === "tv"
 
@@ -95,6 +100,19 @@ export function flattenEntry(row: any): FlatEntry {
   }
 }
 
-export function flattenEntries(rows: any[] | null): FlatEntry[] {
-  return (rows || []).map(flattenEntry)
+export function flattenEntries(rows: any[] | null, dnfSeasonKeys?: Set<string>): FlatEntry[] {
+  return (rows || []).map((row) => flattenEntry(row, dnfSeasonKeys))
+}
+
+export async function fetchDnfSeasonKeys(supabase: SupabaseClient, userId: string): Promise<Set<string>> {
+  const keys = new Set<string>()
+  const { data } = await supabase
+    .from("season_ratings")
+    .select("media_id, season_number")
+    .eq("user_id", userId)
+    .eq("dnf", true)
+  for (const row of data ?? []) {
+    keys.add(`${row.media_id}:${row.season_number}`)
+  }
+  return keys
 }
