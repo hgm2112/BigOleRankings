@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -124,6 +124,15 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
   )
   const totalWatchTime = movieWatchTime + tvWatchTime
 
+  const [watched30dCutoff] = useState(() => Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+  const watched30d = useMemo(() => {
+    return allEntries.reduce((sum, e) => {
+      const created = e.created_at ? new Date(e.created_at).getTime() : NaN
+      return created >= watched30dCutoff ? sum + (e.runtime ?? 0) : sum
+    }, 0)
+  }, [allEntries, watched30dCutoff])
+
   const stats = [
     { label: "Total Entries", value: allEntries.length, icon: BarChart3 },
     { label: "Movies", value: movies.length, icon: BarChart3 },
@@ -144,6 +153,11 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
           : "—"
       })(),
       icon: TrendingUp,
+    },
+    {
+      label: "Hours Watched (30d)",
+      value: watched30d > 0 ? formatMinutes(watched30d) : "—",
+      icon: Clock,
     },
   ]
 
