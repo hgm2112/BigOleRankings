@@ -243,3 +243,29 @@ create or replace trigger on_rating_updated
 create or replace trigger on_season_rating_updated
   before update on season_ratings
   for each row execute function public.handle_updated_at();
+
+-- Orphan cleanup: when a rating (or season rating) is deleted, drop the media
+-- row (and its movies/tv_shows/seasons via cascade) if no user references it
+-- anymore. Security definer so the delete works from user sessions (RLS).
+create or replace function public.cleanup_orphaned_media()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from media m
+  where m.id = old.media_id
+    and not exists (select 1 from ratings r where r.media_id = m.id)
+    and not exists (select 1 from season_ratings sr where sr.media_id = m.id);
+  return old;
+end;
+$$;
+
+create or replace trigger on_rating_delete_cleanup
+  after delete on ratings
+  for each row execute function public.cleanup_orphaned_media();
+
+create or replace trigger on_season_rating_delete_cleanup
+  after delete on season_ratings
+  for each row execute function public.cleanup_orphaned_media();
