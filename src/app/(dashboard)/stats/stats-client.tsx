@@ -1,9 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { BarChart3 } from "lucide-react"
+import { BarChart3, UserCheck } from "lucide-react"
 import type { FlatEntry } from "@/lib/entry-queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 function avg(values: number[]): number | null {
   if (values.length === 0) return null
@@ -53,9 +54,27 @@ function sortRows<T>(rows: T[], getValue: (row: T) => string | number | null, di
   })
 }
 
-export function StatsClient({ entries }: { entries: FlatEntry[] }) {
+interface StatsPerson {
+  id: string
+  name: string
+}
+
+export function StatsClient({
+  self,
+  following,
+  entriesByUser,
+}: {
+  self: StatsPerson
+  following: StatsPerson[]
+  entriesByUser: Record<string, FlatEntry[]>
+}) {
+  const [selectedId, setSelectedId] = useState<string>(self.id)
   const [genreSort, setGenreSort] = useState<{ key: GenreSortKey; dir: 1 | -1 }>({ key: "count", dir: -1 })
   const [decadeSort, setDecadeSort] = useState<{ key: "decade" | "count" | "avgGut" | "avgDetailed"; dir: 1 | -1 }>({ key: "decade", dir: -1 })
+
+  const entries = useMemo(() => entriesByUser[selectedId] ?? [], [entriesByUser, selectedId])
+  const selectedName = selectedId === self.id ? self.name : (following.find((f) => f.id === selectedId)?.name ?? "User")
+  const isSelf = selectedId === self.id
 
   const stats = useMemo(() => {
     const total = entries.length
@@ -160,13 +179,34 @@ export function StatsClient({ entries }: { entries: FlatEntry[] }) {
   if (entries.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
-          <h1 className="text-2xl font-bold">Stats</h1>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            <div>
+              <h1 className="text-2xl font-bold">Stats</h1>
+              <p className="text-xs text-muted-foreground">{isSelf ? "Your stats" : `Stats for ${selectedName}`}</p>
+            </div>
+          </div>
+          <Select value={selectedId} onValueChange={setSelectedId}>
+            <SelectTrigger className="w-[180px]">
+              <UserCheck className="h-4 w-4 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={self.id}>My stats</SelectItem>
+              {following.map((f) => (
+                <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            No ratings yet — add a rating on the <span className="font-medium text-foreground">Dashboard</span> to see your stats.
+            {isSelf ? (
+              <>No ratings yet — add a rating on the <span className="font-medium text-foreground">Dashboard</span> to see your stats.</>
+            ) : (
+              `${selectedName} has no ratings yet.`
+            )}
           </CardContent>
         </Card>
       </div>
@@ -175,9 +215,26 @@ export function StatsClient({ entries }: { entries: FlatEntry[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <BarChart3 className="h-5 w-5" />
-        <h1 className="text-2xl font-bold">Stats</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-5 w-5" />
+          <div>
+            <h1 className="text-2xl font-bold">Stats</h1>
+            <p className="text-xs text-muted-foreground">{isSelf ? "Your stats" : `Stats for ${selectedName}`}</p>
+          </div>
+        </div>
+        <Select value={selectedId} onValueChange={setSelectedId}>
+          <SelectTrigger className="w-[180px]">
+            <UserCheck className="h-4 w-4 mr-1" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={self.id}>My stats</SelectItem>
+            {following.map((f) => (
+              <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
