@@ -10,6 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link"
 import { Plus } from "lucide-react"
 
+interface SeasonRating {
+  media_id: string
+  season_number: number
+  rating: number | null
+  dnf: boolean
+}
+
 interface SupabaseEntry {
   id: string
   title: string
@@ -24,11 +31,14 @@ interface SupabaseEntry {
   notes: string | null
   created_at: string
   status?: string | null
+  media_id?: string
+  seasons?: { season_number: number; name: string | null; air_year: number | null; episode_count: number | null }[]
 }
 
 interface Props {
   entries: SupabaseEntry[]
   userId: string
+  seasonRatings?: SeasonRating[]
   initialSort?: string
   initialDir?: string
   title?: string
@@ -38,7 +48,7 @@ interface Props {
   basePath?: string
 }
 
-export function EntriesClient({ entries, userId, initialSort, initialDir, title = "My Ratings", description = "It's mine, my own. My precious! ... ratings", showAddButton = true, readOnly = false, basePath = "/entries" }: Props) {
+export function EntriesClient({ entries, userId, seasonRatings = [], initialSort, initialDir, title = "My Ratings", description = "It's mine, my own. My precious! ... ratings", showAddButton = true, readOnly = false, basePath = "/entries" }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [currentEntries, setCurrentEntries] = useState(entries)
@@ -112,6 +122,16 @@ export function EntriesClient({ entries, userId, initialSort, initialDir, title 
     }
     return list
   }, [currentEntries, sortField, sortDir])
+
+  const seasonRatingsByMedia = useMemo(() => {
+    const map = new Map<string, SeasonRating[]>()
+    for (const sr of seasonRatings) {
+      const list = map.get(sr.media_id)
+      if (list) list.push(sr)
+      else map.set(sr.media_id, [sr])
+    }
+    return map
+  }, [seasonRatings])
 
   const movies = sorted.filter((e) => e.media_type === "movie")
   const tvShows = sorted.filter((e) => e.media_type === "tv")
@@ -206,17 +226,17 @@ export function EntriesClient({ entries, userId, initialSort, initialDir, title 
         </div>
         <TabsContent value="all" className="space-y-3">
           {sorted.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} />
+            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
           ))}
         </TabsContent>
         <TabsContent value="movies" className="space-y-3">
           {movies.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} />
+            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
           ))}
         </TabsContent>
         <TabsContent value="tv" className="space-y-3">
           {tvShows.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} />
+            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
           ))}
         </TabsContent>
       </Tabs>

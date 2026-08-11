@@ -16,5 +16,25 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 
-  return <EntriesClient entries={flattenEntries(entries)} userId={user.id} initialSort={params.sort} initialDir={params.dir} />
+  const flatEntries = flattenEntries(entries)
+
+  const tvMediaIds = [...new Set(flatEntries.filter((e) => e.media_type === "tv").map((e) => e.media_id))]
+
+  let seasonRatings: {
+    media_id: string
+    season_number: number
+    rating: number | null
+    dnf: boolean
+  }[] = []
+
+  if (tvMediaIds.length > 0) {
+    const { data: rows } = await supabase
+      .from("season_ratings")
+      .select("media_id, season_number, rating, dnf")
+      .eq("user_id", user.id)
+      .in("media_id", tvMediaIds)
+    seasonRatings = rows ?? []
+  }
+
+  return <EntriesClient entries={flatEntries} userId={user.id} seasonRatings={seasonRatings} initialSort={params.sort} initialDir={params.dir} />
 }

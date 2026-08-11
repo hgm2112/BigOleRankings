@@ -26,10 +26,31 @@ export default async function UserRatingsPage({ params, searchParams }: { params
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false })
 
+  const flatEntries = flattenEntries(entries)
+
+  const tvMediaIds = [...new Set(flatEntries.filter((e) => e.media_type === "tv").map((e) => e.media_id))]
+
+  let seasonRatings: {
+    media_id: string
+    season_number: number
+    rating: number | null
+    dnf: boolean
+  }[] = []
+
+  if (tvMediaIds.length > 0) {
+    const { data: rows } = await supabase
+      .from("season_ratings")
+      .select("media_id, season_number, rating, dnf")
+      .eq("user_id", profile.id)
+      .in("media_id", tvMediaIds)
+    seasonRatings = rows ?? []
+  }
+
   return (
     <EntriesClient
-      entries={flattenEntries(entries)}
+      entries={flatEntries}
       userId={profile.id}
+      seasonRatings={seasonRatings}
       initialSort={query.sort}
       initialDir={query.dir}
       title={`${profile.display_name || profile.username}'s Ratings`}

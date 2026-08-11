@@ -12,6 +12,15 @@ export const ENTRY_SELECT = `id, user_id, media_id,
     seasons:seasons (id, season_number, name, air_year, episode_count, episode_runtime)
   )`
 
+export interface FlatSeason {
+  id: string
+  season_number: number
+  name: string | null
+  air_year: number | null
+  episode_count: number | null
+  episode_runtime: number | null
+}
+
 export interface FlatEntry {
   id: string
   user_id: string
@@ -26,6 +35,7 @@ export interface FlatEntry {
   runtime: number | null
   network: string | null
   total_episodes: number
+  seasons: FlatSeason[]
   gut_rating: number | null
   gut_rated_at: string | null
   detailed_enjoyment: number | null
@@ -63,6 +73,14 @@ export function flattenEntry(row: any): FlatEntry {
     runtime: isTv ? totalRuntime || null : (movie?.runtime ?? null),
     network: isTv ? (tv?.network ?? null) : null,
     total_episodes: isTv ? totalEpisodes : 0,
+    seasons: isTv ? seasons.map((s) => ({
+      id: s.id,
+      season_number: s.season_number,
+      name: s.name ?? null,
+      air_year: s.air_year ?? null,
+      episode_count: s.episode_count ?? null,
+      episode_runtime: s.episode_runtime ?? null,
+    })) : [],
     gut_rating: row.gut_rating,
     gut_rated_at: row.gut_rated_at,
     detailed_enjoyment: row.detailed_enjoyment,

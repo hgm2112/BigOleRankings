@@ -1,11 +1,12 @@
 "use client"
 
+import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
-import { Film, Tv, Trash2, Edit3 } from "lucide-react"
+import { Film, Tv, Trash2, Edit3, ChevronDown, ChevronUp } from "lucide-react"
 import {
   Dialog,
   DialogClose,
@@ -30,6 +31,14 @@ interface Entry {
   detailed_watch_again: number | null
   notes: string | null
   status?: string | null
+  seasons?: { season_number: number; name: string | null; air_year: number | null; episode_count: number | null }[]
+}
+
+interface SeasonRating {
+  media_id: string
+  season_number: number
+  rating: number | null
+  dnf: boolean
 }
 
 interface EntryCardProps {
@@ -37,9 +46,11 @@ interface EntryCardProps {
   onDelete?: (id: string) => void
   backQuery?: string
   readOnly?: boolean
+  seasonRatings?: SeasonRating[]
 }
 
-export function EntryCard({ entry, onDelete, backQuery, readOnly = false }: EntryCardProps) {
+export function EntryCard({ entry, onDelete, backQuery, readOnly = false, seasonRatings = [] }: EntryCardProps) {
+  const [seasonsOpen, setSeasonsOpen] = useState(false)
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w154${entry.poster_path}`
     : null
@@ -50,6 +61,10 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false }: Entr
     : null
 
   const diff = hasDetailed && entry.gut_rating !== null ? detailedTotal! - entry.gut_rating : null
+
+  const isTv = entry.media_type === "tv"
+  const hasSeasons = isTv && (entry.seasons?.length ?? 0) > 0
+  const seasonRatingMap = new Map(seasonRatings.map((sr) => [sr.season_number, sr]))
 
   return (
     <Card className="overflow-hidden">
@@ -113,6 +128,19 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false }: Entr
           )}
 
           <div className="flex items-center gap-1 mt-2">
+            {hasSeasons && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={() => setSeasonsOpen((o) => !o)}
+                aria-expanded={seasonsOpen}
+              >
+                {seasonsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                Seasons
+              </Button>
+            )}
+
             {!readOnly && (
               <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
                 <Link href={`/entries/${entry.id}/edit`}>
@@ -147,6 +175,32 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false }: Entr
           </div>
         </div>
       </div>
+
+      {seasonsOpen && hasSeasons && (
+        <div className="border-t border-border/50 px-4 py-3 space-y-1.5">
+          {entry.seasons!.map((s) => {
+            const sr = seasonRatingMap.get(s.season_number)
+            return (
+              <div key={s.season_number} className="flex items-center gap-2 text-sm flex-wrap">
+                <span className="font-medium">Season {s.season_number}</span>
+                {s.name && s.name !== `Season ${s.season_number}` && (
+                  <span className="text-xs text-muted-foreground">({s.name})</span>
+                )}
+                {s.air_year != null && <span className="text-xs text-muted-foreground">{s.air_year}</span>}
+                {s.episode_count != null && <span className="text-xs text-muted-foreground">· {s.episode_count} episodes</span>}
+                <span className="ml-auto flex items-center gap-2">
+                  {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
+                  {sr?.rating != null ? (
+                    <span className="font-medium tabular-nums">{sr.rating}/10</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </Card>
   )
 }
