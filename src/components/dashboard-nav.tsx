@@ -11,7 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { LogOut, LayoutDashboard, ListVideo, Plus, Users, Settings, UserPlus } from "lucide-react"
+import { LogOut, LayoutDashboard, ListVideo, Plus, Users, Settings, UserPlus, Palette } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 interface Profile {
@@ -82,13 +82,7 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
               <Separator className="my-2" />
               <div className="flex flex-col gap-1">
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
-                  <Link href="/dashboard"><LayoutDashboard className="h-4 w-4 mr-2" />Dashboard</Link>
-                </Button>
-                <Button variant="ghost" size="sm" className="justify-start" asChild>
-                  <Link href="/entries"><ListVideo className="h-4 w-4 mr-2" />My Ratings</Link>
-                </Button>
-                <Button variant="ghost" size="sm" className="justify-start" asChild>
-                  <Link href="/social"><UserPlus className="h-4 w-4 mr-2" />Social</Link>
+                  <Link href="/customization"><Palette className="h-4 w-4 mr-2" />Customization</Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
                   <Link href="/settings"><Settings className="h-4 w-4 mr-2" />Settings</Link>
