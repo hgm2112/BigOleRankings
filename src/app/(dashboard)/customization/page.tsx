@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { Check } from "lucide-react"
 import { ThemeSetter } from "@/components/theme-setter"
 import { useCustomization } from "@/components/customization-provider"
-import { mergeCustomization, DEFAULT_CUSTOMIZATION, CustomizationPrefs } from "@/lib/customization"
+import { mergeCustomization, DEFAULT_CUSTOMIZATION, CustomizationPrefs, BACKGROUND_OPTIONS } from "@/lib/customization"
 
 const themes = [
   { name: "default", label: "Default", primary: "oklch(0.5 0.22 29)" },
@@ -27,11 +27,12 @@ const themes = [
   { name: "stone", label: "Stone", primary: "oklch(0.55 0.1 50)" },
 ]
 
-const ACCENT_OPTIONS: { key: keyof CustomizationPrefs; label: string; description: string }[] = [
+type BooleanPrefKey = "score_chips" | "media_badges" | "stat_chips"
+
+const ACCENT_OPTIONS: { key: BooleanPrefKey; label: string; description: string }[] = [
   { key: "score_chips", label: "Colored score chips", description: "Show ratings as colored pills by score band" },
   { key: "media_badges", label: "Media type badges", description: "Color-coded Movie / TV Show tags" },
   { key: "stat_chips", label: "Colored stat icons", description: "Tinted icon chips on dashboard stats" },
-  { key: "bg_gradient", label: "Background gradient", description: "Subtle color glow on the page background" },
 ]
 
 export default function CustomizationPage() {
@@ -79,8 +80,22 @@ export default function CustomizationPage() {
     setSaving(false)
   }
 
-  const togglePref = async (key: keyof CustomizationPrefs, value: boolean) => {
+  const togglePref = async (key: BooleanPrefKey, value: boolean) => {
     const next = { ...prefs, [key]: value }
+    setPrefs(next)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    await supabase
+      .from("profiles")
+      .update({ customization: next })
+      .eq("id", user.id)
+  }
+
+  const selectBackground = async (key: string) => {
+    if (key === prefs.background) return
+    const next = { ...prefs, background: key }
     setPrefs(next)
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -139,6 +154,39 @@ export default function CustomizationPage() {
                   />
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium truncate">{theme.label}</span>
+                    {isActive && (
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0 ml-1" />
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <h2 className="font-semibold mb-4">Background</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+            {BACKGROUND_OPTIONS.map((bg) => {
+              const isActive = prefs.background === bg.key
+              return (
+                <button
+                  key={bg.key}
+                  type="button"
+                  disabled={saving}
+                  onClick={() => selectBackground(bg.key)}
+                  className={`relative rounded-lg border-2 p-2 text-left transition-all hover:scale-[1.02] ${
+                    isActive ? "border-primary" : "border-border"
+                  }`}
+                >
+                  <div
+                    className="h-10 rounded-md mb-1.5 border border-border/50"
+                    style={{ backgroundColor: bg.color }}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium truncate">{bg.label}</span>
                     {isActive && (
                       <Check className="h-3.5 w-3.5 text-primary shrink-0 ml-1" />
                     )}

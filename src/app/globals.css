@@ -231,10 +231,40 @@
     background-color: var(--background);
     color: var(--foreground);
   }
-  .bg-gradient body {
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.55 0.2 240 / 0.14), transparent),
-      radial-gradient(ellipse 60% 40% at 100% 110%, oklch(0.55 0.2 350 / 0.08), transparent);
-    background-attachment: fixed;
-  }
+}
+
+.bg-charcoal {
+  --background: oklch(0.24 0.015 260);
+  --card: oklch(0.28 0.015 260);
+  --popover: oklch(0.28 0.015 260);
+  --muted: oklch(0.33 0.015 260);
+  --border: oklch(0.39 0.02 260);
+  --input: oklch(0.39 0.02 260);
+}
+
+.bg-navy {
+  --background: oklch(0.22 0.055 255);
+  --card: oklch(0.26 0.055 255);
+  --popover: oklch(0.26 0.055 255);
+  --muted: oklch(0.31 0.055 255);
+  --border: oklch(0.37 0.055 255);
+  --input: oklch(0.37 0.055 255);
+}
+
+.bg-purple {
+  --background: oklch(0.22 0.06 290);
+  --card: oklch(0.26 0.06 290);
+  --popover: oklch(0.26 0.06 290);
+  --muted: oklch(0.31 0.06 290);
+  --border: oklch(0.37 0.06 290);
+  --input: oklch(0.37 0.06 290);
+}
+
+.bg-teal {
+  --background: oklch(0.21 0.05 195);
+  --card: oklch(0.25 0.05 195);
+  --popover: oklch(0.25 0.05 195);
+  --muted: oklch(0.3 0.05 195);
+  --border: oklch(0.36 0.05 195);
+  --input: oklch(0.36 0.05 195);
 }

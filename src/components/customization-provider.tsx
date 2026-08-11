@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { CustomizationPrefs, DEFAULT_CUSTOMIZATION } from "@/lib/customization"
+import { CustomizationPrefs, DEFAULT_CUSTOMIZATION, BACKGROUND_OPTIONS } from "@/lib/customization"
 
 interface CustomizationContextValue {
   prefs: CustomizationPrefs
@@ -27,8 +27,14 @@ export function CustomizationProvider({
   const [prefs, setPrefs] = useState<CustomizationPrefs>(initialPrefs)
 
   useEffect(() => {
-    document.documentElement.classList.toggle("bg-gradient", prefs.bg_gradient)
-  }, [prefs.bg_gradient])
+    const html = document.documentElement
+    for (const bg of BACKGROUND_OPTIONS) {
+      html.classList.remove(`bg-${bg.key}`)
+    }
+    if (prefs.background !== "black") {
+      html.classList.add(`bg-${prefs.background}`)
+    }
+  }, [prefs.background])
 
   return (
     <CustomizationContext.Provider value={{ prefs, setPrefs }}>
