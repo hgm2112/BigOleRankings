@@ -15,6 +15,7 @@ interface TMDBResult {
   poster_path: string | null
   year: string
   media_type: string
+  genres?: string[]
   runtime?: number | null
   episode_runtime?: number | null
   status?: string | null
@@ -92,6 +93,7 @@ export default function NewEntryPage() {
         title: selected!.title,
         poster_path: selected!.poster_path,
         year: selected!.year ? parseInt(selected!.year) : null,
+        genres: selected!.genres ?? null,
         gut_rating: gutRating,
         notes,
         runtime: selected!.runtime,

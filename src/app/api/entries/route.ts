@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
         title: body.title,
         poster_path: body.poster_path,
         year: body.year,
+        genres: Array.isArray(body.genres) ? body.genres : null,
       },
       { onConflict: "tmdb_id,media_type" }
     )

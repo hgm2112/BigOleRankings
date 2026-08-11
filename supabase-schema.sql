@@ -61,6 +61,7 @@ create table if not exists media (
   title text not null,
   poster_path text,
   year int,
+  genres text[],
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   unique(tmdb_id, media_type)

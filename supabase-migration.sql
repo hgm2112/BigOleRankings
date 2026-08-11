@@ -18,6 +18,7 @@ create table if not exists media (
   title text not null,
   poster_path text,
   year int,
+  genres text[],
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   unique(tmdb_id, media_type)
@@ -50,6 +51,7 @@ create table if not exists seasons (
 -- scripts/backfill-season-runtime.ts). Idempotent for fresh + already-migrated DBs.
 alter table seasons add column if not exists episode_runtime int;
 alter table tv_shows drop column if exists episode_runtime;
+alter table media add column if not exists genres text[];
 
 create table if not exists ratings (
   id uuid default gen_random_uuid() primary key,

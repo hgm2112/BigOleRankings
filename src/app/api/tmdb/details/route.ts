@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
       year: (item.release_date || item.first_air_date || "").slice(0, 4),
       media_type: type,
       overview: item.overview,
+      genres: (item.genres || []).map((g: any) => g.name),
       runtime,
       episode_runtime: isTv ? (item.episode_run_time?.[0] || null) : null,
       seasons,

@@ -8,7 +8,7 @@ export const ENTRY_SELECT = `id, user_id, media_id,
   gut_rating, gut_rated_at,
   detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again, detailed_rated_at,
   notes, weight, created_at, updated_at,
-  media:media_id (id, tmdb_id, media_type, title, poster_path, year,
+  media:media_id (id, tmdb_id, media_type, title, poster_path, year, genres,
     movies:movies (id, runtime),
     tv_shows:tv_shows (id, status, next_air_date, network),
     seasons:seasons (id, season_number, name, air_year, episode_count, episode_runtime)
@@ -32,6 +32,7 @@ export interface FlatEntry {
   title: string
   poster_path: string | null
   year: number | null
+  genres: string[] | null
   status: string | null
   next_air_date: string | null
   runtime: number | null
@@ -73,6 +74,7 @@ export function flattenEntry(row: any, dnfSeasonKeys?: Set<string>): FlatEntry {
     title: m?.title ?? "",
     poster_path: m?.poster_path ?? null,
     year: m?.year ?? null,
+    genres: m?.genres ?? null,
     status: isTv ? (tv?.status ?? null) : null,
     next_air_date: isTv ? (tv?.next_air_date ?? null) : null,
     runtime: isTv ? totalRuntime || null : (movie?.runtime ?? null),
