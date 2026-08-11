@@ -42,7 +42,7 @@ export function RankingList({ title, entries, type = "best" }: RankingListProps)
       <div className="space-y-1">
         {entries.map((entry, index) => {
           const posterUrl = entry.poster_path
-            ? `https://image.tmdb.org/t/p/w92${entry.poster_path}`
+            ? `https://image.tmdb.org/t/p/w154${entry.poster_path}`
             : null
 
           return (
@@ -55,7 +55,7 @@ export function RankingList({ title, entries, type = "best" }: RankingListProps)
                 {index + 1}
               </span>
               {posterUrl ? (
-                <Image src={posterUrl} alt={entry.title} width={28} height={42} className="rounded object-cover flex-shrink-0" />
+                <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover flex-shrink-0" />
               ) : (
                 <div className="w-[28px] h-[42px] rounded bg-muted flex items-center justify-center flex-shrink-0">
                   {entry.media_type === "tv" ? <Tv className="h-3 w-3" /> : <Film className="h-3 w-3" />}

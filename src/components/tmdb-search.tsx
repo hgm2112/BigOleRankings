@@ -49,7 +49,7 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
   }
 
   const posterUrl = (path: string | null) =>
-    path ? `https://image.tmdb.org/t/p/w92${path}` : null
+    path ? `https://image.tmdb.org/t/p/w185${path}` : null
 
   return (
     <div className="space-y-4">
@@ -98,7 +98,7 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
                 onClick={() => onSelect(item)}
               >
                 {poster ? (
-                  <Image src={poster} alt={item.title} width={46} height={69} className="rounded object-cover flex-shrink-0" />
+                  <Image src={poster} alt={item.title} width={46} height={69} quality={90} className="rounded object-cover flex-shrink-0" />
                 ) : (
                   <div className="w-[46px] h-[69px] rounded bg-muted flex items-center justify-center flex-shrink-0">
                     {item.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}

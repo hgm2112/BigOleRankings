@@ -208,15 +208,18 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                   <CardContent>
                     <div className="flex gap-4">
                       {pinnedEntry.poster_path ? (
-                        <Image
-                          src={`https://image.tmdb.org/t/p/w92${pinnedEntry.poster_path}`}
-                          alt={pinnedEntry.title}
-                          width={46}
-                          height={69}
-                          className="rounded object-contain bg-muted flex-shrink-0"
-                        />
+                        <div className="relative w-24 h-36 rounded overflow-hidden bg-muted flex-shrink-0">
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w185${pinnedEntry.poster_path}`}
+                            alt={pinnedEntry.title}
+                            fill
+                            sizes="96px"
+                            quality={90}
+                            className="object-cover"
+                          />
+                        </div>
                       ) : (
-                        <div className="w-[46px] h-[69px] rounded bg-muted flex items-center justify-center flex-shrink-0">
+                        <div className="w-24 h-36 rounded bg-muted flex items-center justify-center flex-shrink-0">
                           {pinnedEntry.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
                         </div>
                       )}
@@ -440,7 +443,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                   <div className="space-y-1">
                     {last10Gut.map((entry) => {
                       const posterUrl = entry.poster_path
-                        ? `https://image.tmdb.org/t/p/w92${entry.poster_path}`
+                        ? `https://image.tmdb.org/t/p/w154${entry.poster_path}`
                         : null
                       const dueDate = new Date(new Date(entry.gut_rated_at!).getTime() + 7 * 24 * 60 * 60 * 1000)
                       const hasDetailed = entry.detailed_enjoyment != null
@@ -451,7 +454,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                           className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
                         >
                           {posterUrl ? (
-                            <Image src={posterUrl} alt={entry.title} width={28} height={42} className="rounded object-cover flex-shrink-0" />
+                            <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover flex-shrink-0" />
                           ) : (
                             <div className="w-[28px] h-[42px] rounded bg-muted flex items-center justify-center flex-shrink-0">
                               {entry.media_type === "tv" ? <Tv className="h-3 w-3" /> : <Film className="h-3 w-3" />}
@@ -491,7 +494,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                   <div className="space-y-1">
                     {last10Detailed.map((entry) => {
                       const posterUrl = entry.poster_path
-                        ? `https://image.tmdb.org/t/p/w92${entry.poster_path}`
+                        ? `https://image.tmdb.org/t/p/w154${entry.poster_path}`
                         : null
                       const detailedTotal = (entry.detailed_enjoyment ?? 0) + (entry.detailed_impact ?? 0) + (entry.detailed_recommend ?? 0) + (entry.detailed_watch_again ?? 0)
                       return (
@@ -501,7 +504,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                           className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
                         >
                           {posterUrl ? (
-                            <Image src={posterUrl} alt={entry.title} width={28} height={42} className="rounded object-cover flex-shrink-0" />
+                            <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover flex-shrink-0" />
                           ) : (
                             <div className="w-[28px] h-[42px] rounded bg-muted flex items-center justify-center flex-shrink-0">
                               {entry.media_type === "tv" ? <Tv className="h-3 w-3" /> : <Film className="h-3 w-3" />}

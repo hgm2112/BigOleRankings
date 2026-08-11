@@ -87,7 +87,7 @@ export function EntryDetailClient({
 }) {
   const { prefs } = useCustomization()
   const posterUrl = entry.poster_path
-    ? `https://image.tmdb.org/t/p/w342${entry.poster_path}`
+    ? `https://image.tmdb.org/t/p/w780${entry.poster_path}`
     : null
 
   const hasDetailed = entry.detailed_enjoyment !== null
@@ -184,9 +184,18 @@ export function EntryDetailClient({
 
       <div className="flex gap-6 flex-col sm:flex-row">
         {posterUrl ? (
-          <Image src={posterUrl} alt={entry.title} width={185} height={278} className="rounded-lg object-cover flex-shrink-0 mx-auto sm:mx-0" />
+          <div className="relative w-40 sm:w-60 aspect-[2/3] rounded-lg overflow-hidden bg-muted flex-shrink-0 mx-auto sm:mx-0">
+            <Image
+              src={posterUrl}
+              alt={entry.title}
+              fill
+              sizes="(min-width: 640px) 240px, 160px"
+              quality={90}
+              className="object-cover"
+            />
+          </div>
         ) : (
-          <div className="w-[185px] h-[278px] rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
+          <div className="w-40 sm:w-60 aspect-[2/3] rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
             {entry.media_type === "tv" ? <Tv className="h-10 w-10 text-muted-foreground" /> : <Film className="h-10 w-10 text-muted-foreground" />}
           </div>
         )}

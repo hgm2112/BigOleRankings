@@ -56,7 +56,7 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
   const [seasonsOpen, setSeasonsOpen] = useState(false)
   const { prefs } = useCustomization()
   const posterUrl = entry.poster_path
-    ? `https://image.tmdb.org/t/p/w154${entry.poster_path}`
+    ? `https://image.tmdb.org/t/p/w342${entry.poster_path}`
     : null
 
   const hasDetailed = entry.detailed_enjoyment !== null
@@ -74,7 +74,16 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
     <Card className="overflow-hidden">
       <div className="flex gap-3 p-3">
         {posterUrl ? (
-          <Image src={posterUrl} alt={entry.title} width={77} height={115} className="rounded object-contain flex-shrink-0 bg-muted" />
+          <div className="relative w-[77px] h-[115px] rounded overflow-hidden bg-muted flex-shrink-0">
+            <Image
+              src={posterUrl}
+              alt={entry.title}
+              fill
+              sizes="77px"
+              quality={90}
+              className="object-cover"
+            />
+          </div>
         ) : (
           <div className="w-[77px] h-[115px] rounded bg-muted flex items-center justify-center flex-shrink-0">
             {entry.media_type === "tv" ? <Tv className="h-6 w-6 text-muted-foreground" /> : <Film className="h-6 w-6 text-muted-foreground" />}
