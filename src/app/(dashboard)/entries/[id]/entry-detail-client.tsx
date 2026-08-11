@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { StatusBadge } from "@/components/status-badge"
+import { ScoreChip, scoreTextClass } from "@/components/score-chip"
+import { MediaTypeBadge } from "@/components/media-type-badge"
+import { useCustomization } from "@/components/customization-provider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Edit3, ArrowLeft, ClipboardList } from "lucide-react"
 import { Film, Tv } from "lucide-react"
@@ -82,6 +85,7 @@ export function EntryDetailClient({
   seasonRatings: SeasonRating[]
   mySeasonRatings: SeasonRating[]
 }) {
+  const { prefs } = useCustomization()
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w342${entry.poster_path}`
     : null
@@ -193,8 +197,8 @@ export function EntryDetailClient({
               <h1 className="text-2xl font-bold">{entry.title}</h1>
               <StatusBadge status={liveStatus ?? entry.status} mediaType={entry.media_type} nextAirDate={liveNextAirDate} />
             </div>
-            <p className="text-muted-foreground">
-              {entry.year} &middot; {entry.media_type === "tv" ? "TV Show" : "Movie"}
+            <p className="text-muted-foreground flex items-center gap-2">
+              {entry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={entry.media_type} /> : entry.media_type === "tv" ? "TV Show" : "Movie"}
             </p>
             {!isOwner && ownerProfile && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -221,7 +225,7 @@ export function EntryDetailClient({
           <div>
             <h2 className="font-semibold mb-2">Gut Rating</h2>
             <div className="flex items-center gap-2">
-              <span className="text-3xl font-bold">{entry.gut_rating ?? "—"}</span>
+              <span className={`text-3xl font-bold ${prefs.score_chips ? scoreTextClass(entry.gut_rating, 100) : ""}`}>{entry.gut_rating ?? "—"}</span>
               <span className="text-sm text-muted-foreground">/100</span>
             </div>
             {entry.gut_rated_at && (
@@ -237,7 +241,7 @@ export function EntryDetailClient({
               <div>
                 <h2 className="font-semibold mb-2">Detailed Rating</h2>
                 <div className="flex items-center gap-2">
-                  <span className="text-3xl font-bold">{detailedTotal}</span>
+                  <span className={`text-3xl font-bold ${prefs.score_chips ? scoreTextClass(detailedTotal, 100) : ""}`}>{detailedTotal}</span>
                   <span className="text-sm text-muted-foreground">/100</span>
                   {diff !== null && (
                     <span className={`text-sm font-medium ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
@@ -352,7 +356,13 @@ export function EntryDetailClient({
                       ) : (
                         <div className="flex items-center gap-3 text-sm">
                           {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
-                          {sr?.rating != null && <span className="font-medium">{sr.rating}/10</span>}
+                          {sr?.rating != null && (
+                            prefs.score_chips ? (
+                              <ScoreChip value={sr.rating} max={10} />
+                            ) : (
+                              <span className="font-medium">{sr.rating}/10</span>
+                            )
+                          )}
                         </div>
                       )}
                     </div>
@@ -376,7 +386,11 @@ export function EntryDetailClient({
                       {fr.display_name || fr.username}
                     </Link>
                     <span className="text-muted-foreground">rated</span>
-                    <span className="font-medium">{fr.gut_rating}</span>
+                    {prefs.score_chips ? (
+                      <ScoreChip value={fr.gut_rating} />
+                    ) : (
+                      <span className="font-medium">{fr.gut_rating}</span>
+                    )}
                     <span className="text-xs text-muted-foreground">/100</span>
                     {entry.gut_rating != null && (
                       <span className={`font-medium ${fr.gut_rating > entry.gut_rating ? "text-green-600" : fr.gut_rating < entry.gut_rating ? "text-destructive" : ""}`}>
@@ -393,7 +407,11 @@ export function EntryDetailClient({
                         return (
                           <>
                             <span className="text-muted-foreground text-xs">Detailed:</span>
-                            <span className="font-medium tabular-nums">{frTotal}/100</span>
+                            {prefs.score_chips ? (
+                              <ScoreChip value={frTotal} />
+                            ) : (
+                              <span className="font-medium tabular-nums">{frTotal}/100</span>
+                            )}
                             <span className="text-xs text-muted-foreground tabular-nums">E {fr.detailed_enjoyment}/60</span>
                             <span className="text-xs text-muted-foreground tabular-nums">I {fr.detailed_impact ?? 0}/20</span>
                             <span className="text-xs text-muted-foreground tabular-nums">R {fr.detailed_recommend ?? 0}/10</span>
@@ -449,7 +467,11 @@ export function EntryDetailClient({
                       return (
                         <div className="flex gap-x-3 items-baseline text-sm flex-wrap">
                           <span className="text-muted-foreground">Detailed:</span>
-                          <span className="font-medium tabular-nums">{myDetailedTotal}/100</span>
+                          {prefs.score_chips ? (
+                            <ScoreChip value={myDetailedTotal} />
+                          ) : (
+                            <span className="font-medium tabular-nums">{myDetailedTotal}/100</span>
+                          )}
                           <span className="text-xs text-muted-foreground tabular-nums">E {myComparisonEntry.detailed_enjoyment}/60</span>
                           <span className="text-xs text-muted-foreground tabular-nums">I {myComparisonEntry.detailed_impact ?? 0}/20</span>
                           <span className="text-xs text-muted-foreground tabular-nums">R {myComparisonEntry.detailed_recommend ?? 0}/10</span>
@@ -486,7 +508,13 @@ export function EntryDetailClient({
                           <span className="text-xs text-muted-foreground">({season.name})</span>
                         )}
                         {sr.dnf && <span className="font-medium text-destructive">DNF</span>}
-                        {sr.rating != null && <span className="font-medium">{sr.rating}/10</span>}
+                        {sr.rating != null && (
+                          prefs.score_chips ? (
+                            <ScoreChip value={sr.rating} max={10} />
+                          ) : (
+                            <span className="font-medium">{sr.rating}/10</span>
+                          )
+                        )}
                       </div>
                     )
                   })}

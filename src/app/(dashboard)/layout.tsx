@@ -2,6 +2,8 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { DashboardNav } from "@/components/dashboard-nav"
 import { ThemeSetter } from "@/components/theme-setter"
+import { CustomizationProvider } from "@/components/customization-provider"
+import { mergeCustomization, CustomizationPrefs } from "@/lib/customization"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -13,7 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, display_name, avatar_url, theme")
+    .select("username, display_name, avatar_url, theme, customization")
     .eq("id", user.id)
     .maybeSingle()
 
@@ -23,15 +25,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const resolvedProfile = profile?.username
     ? profile
-    : { username: fallbackName, display_name: fallbackName, avatar_url: null, theme: "default" }
+    : { username: fallbackName, display_name: fallbackName, avatar_url: null, theme: "default", customization: null }
+
+  const customization = mergeCustomization(
+    resolvedProfile.customization as Partial<CustomizationPrefs> | null | undefined
+  )
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <ThemeSetter theme={profile?.theme ?? "default"} />
-      <DashboardNav user={user} profile={resolvedProfile} />
-      <main className="flex-1 container mx-auto px-4 py-6">
-        {children}
-      </main>
-    </div>
+    <CustomizationProvider prefs={customization}>
+      <div className="min-h-screen flex flex-col">
+        <ThemeSetter theme={profile?.theme ?? "default"} />
+        <DashboardNav user={user} profile={resolvedProfile} />
+        <main className="flex-1 container mx-auto px-4 py-6">
+          {children}
+        </main>
+      </div>
+    </CustomizationProvider>
   )
 }

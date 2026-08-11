@@ -231,4 +231,10 @@
     background-color: var(--background);
     color: var(--foreground);
   }
+  .bg-gradient body {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.55 0.2 240 / 0.14), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 110%, oklch(0.55 0.2 350 / 0.08), transparent);
+    background-attachment: fixed;
+  }
 }

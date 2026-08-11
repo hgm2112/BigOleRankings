@@ -6,6 +6,9 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
+import { ScoreChip } from "@/components/score-chip"
+import { MediaTypeBadge } from "@/components/media-type-badge"
+import { useCustomization } from "@/components/customization-provider"
 import { Film, Tv, Trash2, Edit3, ChevronDown, ChevronUp } from "lucide-react"
 import {
   Dialog,
@@ -51,6 +54,7 @@ interface EntryCardProps {
 
 export function EntryCard({ entry, onDelete, backQuery, readOnly = false, seasonRatings = [] }: EntryCardProps) {
   const [seasonsOpen, setSeasonsOpen] = useState(false)
+  const { prefs } = useCustomization()
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w154${entry.poster_path}`
     : null
@@ -91,20 +95,32 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{entry.year}</span>
-                <span>{entry.media_type === "tv" ? "TV Show" : "Movie"}</span>
+                {prefs.media_badges ? (
+                  <MediaTypeBadge type={entry.media_type} />
+                ) : (
+                  <span>{entry.media_type === "tv" ? "TV Show" : "Movie"}</span>
+                )}
               </div>
             </div>
           </div>
 
           <div className="mt-2 flex items-center gap-4 text-sm">
-            <div>
+            <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground">Gut: </span>
-              <span className="font-medium">{entry.gut_rating ?? "—"}</span>
+              {prefs.score_chips ? (
+                <ScoreChip value={entry.gut_rating} />
+              ) : (
+                <span className="font-medium">{entry.gut_rating ?? "—"}</span>
+              )}
             </div>
             {hasDetailed && (
-              <div>
+              <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Detailed: </span>
-                <span className="font-medium">{detailedTotal}</span>
+                {prefs.score_chips ? (
+                  <ScoreChip value={detailedTotal} />
+                ) : (
+                  <span className="font-medium">{detailedTotal}</span>
+                )}
                 <span className="text-xs text-muted-foreground ml-1">
                   (Enjoyment: {entry.detailed_enjoyment}, Impact: {entry.detailed_impact}, Recommend: {entry.detailed_recommend}, Watch Again: {entry.detailed_watch_again})
                 </span>
@@ -191,7 +207,11 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
                 <span className="ml-auto flex items-center gap-2">
                   {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
                   {sr?.rating != null ? (
-                    <span className="font-medium tabular-nums">{sr.rating}/10</span>
+                    prefs.score_chips ? (
+                      <ScoreChip value={sr.rating} max={10} />
+                    ) : (
+                      <span className="font-medium tabular-nums">{sr.rating}/10</span>
+                    )
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}

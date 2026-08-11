@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
 import { StatusBadge } from "@/components/status-badge"
+import { ScoreChip } from "@/components/score-chip"
+import { MediaTypeBadge } from "@/components/media-type-badge"
+import { useCustomization } from "@/components/customization-provider"
 import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks } from "lucide-react"
 
 interface Entry {
@@ -64,6 +67,7 @@ function computeRankings(entries: Entry[], useDetailed: boolean, ascending: bool
 }
 
 export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true, fullRankingsHref }: DashboardClientProps) {
+  const { prefs } = useCustomization()
   const displayName = profile?.display_name || profile?.username || "User"
 
   const allEntries = useMemo(
@@ -134,15 +138,17 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
   }, [allEntries, watched30dCutoff])
 
   const stats = [
-    { label: "Total Entries", value: allEntries.length, icon: BarChart3 },
-    { label: "Movies", value: movies.length, icon: BarChart3 },
-    { label: "TV Shows", value: tvShows.length, icon: BarChart3 },
+    { label: "Total Entries", value: allEntries.length, icon: BarChart3, iconClass: "text-sky-500", chipClass: "bg-sky-500/10" },
+    { label: "Movies", value: movies.length, icon: BarChart3, iconClass: "text-rose-500", chipClass: "bg-rose-500/10" },
+    { label: "TV Shows", value: tvShows.length, icon: BarChart3, iconClass: "text-violet-500", chipClass: "bg-violet-500/10" },
     {
       label: "Avg Gut Rating",
       value: allEntries.length > 0
         ? (allEntries.reduce((sum, e) => sum + (e.gut_rating ?? 0), 0) / allEntries.length).toFixed(1)
         : "—",
       icon: TrendingUp,
+      iconClass: "text-amber-500",
+      chipClass: "bg-amber-500/10",
     },
     {
       label: "Avg Detailed Rating",
@@ -153,11 +159,15 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
           : "—"
       })(),
       icon: TrendingUp,
+      iconClass: "text-emerald-500",
+      chipClass: "bg-emerald-500/10",
     },
     {
       label: "Hours Watched (30d)",
       value: watched30d > 0 ? formatMinutes(watched30d) : "—",
       icon: Clock,
+      iconClass: "text-cyan-500",
+      chipClass: "bg-cyan-500/10",
     },
   ]
 
@@ -218,19 +228,27 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                           <StatusBadge status={pinnedEntry.status ?? null} mediaType={pinnedEntry.media_type} />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {pinnedEntry.year} &middot; {pinnedEntry.media_type === "tv" ? "TV Show" : "Movie"}
+                          {pinnedEntry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={pinnedEntry.media_type} /> : pinnedEntry.media_type === "tv" ? "TV Show" : "Movie"}
                         </p>
                         <div className="flex items-center gap-4 text-sm">
-                          <div>
+                          <div className="flex items-center gap-1.5">
                             <span className="font-medium text-foreground">{pinnedUser.display_name || pinnedUser.username}: </span>
-                            <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
+                            {prefs.score_chips ? (
+                              <ScoreChip value={pinnedEntry.gut_rating} />
+                            ) : (
+                              <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
+                            )}
                             <span className="text-xs text-muted-foreground">/100</span>
                           </div>
                           {myComparisonEntry ? (
                             <>
-                              <div>
+                              <div className="flex items-center gap-1.5">
                                 <span className="text-muted-foreground">Your rating: </span>
-                                <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
+                                {prefs.score_chips ? (
+                                  <ScoreChip value={myComparisonEntry.gut_rating} />
+                                ) : (
+                                  <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
+                                )}
                                 <span className="text-xs text-muted-foreground">/100</span>
                               </div>
                               {pinnedEntry.gut_rating != null && myComparisonEntry.gut_rating != null && (
@@ -261,7 +279,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                                 <>
                                   <div className="flex gap-x-1 items-baseline text-sm">
                                     <span className="font-medium text-foreground shrink-0 w-24">{pinnedUser.display_name || pinnedUser.username}:</span>
-                                    <span className="font-medium tabular-nums shrink-0 mr-2">{pinTotal}</span>
+                                    {prefs.score_chips ? <ScoreChip value={pinTotal} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{pinTotal}</span>}
                                     <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {pinnedEntry.detailed_enjoyment}/60</span>
                                     <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {pinnedEntry.detailed_impact ?? 0}/20</span>
                                     <span className="text-xs text-muted-foreground tabular-nums shrink-0">R {pinnedEntry.detailed_recommend ?? 0}/10</span>
@@ -269,7 +287,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                                   </div>
                                   <div className="flex gap-x-1 items-baseline text-sm">
                                     <span className="text-muted-foreground shrink-0 w-24">Your rating:</span>
-                                    <span className="font-medium tabular-nums shrink-0 mr-2">{hasMyDetailed ? myTotal : "—"}</span>
+                                    {prefs.score_chips ? <ScoreChip value={hasMyDetailed ? myTotal : null} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{hasMyDetailed ? myTotal : "—"}</span>}
                                     {hasMyDetailed ? (
                                       <>
                                         <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {myComparisonEntry.detailed_enjoyment}/60</span>
@@ -314,7 +332,13 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
           return (
             <Card key={stat.label}>
               <CardContent className="flex items-center gap-3 pt-6">
-                <Icon className="h-8 w-8 text-muted-foreground" />
+                {prefs.stat_chips ? (
+                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${stat.chipClass}`}>
+                    <Icon className={`h-5 w-5 ${stat.iconClass}`} />
+                  </div>
+                ) : (
+                  <Icon className="h-8 w-8 text-muted-foreground" />
+                )}
                 <div>
                   <p className="text-2xl font-bold">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -435,7 +459,11 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                           )}
                           <span className="text-sm truncate flex-1">{entry.title}</span>
                           <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
-                          <span className="text-sm font-medium tabular-nums shrink-0">{entry.gut_rating}/100</span>
+                          {prefs.score_chips ? (
+                            <ScoreChip value={entry.gut_rating} />
+                          ) : (
+                            <span className="text-sm font-medium tabular-nums shrink-0">{entry.gut_rating}/100</span>
+                          )}
                           <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                             {new Date(entry.gut_rated_at!).toLocaleDateString()}
                           </span>
@@ -481,7 +509,11 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                           )}
                           <span className="text-sm truncate flex-1">{entry.title}</span>
                           <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
-                          <span className="text-sm font-medium tabular-nums shrink-0">{detailedTotal}/100</span>
+                          {prefs.score_chips ? (
+                            <ScoreChip value={detailedTotal} />
+                          ) : (
+                            <span className="text-sm font-medium tabular-nums shrink-0">{detailedTotal}/100</span>
+                          )}
                           <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                             {new Date(entry.detailed_rated_at!).toLocaleDateString()}
                           </span>
@@ -501,7 +533,13 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card>
             <CardContent className="flex items-center gap-3 pt-6">
-              <Clock className="h-8 w-8 text-muted-foreground" />
+              {prefs.stat_chips ? (
+                <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-rose-500/10">
+                  <Clock className="h-5 w-5 text-rose-500" />
+                </div>
+              ) : (
+                <Clock className="h-8 w-8 text-muted-foreground" />
+              )}
               <div>
                 <p className="text-2xl font-bold">{movieWatchTime > 0 ? formatMinutes(movieWatchTime) : "—"}</p>
                 <p className="text-xs text-muted-foreground">Movies</p>
@@ -510,7 +548,13 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 pt-6">
-              <Clock className="h-8 w-8 text-muted-foreground" />
+              {prefs.stat_chips ? (
+                <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-sky-500/10">
+                  <Clock className="h-5 w-5 text-sky-500" />
+                </div>
+              ) : (
+                <Clock className="h-8 w-8 text-muted-foreground" />
+              )}
               <div>
                 <p className="text-2xl font-bold">{tvWatchTime > 0 ? formatMinutes(tvWatchTime) : "—"}</p>
                 <p className="text-xs text-muted-foreground">TV Shows</p>
@@ -519,7 +563,13 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 pt-6">
-              <Clock className="h-8 w-8 text-muted-foreground" />
+              {prefs.stat_chips ? (
+                <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-emerald-500/10">
+                  <Clock className="h-5 w-5 text-emerald-500" />
+                </div>
+              ) : (
+                <Clock className="h-8 w-8 text-muted-foreground" />
+              )}
               <div>
                 <p className="text-2xl font-bold">{totalWatchTime > 0 ? formatMinutes(totalWatchTime) : "—"}</p>
                 <p className="text-xs text-muted-foreground">Total</p>

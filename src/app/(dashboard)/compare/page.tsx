@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RankingList } from "@/components/ranking-list"
 import { StatusBadge } from "@/components/status-badge"
+import { ScoreChip } from "@/components/score-chip"
+import { useCustomization } from "@/components/customization-provider"
 import { ENTRY_SELECT, flattenEntries } from "@/lib/entry-queries"
 import { Search, TrendingUp, TrendingDown, Users, ArrowUp, ArrowDown } from "lucide-react"
 
@@ -42,6 +44,7 @@ type SortField = "title" | "user1_gut" | "user2_gut" | "delta_gut" | "user1_det"
 
 export default function ComparePage() {
   const supabase = createClient()
+  const { prefs } = useCustomization()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Profile[]>([])
   const [user1, setUser1] = useState<Profile | null>(null)
@@ -318,13 +321,21 @@ export default function ComparePage() {
                               <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
                             </div>
                           </td>
-                          <td className="text-center py-2 px-2">{entry.gut_rating ?? "—"}</td>
-                          <td className="text-center py-2 px-2">{user2Entry.gut_rating ?? "—"}</td>
+                          <td className="text-center py-2 px-2">
+                            {prefs.score_chips ? <ScoreChip value={entry.gut_rating} /> : entry.gut_rating ?? "—"}
+                          </td>
+                          <td className="text-center py-2 px-2">
+                            {prefs.score_chips ? <ScoreChip value={user2Entry.gut_rating} /> : user2Entry.gut_rating ?? "—"}
+                          </td>
                           <td className={`text-center py-2 px-2 ${gutDiff !== null ? (gutDiff > 0 ? "text-green-600" : gutDiff < 0 ? "text-destructive" : "") : ""}`}>
                             {gutDiff !== null ? `${gutDiff > 0 ? "+" : ""}${gutDiff}` : "—"}
                           </td>
-                          <td className="text-center py-2 px-2">{det1 !== null ? det1 : "—"}</td>
-                          <td className="text-center py-2 px-2">{det2 !== null ? det2 : "—"}</td>
+                          <td className="text-center py-2 px-2">
+                            {prefs.score_chips ? <ScoreChip value={det1} /> : det1 !== null ? det1 : "—"}
+                          </td>
+                          <td className="text-center py-2 px-2">
+                            {prefs.score_chips ? <ScoreChip value={det2} /> : det2 !== null ? det2 : "—"}
+                          </td>
                           <td className={`text-center py-2 px-2 ${detDiff !== null ? (detDiff > 0 ? "text-green-600" : detDiff < 0 ? "text-destructive" : "") : ""}`}>
                             {detDiff !== null ? `${detDiff > 0 ? "+" : ""}${detDiff}` : "—"}
                           </td>

@@ -3,6 +3,8 @@
 import Image from "next/image"
 import Link from "next/link"
 import { StatusBadge } from "@/components/status-badge"
+import { ScoreChip } from "@/components/score-chip"
+import { useCustomization } from "@/components/customization-provider"
 import { Film, Tv } from "lucide-react"
 
 interface RankedEntry {
@@ -23,6 +25,8 @@ interface RankingListProps {
 }
 
 export function RankingList({ title, entries, type = "best" }: RankingListProps) {
+  const { prefs } = useCustomization()
+
   if (entries.length === 0) {
     return (
       <div className="space-y-2">
@@ -59,7 +63,11 @@ export function RankingList({ title, entries, type = "best" }: RankingListProps)
               )}
               <span className="text-sm truncate flex-1">{entry.title}</span>
               <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
-              <span className="text-sm font-medium tabular-nums">{entry.score}</span>
+              {prefs.score_chips ? (
+                <ScoreChip value={entry.score} />
+              ) : (
+                <span className="text-sm font-medium tabular-nums">{entry.score}</span>
+              )}
             </Link>
           )
         })}

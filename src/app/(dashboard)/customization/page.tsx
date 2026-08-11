@@ -3,8 +3,11 @@
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
 import { Check } from "lucide-react"
 import { ThemeSetter } from "@/components/theme-setter"
+import { useCustomization } from "@/components/customization-provider"
+import { mergeCustomization, DEFAULT_CUSTOMIZATION, CustomizationPrefs } from "@/lib/customization"
 
 const themes = [
   { name: "default", label: "Default", primary: "oklch(0.5 0.22 29)" },
@@ -24,8 +27,16 @@ const themes = [
   { name: "stone", label: "Stone", primary: "oklch(0.55 0.1 50)" },
 ]
 
+const ACCENT_OPTIONS: { key: keyof CustomizationPrefs; label: string; description: string }[] = [
+  { key: "score_chips", label: "Colored score chips", description: "Show ratings as colored pills by score band" },
+  { key: "media_badges", label: "Media type badges", description: "Color-coded Movie / TV Show tags" },
+  { key: "stat_chips", label: "Colored stat icons", description: "Tinted icon chips on dashboard stats" },
+  { key: "bg_gradient", label: "Background gradient", description: "Subtle color glow on the page background" },
+]
+
 export default function CustomizationPage() {
   const supabase = createClient()
+  const { prefs, setPrefs } = useCustomization()
   const [currentTheme, setCurrentTheme] = useState("default")
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -37,17 +48,18 @@ export default function CustomizationPage() {
 
       const { data } = await supabase
         .from("profiles")
-        .select("theme")
+        .select("theme, customization")
         .eq("id", user.id)
         .single()
 
       if (data?.theme) {
         setCurrentTheme(data.theme)
       }
+      setPrefs(mergeCustomization(data?.customization as Partial<CustomizationPrefs> | null | undefined))
       setLoading(false)
     }
     fetchProfile()
-  }, [supabase])
+  }, [supabase, setPrefs])
 
   const selectTheme = async (name: string) => {
     if (name === currentTheme) return
@@ -65,6 +77,31 @@ export default function CustomizationPage() {
       setCurrentTheme(name)
     }
     setSaving(false)
+  }
+
+  const togglePref = async (key: keyof CustomizationPrefs, value: boolean) => {
+    const next = { ...prefs, [key]: value }
+    setPrefs(next)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    await supabase
+      .from("profiles")
+      .update({ customization: next })
+      .eq("id", user.id)
+  }
+
+  const resetPrefs = async () => {
+    setPrefs(DEFAULT_CUSTOMIZATION)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    await supabase
+      .from("profiles")
+      .update({ customization: DEFAULT_CUSTOMIZATION })
+      .eq("id", user.id)
   }
 
   if (loading) {
@@ -110,6 +147,36 @@ export default function CustomizationPage() {
               )
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <h2 className="font-semibold mb-1">Colorful Accents</h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            Add pops of color across the site. Changes apply instantly.
+          </p>
+          <div className="space-y-4">
+            {ACCENT_OPTIONS.map((option) => (
+              <div key={option.key} className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">{option.label}</p>
+                  <p className="text-xs text-muted-foreground">{option.description}</p>
+                </div>
+                <Switch
+                  checked={prefs[option.key]}
+                  onCheckedChange={(value) => togglePref(option.key, value)}
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={resetPrefs}
+            className="mt-5 text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Reset all accents to default
+          </button>
         </CardContent>
       </Card>
     </div>
