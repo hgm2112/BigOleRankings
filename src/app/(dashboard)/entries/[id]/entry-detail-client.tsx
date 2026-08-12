@@ -184,18 +184,18 @@ export function EntryDetailClient({
 
       <div className="flex gap-6 flex-col sm:flex-row">
         {posterUrl ? (
-          <div className="relative w-40 sm:w-60 aspect-[2/3] rounded-lg overflow-hidden bg-muted flex-shrink-0 mx-auto sm:mx-0">
+          <div className="relative w-40 h-60 sm:w-[290px] sm:h-auto sm:self-stretch rounded-lg overflow-hidden bg-muted flex-shrink-0 mx-auto sm:mx-0">
             <Image
               src={posterUrl}
               alt={entry.title}
               fill
-              sizes="(min-width: 640px) 240px, 160px"
+              sizes="(min-width: 640px) 290px, 160px"
               quality={90}
               className="object-cover"
             />
           </div>
         ) : (
-          <div className="w-40 sm:w-60 aspect-[2/3] rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
+          <div className="w-40 h-60 sm:w-[290px] sm:h-auto sm:self-stretch rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
             {entry.media_type === "tv" ? <Tv className="h-10 w-10 text-muted-foreground" /> : <Film className="h-10 w-10 text-muted-foreground" />}
           </div>
         )}
@@ -284,39 +284,39 @@ export function EntryDetailClient({
               </div>
             </>
           )}
-
-          <Separator />
-          <div>
-            <h2 className="font-semibold mb-2">Tiebreaker Weight</h2>
-            <div className="flex items-center gap-2">
-              <span className="text-3xl font-bold">{entry.weight}</span>
-              <span className="text-sm text-muted-foreground">/100</span>
-            </div>
-          </div>
-
-          <Separator />
-          <div>
-            <h2 className="font-semibold mb-1">Synopsis</h2>
-            {overviewLoading ? (
-              <p className="text-sm text-muted-foreground italic">Loading synopsis...</p>
-            ) : overviewError ? (
-              <p className="text-sm text-muted-foreground italic">Could not load synopsis</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">{overview}</p>
-            )}
-          </div>
-
-          {entry.notes && (
-            <>
-              <Separator />
-              <div>
-                <h2 className="font-semibold mb-1">Notes</h2>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{entry.notes}</p>
-              </div>
-            </>
-          )}
         </div>
       </div>
+
+      <Separator />
+      <div>
+        <h2 className="font-semibold mb-1">Synopsis</h2>
+        {overviewLoading ? (
+          <p className="text-sm text-muted-foreground italic">Loading synopsis...</p>
+        ) : overviewError ? (
+          <p className="text-sm text-muted-foreground italic">Could not load synopsis</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">{overview}</p>
+        )}
+      </div>
+
+      <Separator />
+      <div className="flex flex-col items-center text-center">
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold">Tiebreaker Weight</h2>
+          <span className="text-3xl font-bold">{entry.weight}</span>
+          <span className="text-sm text-muted-foreground">/100</span>
+        </div>
+      </div>
+
+      {entry.notes && (
+        <>
+          <Separator />
+          <div>
+            <h2 className="font-semibold mb-1">Notes</h2>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{entry.notes}</p>
+          </div>
+        </>
+      )}
 
       {entry.media_type === "tv" && (
         <Card>
