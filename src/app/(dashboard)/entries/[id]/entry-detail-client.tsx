@@ -299,14 +299,17 @@ export function EntryDetailClient({
         )}
       </div>
 
-      <Separator />
-      <div className="flex flex-col items-center text-center">
-        <div className="flex items-center gap-2">
-          <h2 className="font-semibold">Tiebreaker Weight</h2>
-          <span className="text-3xl font-bold">{entry.weight}</span>
-          <span className="text-sm text-muted-foreground">/100</span>
-        </div>
-      </div>
+      {entry.weight > 0 && (
+        <>
+          <Separator />
+          <div className="flex flex-col items-center text-center">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm">Tiebreaker Weight</h2>
+              <span className="text-sm">{entry.weight}</span>
+            </div>
+          </div>
+        </>
+      )}
 
       {entry.notes && (
         <>
