@@ -184,7 +184,7 @@ export function EntryDetailClient({
 
       <div className="flex gap-6 flex-col sm:flex-row">
         {posterUrl ? (
-          <div className="relative w-40 h-60 sm:w-[290px] sm:h-auto sm:self-stretch rounded-lg overflow-hidden bg-muted flex-shrink-0 mx-auto sm:mx-0">
+          <div className="relative w-40 h-60 sm:w-[290px] sm:h-auto sm:self-stretch sm:min-h-[435px] rounded-lg overflow-hidden bg-muted flex-shrink-0 mx-auto sm:mx-0">
             <Image
               src={posterUrl}
               alt={entry.title}
@@ -195,7 +195,7 @@ export function EntryDetailClient({
             />
           </div>
         ) : (
-          <div className="w-40 h-60 sm:w-[290px] sm:h-auto sm:self-stretch rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
+          <div className="w-40 h-60 sm:w-[290px] sm:h-auto sm:self-stretch sm:min-h-[435px] rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
             {entry.media_type === "tv" ? <Tv className="h-10 w-10 text-muted-foreground" /> : <Film className="h-10 w-10 text-muted-foreground" />}
           </div>
         )}
