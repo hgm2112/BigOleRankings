@@ -27,12 +27,13 @@ const themes = [
   { name: "stone", label: "Stone", primary: "oklch(0.55 0.1 50)" },
 ]
 
-type BooleanPrefKey = "score_chips" | "media_badges" | "stat_chips"
+type BooleanPrefKey = "score_chips" | "media_badges" | "stat_chips" | "poster_themes"
 
 const ACCENT_OPTIONS: { key: BooleanPrefKey; label: string; description: string }[] = [
   { key: "score_chips", label: "Colored score chips", description: "Show ratings as colored pills by score band" },
   { key: "media_badges", label: "Media type badges", description: "Color-coded Movie / TV Show tags" },
   { key: "stat_chips", label: "Colored stat icons", description: "Tinted icon chips on dashboard stats" },
+  { key: "poster_themes", label: "Poster-themed entry cards", description: "Tint each entry card with colors pulled from its poster" },
 ]
 
 export default function CustomizationPage() {

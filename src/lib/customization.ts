@@ -2,6 +2,7 @@ export interface CustomizationPrefs {
   score_chips: boolean
   media_badges: boolean
   stat_chips: boolean
+  poster_themes: boolean
   background: string
 }
 
@@ -9,6 +10,7 @@ export const DEFAULT_CUSTOMIZATION: CustomizationPrefs = {
   score_chips: true,
   media_badges: true,
   stat_chips: true,
+  poster_themes: false,
   background: "black",
 }
 
@@ -17,6 +19,7 @@ export function mergeCustomization(value: Partial<CustomizationPrefs> | null | u
     score_chips: value?.score_chips ?? DEFAULT_CUSTOMIZATION.score_chips,
     media_badges: value?.media_badges ?? DEFAULT_CUSTOMIZATION.media_badges,
     stat_chips: value?.stat_chips ?? DEFAULT_CUSTOMIZATION.stat_chips,
+    poster_themes: value?.poster_themes ?? DEFAULT_CUSTOMIZATION.poster_themes,
     background: value?.background ?? DEFAULT_CUSTOMIZATION.background,
   }
 }

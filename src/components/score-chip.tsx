@@ -16,10 +16,12 @@ export function ScoreChip({
   value,
   max = 100,
   className,
+  tint,
 }: {
   value: number | null | undefined
   max?: number
   className?: string
+  tint?: { text: string; bg: string }
 }) {
   const text = scoreTextClass(value, max)
   const bg = text === HIGH ? "bg-green-600/10" : text === MID ? "bg-amber-500/10" : "bg-red-500/10"
@@ -28,10 +30,11 @@ export function ScoreChip({
     <span
       className={cn(
         "inline-flex items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums",
-        text,
-        bg,
+        tint ? undefined : text,
+        tint ? undefined : bg,
         className
       )}
+      style={tint ? { color: tint.text, backgroundColor: tint.bg } : undefined}
     >
       {value ?? "—"}
     </span>

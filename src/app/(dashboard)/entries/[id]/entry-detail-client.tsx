@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/status-badge"
 import { ScoreChip, scoreTextClass } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
+import { usePosterTheme } from "@/hooks/use-poster-theme"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp } from "lucide-react"
 import { Film, Tv } from "lucide-react"
@@ -90,6 +91,7 @@ export function EntryDetailClient({
   const posterUrl = entry.poster_path
     ? `https://image.tmdb.org/t/p/w780${entry.poster_path}`
     : null
+  const palette = usePosterTheme(entry.poster_path, prefs.poster_themes)
 
   const hasDetailed = entry.detailed_enjoyment !== null
   const detailedTotal = hasDetailed
@@ -196,8 +198,25 @@ export function EntryDetailClient({
         <Link href={backUrl ?? "/entries"}><ArrowLeft className="h-4 w-4 mr-1" />Back to entries</Link>
       </Button>
 
-      <div className="flex gap-6 flex-col sm:flex-row">
-        {posterUrl ? (
+      <div
+        className={
+          palette
+            ? "rounded-xl border bg-card overflow-hidden shadow"
+            : undefined
+        }
+        style={
+          palette
+            ? {
+                borderColor: palette.glow,
+                boxShadow: `0 0 16px ${palette.glow}`,
+                backgroundImage: `linear-gradient(${palette.wash}, ${palette.wash})`,
+              }
+            : undefined
+        }
+      >
+        {palette && <div className="h-2" style={{ backgroundColor: palette.accent }} />}
+        <div className={`flex gap-6 flex-col sm:flex-row${palette ? " p-4" : ""}`}>
+          {posterUrl ? (
           <div className="relative w-40 h-60 sm:w-[290px] sm:h-auto sm:self-stretch sm:min-h-[435px] rounded-lg overflow-hidden bg-muted flex-shrink-0 mx-auto sm:mx-0">
             <Image
               src={posterUrl}
@@ -300,6 +319,7 @@ export function EntryDetailClient({
           )}
         </div>
       </div>
+      </div>
 
       <Separator />
       <div>
@@ -384,7 +404,7 @@ export function EntryDetailClient({
                           {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
                           {sr?.rating != null && (
                             prefs.score_chips ? (
-                              <ScoreChip value={sr.rating} max={10} />
+                                      <ScoreChip value={sr.rating} max={10} tint={palette?.chip} />
                             ) : (
                               <span className="font-medium">{sr.rating}/10</span>
                             )
@@ -413,7 +433,7 @@ export function EntryDetailClient({
                     </Link>
                     <span className="text-muted-foreground">rated</span>
                     {prefs.score_chips ? (
-                      <ScoreChip value={fr.gut_rating} />
+                      <ScoreChip value={fr.gut_rating} tint={palette?.chip} />
                     ) : (
                       <span className="font-medium">{fr.gut_rating}</span>
                     )}
@@ -434,7 +454,7 @@ export function EntryDetailClient({
                           <>
                             <span className="text-muted-foreground text-xs">Detailed:</span>
                             {prefs.score_chips ? (
-                              <ScoreChip value={frTotal} />
+                              <ScoreChip value={frTotal} tint={palette?.chip} />
                             ) : (
                               <span className="font-medium tabular-nums">{frTotal}/100</span>
                             )}
@@ -478,7 +498,7 @@ export function EntryDetailClient({
                                   {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
                                   {sr?.rating != null ? (
                                     prefs.score_chips ? (
-                                      <ScoreChip value={sr.rating} max={10} />
+                              <ScoreChip value={sr.rating} max={10} tint={palette?.chip} />
                                     ) : (
                                       <span className="font-medium tabular-nums">{sr.rating}/10</span>
                                     )
@@ -537,7 +557,7 @@ export function EntryDetailClient({
                         <div className="flex gap-x-3 items-baseline text-sm flex-wrap">
                           <span className="text-muted-foreground">Detailed:</span>
                           {prefs.score_chips ? (
-                            <ScoreChip value={myDetailedTotal} />
+                            <ScoreChip value={myDetailedTotal} tint={palette?.chip} />
                           ) : (
                             <span className="font-medium tabular-nums">{myDetailedTotal}/100</span>
                           )}
@@ -579,7 +599,7 @@ export function EntryDetailClient({
                         {sr.dnf && <span className="font-medium text-destructive">DNF</span>}
                         {sr.rating != null && (
                           prefs.score_chips ? (
-                            <ScoreChip value={sr.rating} max={10} />
+                            <ScoreChip value={sr.rating} max={10} tint={palette?.chip} />
                           ) : (
                             <span className="font-medium">{sr.rating}/10</span>
                           )
