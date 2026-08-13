@@ -43,6 +43,11 @@ export default async function EntryDetailPage({ params, searchParams }: { params
         .eq("media_id", entry.media_id)
         .maybeSingle()
 
+  const { count: viewerCount } = await supabase
+    .from("ratings")
+    .select("user_id", { count: "exact", head: true })
+    .eq("media_id", entry.media_id)
+
   let followerRatings: {
     username: string
     display_name: string | null
@@ -179,6 +184,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
       seasons={seasons}
       seasonRatings={seasonRatings}
       mySeasonRatings={mySeasonRatings}
+      viewerCount={viewerCount ?? 0}
     />
   )
 }

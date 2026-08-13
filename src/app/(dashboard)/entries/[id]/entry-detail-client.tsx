@@ -13,7 +13,7 @@ import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
 import { usePosterTheme } from "@/hooks/use-poster-theme"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp } from "lucide-react"
+import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
 interface Entry {
@@ -75,6 +75,7 @@ export function EntryDetailClient({
   seasons,
   seasonRatings,
   mySeasonRatings,
+  viewerCount,
 }: {
   entry: Entry
   ownerProfile: { username: string; display_name: string | null } | null
@@ -86,6 +87,7 @@ export function EntryDetailClient({
   seasons: Season[]
   seasonRatings: SeasonRating[]
   mySeasonRatings: SeasonRating[]
+  viewerCount: number
 }) {
   const { prefs } = useCustomization()
   const posterUrl = entry.poster_path
@@ -238,6 +240,13 @@ export function EntryDetailClient({
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold">{entry.title}</h1>
               <StatusBadge status={liveStatus ?? entry.status} mediaType={entry.media_type} nextAirDate={liveNextAirDate} />
+              <span
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-muted/50 text-muted-foreground whitespace-nowrap"
+                title={`${viewerCount} ${viewerCount === 1 ? "user" : "users"} watched this`}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span className="tabular-nums">{viewerCount}</span>
+              </span>
             </div>
             <p className="text-muted-foreground flex items-center gap-2">
               {entry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={entry.media_type} /> : entry.media_type === "tv" ? "TV Show" : "Movie"}

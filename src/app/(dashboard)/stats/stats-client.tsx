@@ -5,6 +5,18 @@ import { BarChart3, UserCheck } from "lucide-react"
 import type { FlatEntry } from "@/lib/entry-queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+
+export interface SharedRating {
+  media_id: string
+  title: string
+  media_type: string
+  year: number | null
+  poster_path: string | null
+  viewers: number
+  avgGut: number | null
+  avgDetailed: number | null
+}
 
 function avg(values: number[]): number | null {
   if (values.length === 0) return null
@@ -63,14 +75,19 @@ export function StatsClient({
   self,
   following,
   entriesByUser,
+  sharedRatings,
 }: {
   self: StatsPerson
   following: StatsPerson[]
   entriesByUser: Record<string, FlatEntry[]>
+  sharedRatings: SharedRating[]
 }) {
   const [selectedId, setSelectedId] = useState<string>(self.id)
   const [genreSort, setGenreSort] = useState<{ key: GenreSortKey; dir: 1 | -1 }>({ key: "count", dir: -1 })
   const [decadeSort, setDecadeSort] = useState<{ key: "decade" | "count" | "avgGut" | "avgDetailed"; dir: 1 | -1 }>({ key: "decade", dir: -1 })
+  const [sharedSort, setSharedSort] = useState<{ key: "title" | "year" | "viewers" | "avgGut" | "avgDetailed"; dir: 1 | -1 }>({ key: "avgGut", dir: -1 })
+  const [moviePage, setMoviePage] = useState(1)
+  const [tvPage, setTvPage] = useState(1)
 
   const entries = useMemo(() => entriesByUser[selectedId] ?? [], [entriesByUser, selectedId])
   const selectedName = selectedId === self.id ? self.name : (following.find((f) => f.id === selectedId)?.name ?? "User")
@@ -151,6 +168,42 @@ export function StatsClient({
     const getValue = (row: DecadeStat): string | number | null => row[decadeSort.key]
     return sortRows(stats.decadeStats, getValue, decadeSort.dir)
   }, [stats.decadeStats, decadeSort])
+  const sharedRows = useMemo(() => {
+    const getValue = (row: SharedRating): string | number | null => (sharedSort.key === "title" ? row.title : row[sharedSort.key])
+    return sortRows(sharedRatings, getValue, sharedSort.dir)
+  }, [sharedRatings, sharedSort])
+
+  const sharedMovies = useMemo(() => sharedRows.filter((s) => s.media_type === "movie"), [sharedRows])
+  const sharedTv = useMemo(() => sharedRows.filter((s) => s.media_type === "tv"), [sharedRows])
+
+  const sharedPageSize = 10
+  const paginateShared = (rows: SharedRating[], page: number) => {
+    const pageCount = Math.max(1, Math.ceil(rows.length / sharedPageSize))
+    const safePage = Math.min(page, pageCount)
+    return { rows: rows.slice((safePage - 1) * sharedPageSize, safePage * sharedPageSize), page: safePage, pageCount }
+  }
+
+  const sharedPager = (rows: SharedRating[], page: number, setPage: (p: number) => void) => {
+    const { page: safePage, pageCount } = paginateShared(rows, page)
+    if (pageCount <= 1) return null
+    const start = (safePage - 1) * sharedPageSize + 1
+    const end = Math.min(safePage * sharedPageSize, rows.length)
+    return (
+      <div className="flex items-center justify-between pt-3">
+        <p className="text-xs text-muted-foreground">
+          Showing {start}–{end} of {rows.length}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+            Previous
+          </Button>
+          <Button variant="outline" size="sm" disabled={safePage >= pageCount} onClick={() => setPage(safePage + 1)}>
+            Next
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   const noGenres = entries.length > 0 && stats.genreStats.length === 0
 
@@ -173,6 +226,16 @@ export function StatsClient({
     >
       {label}
       {decadeSort.key === key ? (decadeSort.dir === 1 ? " ↑" : " ↓") : ""}
+    </th>
+  )
+
+  const sharedHeader = (label: string, key: "title" | "year" | "viewers" | "avgGut" | "avgDetailed", align = "right") => (
+    <th
+      className={`px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap cursor-pointer select-none hover:text-foreground ${align === "right" ? "text-right" : "text-left"}`}
+      onClick={() => { setSharedSort({ key, dir: sharedSort.key === key ? (sharedSort.dir === 1 ? -1 : 1) : key === "title" ? 1 : -1 }); setMoviePage(1); setTvPage(1) }}
+    >
+      {label}
+      {sharedSort.key === key ? (sharedSort.dir === 1 ? " ↑" : " ↓") : ""}
     </th>
   )
 
@@ -322,6 +385,84 @@ export function StatsClient({
               </table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Average Ratings across BigOleRankings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Movies ({sharedMovies.length})</h3>
+              {sharedMovies.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No shared movie ratings yet.</p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="border-b">
+                        <tr>
+                          {sharedHeader("Title", "title", "left")}
+                          {sharedHeader("Year", "year")}
+                          {sharedHeader("Viewers", "viewers")}
+                          {sharedHeader("Avg Gut", "avgGut")}
+                          {sharedHeader("Avg Detailed", "avgDetailed")}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginateShared(sharedMovies, moviePage).rows.map((s) => (
+                          <tr key={s.media_id} className="border-b last:border-0">
+                            <td className="px-3 py-2 font-medium truncate max-w-[260px]">{s.title}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{s.year ?? "—"}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{s.viewers}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{s.avgGut ?? "—"}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{s.avgDetailed ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {sharedPager(sharedMovies, moviePage, setMoviePage)}
+                </>
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold mb-2">TV shows ({sharedTv.length})</h3>
+              {sharedTv.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No shared TV show ratings yet.</p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="border-b">
+                        <tr>
+                          {sharedHeader("Title", "title", "left")}
+                          {sharedHeader("Year", "year")}
+                          {sharedHeader("Viewers", "viewers")}
+                          {sharedHeader("Avg Gut", "avgGut")}
+                          {sharedHeader("Avg Detailed", "avgDetailed")}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginateShared(sharedTv, tvPage).rows.map((s) => (
+                          <tr key={s.media_id} className="border-b last:border-0">
+                            <td className="px-3 py-2 font-medium truncate max-w-[260px]">{s.title}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{s.year ?? "—"}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{s.viewers}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{s.avgGut ?? "—"}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{s.avgDetailed ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {sharedPager(sharedTv, tvPage, setTvPage)}
+                </>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
