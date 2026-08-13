@@ -53,6 +53,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
     detailed_recommend: number | null
     detailed_watch_again: number | null
     detailed_rated_at: string | null
+    season_ratings: { season_number: number; rating: number | null; dnf: boolean }[]
   }[] = []
 
   if (isOwner) {
@@ -78,6 +79,25 @@ export default async function EntryDetailPage({ params, searchParams }: { params
 
       if (followerEntries && followerProfiles) {
         const profileMap = new Map(followerProfiles.map(p => [p.id, p]))
+
+        let seasonRatingsByUser = new Map<string, { season_number: number; rating: number | null; dnf: boolean }[]>()
+        if (entry.media_type === "tv") {
+          const { data: followerSeasonRatings } = await supabase
+            .from("season_ratings")
+            .select("user_id, season_number, rating, dnf")
+            .in("user_id", followerIds)
+            .eq("media_id", entry.media_id)
+
+          if (followerSeasonRatings) {
+            seasonRatingsByUser = new Map()
+            for (const sr of followerSeasonRatings) {
+              const list = seasonRatingsByUser.get(sr.user_id) ?? []
+              list.push({ season_number: sr.season_number, rating: sr.rating, dnf: sr.dnf })
+              seasonRatingsByUser.set(sr.user_id, list)
+            }
+          }
+        }
+
         followerRatings = followerEntries.map(e => {
           const profile = profileMap.get(e.user_id)
           return {
@@ -90,6 +110,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
             detailed_recommend: e.detailed_recommend,
             detailed_watch_again: e.detailed_watch_again,
             detailed_rated_at: e.detailed_rated_at,
+            season_ratings: seasonRatingsByUser.get(e.user_id) ?? [],
           }
         })
       }

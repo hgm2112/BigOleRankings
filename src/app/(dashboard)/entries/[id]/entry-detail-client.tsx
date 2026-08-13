@@ -12,7 +12,7 @@ import { ScoreChip, scoreTextClass } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Edit3, ArrowLeft, ClipboardList } from "lucide-react"
+import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
 interface Entry {
@@ -60,6 +60,7 @@ interface FollowerRating {
   detailed_recommend: number | null
   detailed_watch_again: number | null
   detailed_rated_at: string | null
+  season_ratings: { season_number: number; rating: number | null; dnf: boolean }[]
 }
 
 export function EntryDetailClient({
@@ -104,6 +105,19 @@ export function EntryDetailClient({
   const [liveStatus, setLiveStatus] = useState<string | null>(null)
   const [liveNextAirDate, setLiveNextAirDate] = useState<string | null>(null)
   const [localSeasonRatings, setLocalSeasonRatings] = useState<SeasonRating[]>(seasonRatings)
+  const [expandedFollowers, setExpandedFollowers] = useState<Set<string>>(new Set())
+
+  const toggleFollowerSeasons = (username: string) => {
+    setExpandedFollowers((prev) => {
+      const next = new Set(prev)
+      if (next.has(username)) {
+        next.delete(username)
+      } else {
+        next.add(username)
+      }
+      return next
+    })
+  }
 
   const supabaseClient = createClient()
 
@@ -434,6 +448,49 @@ export function EntryDetailClient({
                           </>
                         )
                       })()}
+                    </div>
+                  )}
+                  {entry.media_type === "tv" && fr.season_ratings.length > 0 && (
+                    <div className="mt-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs gap-1"
+                        onClick={() => toggleFollowerSeasons(fr.username)}
+                        aria-expanded={expandedFollowers.has(fr.username)}
+                      >
+                        {expandedFollowers.has(fr.username) ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        Season ratings
+                      </Button>
+                      {expandedFollowers.has(fr.username) && (
+                        <div className="border-t border-border/50 pt-2 mt-1 space-y-1.5">
+                          {seasons.map((s) => {
+                            const sr = fr.season_ratings.find((x) => x.season_number === s.season_number)
+                            return (
+                              <div key={s.season_number} className="flex items-center gap-2 text-sm flex-wrap">
+                                <span className="font-medium">Season {s.season_number}</span>
+                                {s.name && s.name !== `Season ${s.season_number}` && (
+                                  <span className="text-xs text-muted-foreground">({s.name})</span>
+                                )}
+                                {s.air_year != null && <span className="text-xs text-muted-foreground">{s.air_year}</span>}
+                                {s.episode_count != null && <span className="text-xs text-muted-foreground">· {s.episode_count} episodes</span>}
+                                <span className="ml-auto flex items-center gap-2">
+                                  {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
+                                  {sr?.rating != null ? (
+                                    prefs.score_chips ? (
+                                      <ScoreChip value={sr.rating} max={10} />
+                                    ) : (
+                                      <span className="font-medium tabular-nums">{sr.rating}/10</span>
+                                    )
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                   {idx < followerRatings.length - 1 && <Separator />}
