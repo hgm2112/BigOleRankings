@@ -71,74 +71,105 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
   const hasSeasons = isTv && (entry.seasons?.length ?? 0) > 0
   const seasonRatingMap = new Map(seasonRatings.map((sr) => [sr.season_number, sr]))
 
-  const actions = (
-    <>
-      {hasSeasons && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 px-2 text-xs gap-1"
-          onClick={() => setSeasonsOpen((o) => !o)}
-          aria-expanded={seasonsOpen}
-        >
-          {seasonsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          Seasons
-        </Button>
-      )}
+  const noteButton = entry.notes ? (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="View note">
+            <StickyNote className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs whitespace-pre-wrap break-words">
+          {entry.notes}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : null
 
-      {!readOnly && (
-        <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
-          <Link href={`/entries/${entry.id}/edit`}>
-            <Edit3 className="h-3.5 w-3.5" />
-          </Link>
-        </Button>
-      )}
+  const seasonsLabeledButton = hasSeasons ? (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-6 px-2 text-xs gap-1"
+      onClick={() => setSeasonsOpen((o) => !o)}
+      aria-expanded={seasonsOpen}
+    >
+      {seasonsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      Seasons
+    </Button>
+  ) : null
 
-      {!readOnly && onDelete && (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Entry</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete "{entry.title}"? This cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button variant="destructive" onClick={() => onDelete(entry.id)}>Delete</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
-  )
+  const seasonsIconButton = hasSeasons ? (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-6 w-6"
+      onClick={() => setSeasonsOpen((o) => !o)}
+      aria-expanded={seasonsOpen}
+      title="Seasons"
+    >
+      {seasonsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+    </Button>
+  ) : null
+
+  const editButton = !readOnly ? (
+    <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+      <Link href={`/entries/${entry.id}/edit`}>
+        <Edit3 className="h-3.5 w-3.5" />
+      </Link>
+    </Button>
+  ) : null
+
+  const deleteButton = !readOnly && onDelete ? (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Entry</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete "{entry.title}"? This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button variant="destructive" onClick={() => onDelete(entry.id)}>Delete</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ) : null
 
   return (
     <Card className="overflow-hidden">
       <div className="flex gap-3 p-3">
-        {posterUrl ? (
-          <div className="relative w-[77px] h-[115px] rounded overflow-hidden bg-muted flex-shrink-0">
-            <Image
-              src={posterUrl}
-              alt={entry.title}
-              fill
-              sizes="77px"
-              quality={90}
-              className="object-cover"
-            />
+        <div className="flex flex-col flex-shrink-0">
+          {posterUrl ? (
+            <div className="relative w-[77px] h-[115px] rounded overflow-hidden bg-muted">
+              <Image
+                src={posterUrl}
+                alt={entry.title}
+                fill
+                sizes="77px"
+                quality={90}
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <div className="w-[77px] h-[115px] rounded bg-muted flex items-center justify-center">
+              {entry.media_type === "tv" ? <Tv className="h-6 w-6 text-muted-foreground" /> : <Film className="h-6 w-6 text-muted-foreground" />}
+            </div>
+          )}
+          <div className="mt-1.5 flex justify-center gap-1 md:hidden">
+            {noteButton}
+            {editButton}
+            {deleteButton}
           </div>
-        ) : (
-          <div className="w-[77px] h-[115px] rounded bg-muted flex items-center justify-center flex-shrink-0">
-            {entry.media_type === "tv" ? <Tv className="h-6 w-6 text-muted-foreground" /> : <Film className="h-6 w-6 text-muted-foreground" />}
-          </div>
-        )}
+        </div>
 
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-start justify-between gap-2">
@@ -160,26 +191,11 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
                   <span>{entry.media_type === "tv" ? "TV Show" : "Movie"}</span>
                 )}
                 {entry.notes && (
-                  <TooltipProvider delayDuration={150}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-foreground"
-                          aria-label="View note"
-                        >
-                          <StickyNote className="h-3.5 w-3.5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs whitespace-pre-wrap break-words">
-                        {entry.notes}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <div className="hidden md:flex">{noteButton}</div>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-1 md:hidden">{actions}</div>
+            <div className="flex items-center gap-1 md:hidden">{seasonsIconButton}</div>
           </div>
 
           <div className="mt-1.5">
@@ -190,7 +206,9 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
                 {diff !== null && <span className="w-14 text-center text-xs text-muted-foreground">Diff</span>}
               </div>
               <div className="hidden md:flex items-center gap-1 flex-wrap justify-end min-w-0">
-                {actions}
+                {seasonsLabeledButton}
+                {editButton}
+                {deleteButton}
               </div>
             </div>
 
