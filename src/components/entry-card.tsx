@@ -71,6 +71,55 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
   const hasSeasons = isTv && (entry.seasons?.length ?? 0) > 0
   const seasonRatingMap = new Map(seasonRatings.map((sr) => [sr.season_number, sr]))
 
+  const actions = (
+    <>
+      {hasSeasons && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-xs gap-1"
+          onClick={() => setSeasonsOpen((o) => !o)}
+          aria-expanded={seasonsOpen}
+        >
+          {seasonsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          Seasons
+        </Button>
+      )}
+
+      {!readOnly && (
+        <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+          <Link href={`/entries/${entry.id}/edit`}>
+            <Edit3 className="h-3.5 w-3.5" />
+          </Link>
+        </Button>
+      )}
+
+      {!readOnly && onDelete && (
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Entry</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{entry.title}"? This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button variant="destructive" onClick={() => onDelete(entry.id)}>Delete</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  )
+
   return (
     <Card className="overflow-hidden">
       <div className="flex gap-3 p-3">
@@ -93,7 +142,7 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
 
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-start justify-between gap-2">
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <Link
                   href={`/entries/${entry.id}${backQuery ? `?${backQuery}` : ""}`}
@@ -130,6 +179,7 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
                 )}
               </div>
             </div>
+            <div className="flex items-center gap-1 md:hidden">{actions}</div>
           </div>
 
           <div className="mt-1.5">
@@ -139,51 +189,8 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
                 {hasDetailed && <span className="w-14 text-center text-xs text-muted-foreground">Detailed</span>}
                 {diff !== null && <span className="w-14 text-center text-xs text-muted-foreground">Diff</span>}
               </div>
-              <div className="flex items-center gap-1 flex-wrap justify-end min-w-0">
-                {hasSeasons && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs gap-1"
-                    onClick={() => setSeasonsOpen((o) => !o)}
-                    aria-expanded={seasonsOpen}
-                  >
-                    {seasonsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    Seasons
-                  </Button>
-                )}
-
-                {!readOnly && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
-                    <Link href={`/entries/${entry.id}/edit`}>
-                      <Edit3 className="h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
-                )}
-
-                {!readOnly && onDelete && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Delete Entry</DialogTitle>
-                        <DialogDescription>
-                          Are you sure you want to delete "{entry.title}"? This cannot be undone.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button variant="outline">Cancel</Button>
-                        </DialogClose>
-                        <Button variant="destructive" onClick={() => onDelete(entry.id)}>Delete</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
+              <div className="hidden md:flex items-center gap-1 flex-wrap justify-end min-w-0">
+                {actions}
               </div>
             </div>
 
@@ -206,7 +213,7 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
 
           <div className="mt-auto">
             {hasDetailed && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            <div className="grid grid-cols-2 md:flex md:flex-wrap gap-x-4 gap-y-1 text-xs">
               <span className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Enjoyment</span>
                 <span className={`font-medium tabular-nums ${prefs.score_chips ? scoreTextClass(entry.detailed_enjoyment, 60) : ""}`}>{entry.detailed_enjoyment}</span>
