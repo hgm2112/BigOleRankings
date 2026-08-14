@@ -1,11 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { BarChart3, UserCheck } from "lucide-react"
+import { BarChart3, UserCheck, Clock, TrendingUp } from "lucide-react"
 import type { FlatEntry } from "@/lib/entry-queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { ScoreChip } from "@/components/score-chip"
+import { MediaTypeBadge } from "@/components/media-type-badge"
+import { useCustomization } from "@/components/customization-provider"
 
 export interface SharedRating {
   media_id: string
@@ -49,7 +52,7 @@ interface GenreStat {
   avgRecommend: number | null
   avgWatchAgain: number | null
   weightedDetailed: number | null
-  best: { title: string; score: number } | null
+  best: { title: string; score: number; media_type: string } | null
 }
 
 interface DecadeStat {
@@ -97,13 +100,14 @@ export function StatsClient({
   const [moviePage, setMoviePage] = useState(1)
   const [tvPage, setTvPage] = useState(1)
 
+  const { prefs } = useCustomization()
+
   const entries = useMemo(() => entriesByUser[selectedId] ?? [], [entriesByUser, selectedId])
   const selectedName = selectedId === self.id ? self.name : (following.find((f) => f.id === selectedId)?.name ?? "User")
   const isSelf = selectedId === self.id
 
   const stats = useMemo(() => {
     const total = entries.length
-    const withDetailed = entries.filter(hasDetailed).length
     const movies = entries.filter((e) => e.media_type === "movie")
     const tv = entries.filter((e) => e.media_type === "tv")
 
@@ -127,7 +131,7 @@ export function StatsClient({
         const best = detailed.length > 0
           ? detailed.reduce<GenreStat["best"]>((acc, e) => {
               const score = detailedTotal(e)!
-              if (!acc || score > acc.score) return { title: e.title, score }
+              if (!acc || score > acc.score) return { title: e.title, score, media_type: e.media_type }
               return acc
             }, null)
           : null
@@ -164,7 +168,7 @@ export function StatsClient({
       }))
       .sort((a, b) => b.decade.localeCompare(a.decade))
 
-    return { total, withDetailed, movies, tv, gutRatings, detailedTotals, hours, genreStats, decadeStats }
+    return { total, movies, tv, gutRatings, detailedTotals, hours, genreStats, decadeStats }
   }, [entries])
 
   const genreRows = useMemo(() => {
@@ -221,7 +225,38 @@ export function StatsClient({
 
   const noGenres = entries.length > 0 && stats.genreStats.length === 0
 
-  const formatPct = (n: number, d: number) => (d === 0 ? "—" : `${Math.round((n / d) * 100)}%`)
+  const ratingCell = (value: number | null, max = 100) =>
+    prefs.score_chips ? (
+      <ScoreChip value={value} max={max} />
+    ) : (
+      <span className="tabular-nums">{value ?? "—"}</span>
+    )
+
+  const quickStatCard = (
+    Icon: React.ComponentType<{ className?: string }>,
+    iconClass: string,
+    chipClass: string,
+    value: React.ReactNode,
+    label: string,
+    subtitle?: string,
+  ) => (
+    <Card className="flex flex-col">
+      <CardContent className="flex flex-1 items-center gap-3 pt-6">
+        {prefs.stat_chips ? (
+          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${chipClass}`}>
+            <Icon className={`h-5 w-5 ${iconClass}`} />
+          </div>
+        ) : (
+          <Icon className="h-8 w-8 text-muted-foreground" />
+        )}
+        <div>
+          <p className="text-2xl font-bold tabular-nums">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  )
 
   const genreHeader = (label: string, key: GenreSortKey, align = "right") => (
     <th
@@ -300,8 +335,8 @@ export function StatsClient({
                             <td className="px-3 py-2 font-medium truncate max-w-[260px]">{s.title}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{s.year ?? "—"}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{s.viewers}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{s.avgGut ?? "—"}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{s.avgDetailed ?? "—"}</td>
+                            <td className="px-3 py-2 text-right">{ratingCell(s.avgGut)}</td>
+                            <td className="px-3 py-2 text-right">{ratingCell(s.avgDetailed)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -334,8 +369,8 @@ export function StatsClient({
                             <td className="px-3 py-2 font-medium truncate max-w-[260px]">{s.title}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{s.year ?? "—"}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{s.viewers}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{s.avgGut ?? "—"}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{s.avgDetailed ?? "—"}</td>
+                            <td className="px-3 py-2 text-right">{ratingCell(s.avgGut)}</td>
+                            <td className="px-3 py-2 text-right">{ratingCell(s.avgDetailed)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -414,44 +449,17 @@ export function StatsClient({
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total rated</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold tabular-nums">{stats.total}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {stats.movies.length} movie{stats.movies.length === 1 ? "" : "s"} · {stats.tv.length} TV
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Avg gut rating</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold tabular-nums">{avg(stats.gutRatings) ?? "—"}</p>
-            <p className="text-xs text-muted-foreground mt-1">/ 100</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Avg detailed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold tabular-nums">{avg(stats.detailedTotals) ?? "—"}</p>
-            <p className="text-xs text-muted-foreground mt-1">/ 100 · {formatPct(stats.withDetailed, stats.total)} detailed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Time watched</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold tabular-nums">{stats.hours}</p>
-            <p className="text-xs text-muted-foreground mt-1">hours of runtime</p>
-          </CardContent>
-        </Card>
+        {quickStatCard(
+          BarChart3,
+          "text-sky-500",
+          "bg-sky-500/10",
+          stats.total,
+          "Total rated",
+          `${stats.movies.length} movie${stats.movies.length === 1 ? "" : "s"} · ${stats.tv.length} TV`,
+        )}
+        {quickStatCard(TrendingUp, "text-amber-500", "bg-amber-500/10", avg(stats.gutRatings) ?? "—", "Avg gut rating")}
+        {quickStatCard(TrendingUp, "text-emerald-500", "bg-emerald-500/10", avg(stats.detailedTotals) ?? "—", "Avg detailed")}
+        {quickStatCard(Clock, "text-cyan-500", "bg-cyan-500/10", stats.hours, "Time watched", "hours of runtime")}
       </div>
 
       <Card>
@@ -485,13 +493,27 @@ export function StatsClient({
                     <tr key={g.genre} className="border-b last:border-0">
                       <td className="px-3 py-2 font-medium whitespace-nowrap">{g.genre}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{g.count}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{g.avgGut ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{g.avgDetailed ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{g.avgEnjoyment ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{g.avgImpact ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{g.avgRecommend ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{g.avgWatchAgain ?? "—"}</td>
-                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{g.best ? `${g.best.title} (${g.best.score})` : "—"}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgGut)}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgDetailed)}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgEnjoyment, 60)}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgImpact, 20)}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgRecommend, 10)}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgWatchAgain, 10)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {g.best ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="font-medium">{g.best.title}</span>
+                            {prefs.media_badges ? (
+                              <MediaTypeBadge type={g.best.media_type} />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">{g.best.media_type === "tv" ? "TV Show" : "Movie"}</span>
+                            )}
+                            {ratingCell(g.best.score)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -524,8 +546,8 @@ export function StatsClient({
                     <tr key={d.decade} className="border-b last:border-0">
                       <td className="px-3 py-2 font-medium whitespace-nowrap">{d.decade}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{d.count}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{d.avgGut ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{d.avgDetailed ?? "—"}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(d.avgGut)}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(d.avgDetailed)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -555,11 +577,11 @@ export function StatsClient({
                     <tr key={type} className="border-b last:border-0">
                       <td className="px-3 py-2 font-medium capitalize">{type === "movie" ? "Movie" : "TV show"}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{list.length}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {avg(list.filter((e) => e.gut_rating !== null).map((e) => e.gut_rating!)) ?? "—"}
+                      <td className="px-3 py-2 text-right">
+                        {ratingCell(avg(list.filter((e) => e.gut_rating !== null).map((e) => e.gut_rating!)))}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {avg(list.filter(hasDetailed).map((e) => detailedTotal(e)!)) ?? "—"}
+                      <td className="px-3 py-2 text-right">
+                        {ratingCell(avg(list.filter(hasDetailed).map((e) => detailedTotal(e)!)))}
                       </td>
                     </tr>
                   )
