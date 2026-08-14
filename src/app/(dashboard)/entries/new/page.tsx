@@ -141,6 +141,9 @@ export default function NewEntryPage() {
                 onGutRatingChange={setGutRating}
                 onNotesChange={setNotes}
               />
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                Trust your gut. Or don&apos;t... but here is where you can decide what quick rating you would give this show or movie. This is a way to express your overall impression of an entry. Try not to be rash... but trust your intuition. Hint: there is always the detailed rating. Come back in about a week and break it down by enjoyment, impact, recommend, and watch again.
+              </div>
               <Button type="submit" disabled={loading}>
                 {loading ? "Saving..." : "Save Rating"}
               </Button>
