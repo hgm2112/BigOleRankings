@@ -64,6 +64,10 @@ interface DecadeStat {
 
 type GenreSortKey = "genre" | "count" | "avgGut" | "avgDetailed" | "avgEnjoyment" | "avgImpact" | "avgRecommend" | "avgWatchAgain" | "weightedDetailed" | "best"
 
+function possessive(name: string): string {
+  return /s$/i.test(name) ? `${name}'` : `${name}'s`
+}
+
 function sortRows<T>(rows: T[], getValue: (row: T) => string | number | null, dir: 1 | -1): T[] {
   return [...rows].sort((a, b) => {
     const av = getValue(a)
@@ -225,9 +229,9 @@ export function StatsClient({
 
   const noGenres = entries.length > 0 && stats.genreStats.length === 0
 
-  const ratingCell = (value: number | null, max = 100) =>
+  const ratingCell = (value: number | null, max = 100, thresholds?: { green: number; amber: number }) =>
     prefs.score_chips ? (
-      <ScoreChip value={value} max={max} />
+      <ScoreChip value={value} max={max} thresholds={thresholds} />
     ) : (
       <span className="tabular-nums">{value ?? "—"}</span>
     )
@@ -390,13 +394,10 @@ export function StatsClient({
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            <div>
-              <h1 className="text-2xl font-bold">Stats</h1>
-              <p className="text-xs text-muted-foreground">{isSelf ? "Your stats" : `Stats for ${selectedName}`}</p>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-5 w-5" />
+          <h1 className="text-2xl font-bold">{isSelf ? "Your Stats" : `${possessive(selectedName)} Stats`}</h1>
+        </div>
           <Select value={selectedId} onValueChange={setSelectedId}>
             <SelectTrigger className="w-[180px]">
               <UserCheck className="h-4 w-4 mr-1" />
@@ -429,10 +430,7 @@ export function StatsClient({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5" />
-          <div>
-            <h1 className="text-2xl font-bold">Stats</h1>
-            <p className="text-xs text-muted-foreground">{isSelf ? "Your stats" : `Stats for ${selectedName}`}</p>
-          </div>
+          <h1 className="text-2xl font-bold">{isSelf ? "Your Stats" : `${possessive(selectedName)} Stats`}</h1>
         </div>
         <Select value={selectedId} onValueChange={setSelectedId}>
           <SelectTrigger className="w-[180px]">
@@ -496,9 +494,9 @@ export function StatsClient({
                       <td className="px-3 py-2 text-right">{ratingCell(g.avgGut)}</td>
                       <td className="px-3 py-2 text-right">{ratingCell(g.avgDetailed)}</td>
                       <td className="px-3 py-2 text-right">{ratingCell(g.avgEnjoyment, 60)}</td>
-                      <td className="px-3 py-2 text-right">{ratingCell(g.avgImpact, 20)}</td>
-                      <td className="px-3 py-2 text-right">{ratingCell(g.avgRecommend, 10)}</td>
-                      <td className="px-3 py-2 text-right">{ratingCell(g.avgWatchAgain, 10)}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgImpact, 20, { green: 14, amber: 7 })}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgRecommend, 10, { green: 7.5, amber: 4.5 })}</td>
+                      <td className="px-3 py-2 text-right">{ratingCell(g.avgWatchAgain, 10, { green: 7.5, amber: 4.5 })}</td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {g.best ? (
                           <span className="inline-flex items-center gap-1.5">
