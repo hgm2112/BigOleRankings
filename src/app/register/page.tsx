@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AuthBlurb } from "@/components/auth-blurb"
 import Link from "next/link"
 
 export default function RegisterPage() {
@@ -47,7 +48,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="grid w-full max-w-4xl items-center gap-10 md:grid-cols-2">
+      <AuthBlurb />
+      <div className="flex justify-center">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Create Account</CardTitle>
@@ -75,6 +79,8 @@ export default function RegisterPage() {
           </p>
         </CardContent>
       </Card>
+      </div>
+      </div>
     </div>
   )
 }
