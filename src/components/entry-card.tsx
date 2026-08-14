@@ -6,10 +6,11 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
-import { ScoreChip } from "@/components/score-chip"
+import { ScoreChip, scoreTextClass } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
-import { Film, Tv, Trash2, Edit3, ChevronDown, ChevronUp } from "lucide-react"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { Film, Tv, Trash2, Edit3, StickyNote, ChevronDown, ChevronUp } from "lucide-react"
 import {
   Dialog,
   DialogClose,
@@ -90,7 +91,7 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
           </div>
         )}
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
@@ -109,93 +110,120 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
                 ) : (
                   <span>{entry.media_type === "tv" ? "TV Show" : "Movie"}</span>
                 )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-2 flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">Gut: </span>
-              {prefs.score_chips ? (
-                <ScoreChip value={entry.gut_rating} />
-              ) : (
-                <span className="font-medium">{entry.gut_rating ?? "—"}</span>
-              )}
-            </div>
-            {hasDetailed && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-muted-foreground">Detailed: </span>
-                {prefs.score_chips ? (
-                  <ScoreChip value={detailedTotal} />
-                ) : (
-                  <span className="font-medium">{detailedTotal}</span>
+                {entry.notes && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground"
+                          aria-label="View note"
+                        >
+                          <StickyNote className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs whitespace-pre-wrap break-words">
+                        {entry.notes}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
-                <span className="text-xs text-muted-foreground ml-1">
-                  (Enjoyment: {entry.detailed_enjoyment}, Impact: {entry.detailed_impact}, Recommend: {entry.detailed_recommend}, Watch Again: {entry.detailed_watch_again})
-                </span>
               </div>
-            )}
+            </div>
           </div>
 
-          {diff !== null && (
-            <div className="flex items-center gap-4 text-sm mt-0.5">
-              <div>
-                <span className="text-muted-foreground">Diff: </span>
-                <span className={`font-medium ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
+          <div className="mt-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-6 flex-shrink-0">
+                <span className="w-14 text-center text-xs text-muted-foreground">Gut</span>
+                {hasDetailed && <span className="w-14 text-center text-xs text-muted-foreground">Detailed</span>}
+                {diff !== null && <span className="w-14 text-center text-xs text-muted-foreground">Diff</span>}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap justify-end min-w-0">
+                {hasSeasons && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs gap-1"
+                    onClick={() => setSeasonsOpen((o) => !o)}
+                    aria-expanded={seasonsOpen}
+                  >
+                    {seasonsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    Seasons
+                  </Button>
+                )}
+
+                {!readOnly && (
+                  <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                    <Link href={`/entries/${entry.id}/edit`}>
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                )}
+
+                {!readOnly && onDelete && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Delete Entry</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to delete "{entry.title}"? This cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button variant="destructive" onClick={() => onDelete(entry.id)}>Delete</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-6">
+              <span className={`w-14 text-center text-xl font-bold leading-tight tabular-nums ${prefs.score_chips ? scoreTextClass(entry.gut_rating, 100) : ""}`}>
+                {entry.gut_rating ?? "—"}
+              </span>
+              {hasDetailed && (
+                <span className={`w-14 text-center text-xl font-bold leading-tight tabular-nums ${prefs.score_chips ? scoreTextClass(detailedTotal, 100) : ""}`}>
+                  {detailedTotal}
+                </span>
+              )}
+              {diff !== null && (
+                <span className={`w-14 text-center text-xl font-bold leading-tight tabular-nums ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
                   {diff > 0 ? "+" : ""}{diff}
                 </span>
-              </div>
+              )}
             </div>
-          )}
+          </div>
 
-          {entry.notes && (
-            <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{entry.notes}</p>
-          )}
-
-          <div className="flex items-center gap-1 mt-2">
-            {hasSeasons && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs gap-1"
-                onClick={() => setSeasonsOpen((o) => !o)}
-                aria-expanded={seasonsOpen}
-              >
-                {seasonsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                Seasons
-              </Button>
-            )}
-
-            {!readOnly && (
-              <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                <Link href={`/entries/${entry.id}/edit`}>
-                  <Edit3 className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            )}
-
-            {!readOnly && onDelete && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Delete Entry</DialogTitle>
-                    <DialogDescription>
-                      Are you sure you want to delete "{entry.title}"? This cannot be undone.
-                    </DialogDescription>
-                  </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                  </DialogClose>
-                  <Button variant="destructive" onClick={() => onDelete(entry.id)}>Delete</Button>
-                </DialogFooter>
-                </DialogContent>
-              </Dialog>
+          <div className="mt-auto">
+            {hasDetailed && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+              <span className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">Enjoyment</span>
+                <span className={`font-medium tabular-nums ${prefs.score_chips ? scoreTextClass(entry.detailed_enjoyment, 60) : ""}`}>{entry.detailed_enjoyment}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">Impact</span>
+                <span className={`font-medium tabular-nums ${prefs.score_chips ? scoreTextClass(entry.detailed_impact, 20) : ""}`}>{entry.detailed_impact}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">Recommend</span>
+                <span className={`font-medium tabular-nums ${prefs.score_chips ? scoreTextClass(entry.detailed_recommend, 10) : ""}`}>{entry.detailed_recommend}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">Watch Again</span>
+                <span className={`font-medium tabular-nums ${prefs.score_chips ? scoreTextClass(entry.detailed_watch_again, 10) : ""}`}>{entry.detailed_watch_again}</span>
+              </span>
+            </div>
             )}
           </div>
         </div>

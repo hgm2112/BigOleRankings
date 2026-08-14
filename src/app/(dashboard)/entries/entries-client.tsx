@@ -224,17 +224,17 @@ export function EntriesClient({ entries, userId, seasonRatings = [], initialSort
             )}
           </div>
         </div>
-        <TabsContent value="all" className="space-y-3">
+        <TabsContent value="all" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {sorted.map((entry) => (
             <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
           ))}
         </TabsContent>
-        <TabsContent value="movies" className="space-y-3">
+        <TabsContent value="movies" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {movies.map((entry) => (
             <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
           ))}
         </TabsContent>
-        <TabsContent value="tv" className="space-y-3">
+        <TabsContent value="tv" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {tvShows.map((entry) => (
             <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
           ))}
