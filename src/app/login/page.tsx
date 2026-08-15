@@ -40,7 +40,7 @@ function LoginForm() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="grid w-full max-w-4xl items-center gap-10 md:grid-cols-2">
-      <AuthBlurb />
+      <AuthBlurb variant="login" />
       <div className="flex justify-center">
       <Card className="w-full max-w-sm">
         <CardHeader>

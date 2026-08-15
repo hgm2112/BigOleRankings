@@ -1,6 +1,34 @@
 import { Check } from "lucide-react"
 
-export function AuthBlurb() {
+export function AuthBlurb({ variant = "default" }: { variant?: "default" | "login" | "register" }) {
+  if (variant === "register") {
+    return (
+      <div>
+        <h1 className="text-3xl font-bold">BigOleRankings</h1>
+        <p className="mt-2 text-lg text-muted-foreground">Hey there new bestie!</p>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          You here to rate some tv shows and movies? BigOleRankings is a site for you to catalog your favorites and
+          remember to never watch certain things ever again!
+        </p>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          You&apos;ll be able to give gut reactions and detailed analysis for each entry based on a unique scoring
+          system, track individual seasons of your favorite shows, jot down notes, and see how your taste stacks up
+          against your friends.
+        </p>
+        <p className="mt-4 text-sm font-semibold text-foreground">But you gotta sign up first!</p>
+      </div>
+    )
+  }
+
+  if (variant === "login") {
+    return (
+      <div>
+        <h1 className="text-3xl font-bold">BigOleRankings</h1>
+        <p className="mt-2 text-lg text-muted-foreground">Get in here you old so and so!</p>
+      </div>
+    )
+  }
+
   return (
     <div>
       <h1 className="text-3xl font-bold">BigOleRankings</h1>
