@@ -316,7 +316,7 @@ export function StatsClient({
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-semibold mb-2">Movies ({sharedMovies.length})</h3>
               {sharedMovies.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No shared movie ratings yet.</p>
@@ -350,7 +350,7 @@ export function StatsClient({
                 </>
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-semibold mb-2">TV shows ({sharedTv.length})</h3>
               {sharedTv.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No shared TV show ratings yet.</p>
