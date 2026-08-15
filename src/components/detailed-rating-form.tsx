@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Info } from "lucide-react"
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 
 interface DetailedRatingFormProps {
   enjoyment: number
@@ -33,20 +33,20 @@ function FieldLabel({ field, label }: { field: string; label: string }) {
   return (
     <Label className="flex items-center gap-1.5">
       {label}
-      <Tooltip>
-        <TooltipTrigger asChild>
+      <Popover>
+        <PopoverTrigger asChild>
           <button
             type="button"
-            className="inline-flex cursor-help items-center text-muted-foreground hover:text-foreground"
+            className="inline-flex cursor-pointer items-center text-muted-foreground hover:text-foreground"
             aria-label={`About ${label.split(":")[0]}`}
           >
             <Info className="h-3.5 w-3.5" />
           </button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <p>{FIELD_INFO[field]}</p>
-        </TooltipContent>
-      </Tooltip>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 max-w-[calc(100vw-2rem)]">
+          <p className="text-sm">{FIELD_INFO[field]}</p>
+        </PopoverContent>
+      </Popover>
     </Label>
   )
 }
@@ -66,8 +66,7 @@ export function DetailedRatingForm({
   const diff = gutRating !== undefined ? total - gutRating : null
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="space-y-3">
           <FieldLabel field="enjoyment" label={`Enjoyment: ${enjoyment}/60`} />
           <Slider value={[enjoyment]} onValueChange={([v]) => onEnjoymentChange(v)} min={0} max={60} step={1} />
@@ -102,6 +101,5 @@ export function DetailedRatingForm({
           </CardContent>
         </Card>
       </div>
-    </TooltipProvider>
   )
 }
