@@ -53,28 +53,25 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSearch} className="flex gap-2 items-end">
-        <div className="flex-1 space-y-1">
-          <Label htmlFor="search">Search</Label>
-          <Input
-            id="search"
-            placeholder="Search for a movie or TV show..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="type">Type</Label>
-          <Select value={type} onValueChange={setType}>
-            <SelectTrigger id="type" className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="movie">Movie</SelectItem>
-              <SelectItem value="tv">TV Show</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <form onSubmit={handleSearch} className="grid grid-cols-[minmax(0,1fr)_8rem_auto] gap-x-2 gap-y-2 items-center">
+        <Label htmlFor="search">Search</Label>
+        <Label htmlFor="type">Type</Label>
+        <span aria-hidden />
+        <Input
+          id="search"
+          placeholder="Search for a movie or TV show..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <Select value={type} onValueChange={setType}>
+          <SelectTrigger id="type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="movie">Movie</SelectItem>
+            <SelectItem value="tv">TV Show</SelectItem>
+          </SelectContent>
+        </Select>
         <Button type="submit" disabled={loading || !query.trim()}>
           <Search className="h-4 w-4 mr-1" />
           {loading ? "Searching..." : "Search"}

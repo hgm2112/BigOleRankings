@@ -168,11 +168,7 @@ export default function NewEntryPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Search</CardTitle>
-          <CardDescription>Find a movie or TV show to rate</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <TMDSearch onSelect={handleSelect} />
         </CardContent>
       </Card>
