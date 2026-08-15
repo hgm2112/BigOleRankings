@@ -455,9 +455,9 @@ export function StatsClient({
           "Total rated",
           `${stats.movies.length} movie${stats.movies.length === 1 ? "" : "s"} · ${stats.tv.length} TV`,
         )}
+        {quickStatCard(Clock, "text-cyan-500", "bg-cyan-500/10", stats.hours, "Time watched", "hours of runtime")}
         {quickStatCard(TrendingUp, "text-amber-500", "bg-amber-500/10", avg(stats.gutRatings) ?? "—", "Avg gut rating")}
         {quickStatCard(TrendingUp, "text-emerald-500", "bg-emerald-500/10", avg(stats.detailedTotals) ?? "—", "Avg detailed")}
-        {quickStatCard(Clock, "text-cyan-500", "bg-cyan-500/10", stats.hours, "Time watched", "hours of runtime")}
       </div>
 
       <Card>
