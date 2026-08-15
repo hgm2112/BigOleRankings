@@ -53,18 +53,18 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSearch} className="grid grid-cols-[minmax(0,1fr)_8rem_auto] gap-x-2 gap-y-2 items-center">
-        <Label htmlFor="search">Search</Label>
-        <Label htmlFor="type">Type</Label>
-        <span aria-hidden />
+      <form onSubmit={handleSearch} className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto] gap-x-2 gap-y-2 items-center">
+        <Label htmlFor="search" className="col-span-2 sm:col-span-1 sm:col-start-1 sm:row-start-1">Search</Label>
         <Input
           id="search"
+          className="col-span-2 sm:col-span-1 sm:col-start-1 sm:row-start-2"
           placeholder="Search for a movie or TV show..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <Label htmlFor="type" className="col-span-2 sm:col-span-1 sm:col-start-2 sm:row-start-1">Type</Label>
         <Select value={type} onValueChange={setType}>
-          <SelectTrigger id="type">
+          <SelectTrigger id="type" className="sm:col-start-2 sm:row-start-2">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -72,7 +72,7 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
             <SelectItem value="tv">TV Show</SelectItem>
           </SelectContent>
         </Select>
-        <Button type="submit" disabled={loading || !query.trim()}>
+        <Button type="submit" className="sm:col-start-3 sm:row-start-2" disabled={loading || !query.trim()}>
           <Search className="h-4 w-4 mr-1" />
           {loading ? "Searching..." : "Search"}
         </Button>
