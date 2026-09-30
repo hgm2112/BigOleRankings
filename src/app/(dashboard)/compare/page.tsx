@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,9 @@ import { StatusBadge } from "@/components/status-badge"
 import { ScoreChip } from "@/components/score-chip"
 import { useCustomization } from "@/components/customization-provider"
 import { ENTRY_SELECT, flattenEntries } from "@/lib/entry-queries"
+import type { FlatEntry } from "@/lib/entry-queries"
+import type { SeasonRatingRow } from "@/lib/compare-stats"
+import { TasteMatchSection } from "@/components/compare/taste-match"
 import { Search, TrendingUp, TrendingDown, Users, ArrowUp, ArrowDown } from "lucide-react"
 
 interface Profile {
@@ -22,23 +25,7 @@ interface Profile {
   display_name: string | null
 }
 
-interface Entry {
-  id: string
-  media_id: string
-  tmdb_id: number
-  title: string
-  media_type: string
-  poster_path: string | null
-  year: number | null
-  gut_rating: number | null
-  detailed_enjoyment: number | null
-  detailed_impact: number | null
-  detailed_recommend: number | null
-  detailed_watch_again: number | null
-  user_id: string
-  status?: string | null
-  created_at: string
-}
+type Entry = FlatEntry
 
 type SortField = "title" | "user1_gut" | "user2_gut" | "delta_gut" | "user1_det" | "user2_det" | "delta_det"
 
@@ -55,6 +42,28 @@ export default function ComparePage() {
   const [searched, setSearched] = useState(false)
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortAsc, setSortAsc] = useState(true)
+
+  const [seasonCache, setSeasonCache] = useState<{ key: string; rows: SeasonRatingRow[] } | null>(null)
+
+  const seasonKey = user1 && user2 ? `${user1.id}:${user2.id}` : ""
+  const seasonRows = seasonCache && seasonCache.key === seasonKey ? seasonCache.rows : []
+
+  useEffect(() => {
+    if (!seasonKey) return
+    let cancelled = false
+    createClient()
+      .from("season_ratings")
+      .select("user_id, media_id, season_number, rating, dnf")
+      .in("user_id", seasonKey.split(":"))
+      .then((res: { data: SeasonRatingRow[] | null }) => {
+        if (cancelled) return
+        setSeasonCache({ key: seasonKey, rows: res.data ?? [] })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [seasonKey])
+
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -282,6 +291,16 @@ export default function ComparePage() {
 
       {user1 && user2 && intersection.length > 0 && (
         <div className="space-y-6">
+          <TasteMatchSection
+            entriesA={entries1}
+            entriesB={entries2}
+            nameA={user1.display_name || user1.username || "User 1"}
+            nameB={user2.display_name || user2.username || "User 2"}
+            userIdA={user1.id}
+            userIdB={user2.id}
+            seasonRows={seasonRows}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

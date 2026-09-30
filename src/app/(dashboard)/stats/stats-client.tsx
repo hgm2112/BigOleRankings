@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react"
 import { BarChart3, UserCheck, Clock, TrendingUp } from "lucide-react"
 import type { FlatEntry } from "@/lib/entry-queries"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { ScoreChip } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
+import { SharedRatingsChart, StatsCharts } from "@/components/stats-charts"
 
 export interface SharedRating {
   media_id: string
@@ -310,6 +311,17 @@ export function StatsClient({
   const globalStatsSection = (
     <>
       <h2 className="text-lg font-semibold">Global Stats</h2>
+      {sharedRatings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Most-rated shared titles</CardTitle>
+            <CardDescription>Titles the most people in your circle have rated</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SharedRatingsChart items={sharedRatings} />
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Average Ratings across BigOleRankings</CardTitle>
@@ -459,6 +471,8 @@ export function StatsClient({
         {quickStatCard(TrendingUp, "text-amber-500", "bg-amber-500/10", avg(stats.gutRatings) ?? "—", "Avg gut rating")}
         {quickStatCard(TrendingUp, "text-emerald-500", "bg-emerald-500/10", avg(stats.detailedTotals) ?? "—", "Avg detailed")}
       </div>
+
+      <StatsCharts entries={entries} />
 
       <Card>
         <CardHeader>
