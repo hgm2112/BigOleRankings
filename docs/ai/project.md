@@ -1,6 +1,6 @@
 # BigOleRankings
 
-A Next.js app for rating and comparing movies and TV shows with friends. Users create entries for movies/TV shows they've watched, assign gut ratings and optional detailed breakdown scores, and compare rankings with other users — including pinned comparisons on the dashboard.
+A Next.js app for rating and comparing movies and TV shows with friends. Users create entries for movies/TV shows they've watched, assign gut ratings and optional detailed breakdown scores, and compare rankings with other users — including pinned comparisons on the dashboard and a Taste Match analysis of how two users' ratings agree.
 
 ## Tech Stack
 
@@ -12,6 +12,7 @@ A Next.js app for rating and comparing movies and TV shows with friends. Users c
 | UI | shadcn/ui (Radix primitives, lucide-react icons) |
 | Auth | Supabase SSR (`@supabase/ssr`) |
 | Database | Supabase PostgreSQL |
+| Charts | recharts (`ChartContainer` wrapper, see Conventions) |
 | External API | TMDB (movie/TV metadata, search, poster images) |
 | Hosting | Vercel |
 
@@ -78,6 +79,15 @@ Key columns: `id` (uuid), `username` (text), `display_name` (text), `theme` (tex
 - **Movies**: `movies.runtime` from TMDB (direct value in minutes)
 - **TV shows**: `Σ(season.episode_runtime × season.episode_count)` across seasons; `runtime` null on the flat entry if no season runtime is known
 
+## Compare & Stats Analytics
+
+All comparison math is pure — no React, no Supabase — in `src/lib/compare-stats.ts`. `computeComparison` covers gut agreement (Pearson + Spearman, mean absolute and signed gap, ±5/±10/±20 counts, match score `100 − MAD`), per-dimension stats, a least-squares prediction fit, genre gaps, bucket distribution, and extremes. `computeSeasonAgreement` does the same over `(media_id, season_number)` pairs from `season_ratings` (TV titles only) plus DNF overlap. Labels come from `correlationLabel()` (≥0.85 "Twin flames" … <0 "Complete opposites") and `scoreLabel()` (≥90 "Scary close" … "Frenemies").
+
+- **`/compare`** renders `TasteMatchSection` above the side-by-side table: match ring + 6 KPI cards (including movie/TV correlation split by `media_type`), gut scatter with a y=x reference line, radar + per-dimension table (Enjoyment /60, Impact /20, Recommend /10, Watch Again /10), grouped histogram, prediction chart with regression line, genre diverging bars, agreements/fights/top-10 lists, and the season-by-season section.
+- **`/stats`** renders `StatsCharts` (rating spread, monthly activity, detailed breakdown, movie vs TV, top genres) after the KPI grid, and `SharedRatingsChart` inside Global Stats.
+- **Metric help**: 27 contextual explainers in `src/components/compare/metric-help.tsx` — a static definition plus a reading interpolated from the live values (sample sizes, correlation labels, per-dimension `n`). Copy uses display names, never "you": `/compare` picks both people from search as `User 1`/`User 2`, so there is no notion of "self". All of them open through `InfoButton`; the detailed-rating form uses the same `Popover` pattern inline (its `FIELD_INFO` map) rather than `InfoButton`.
+- Cards render `—` instead of a misleading number when a stat needs ≥3 paired values (Pearson returns `null` below that).
+
 ## Conventions
 
 - **Font**: Geist via `next/font/google`, wired through `--font-geist-sans`/`--font-geist-mono` CSS variables → `--font-sans`/`--font-mono` in `@theme inline`, applied via `font-sans` class on `<body>`
@@ -86,6 +96,8 @@ Key columns: `id` (uuid), `username` (text), `display_name` (text), `theme` (tex
 - **TV status badge**: `StatusBadge` renders next to TV titles — `Returning Series` → "Renewed" (green), `Ended` (muted), `Canceled` (red). The next air date (`next_episode_to_air.air_date` from TMDB, returned by `/api/tmdb/details` as `next_air_date`) shows only on the entry detail page (live fetch) and only within 30 days of the air date. Stored `tv_shows.status` is refreshed weekly by the `/api/refresh-status` cron (targets only `Returning Series`/null statuses) and opportunistically patched on the detail page when the live status differs (owner only, via `@/lib/supabase/client` RLS). The same cron upserts `seasons` rows for each TV show (once per show), which are required before per-season ratings can be written.
 - **Auth**: Server components call `createClient()` from `@/lib/supabase/server`, redirect to `/login` if unauthenticated. Client components use `@/lib/supabase/client`.
 - **TMDB access**: Never exposed to client — proxied through `/api/tmdb/search` and `/api/tmdb/details`
+- **Charts**: recharts children must be wrapped in `<ChartContainer>` from `@/components/ui/chart` (hand-written shadcn primitives — this repo has no `components.json`, so there's no `npx shadcn add` path). Without it `ResponsiveContainer` measures 0×0 and the chart silently renders nothing, and SSR always shows an empty frame because `ResizeObserver` only runs client-side. Colors are `--chart-1..5` in `:root` of `globals.css`, surfaced as `chart-N` theme tokens and as `USER_1_COLOR`/`USER_2_COLOR` (`src/components/charts/chart-colors.ts`); `@theme inline` maps them via `var(--chart-N)` so custom themes override them.
+- **Info popovers**: `InfoButton` (Radix `Popover` + lucide `Info`, toggles on click, works on touch) must sit in a parent with `gap-2` — the trigger is `-m-2 p-2`, so the 30px touch target adds no layout width. `PopoverContent` is portaled, so it doesn't clip inside scrollable tables.
 - **Entry IDs**: Always scoped to the authenticated user — queries filter by `user_id` in addition to `id`
 
 ## Key Files
@@ -95,6 +107,16 @@ Key columns: `id` (uuid), `username` (text), `display_name` (text), `theme` (tex
 | `src/app/layout.tsx` | Root layout, font configuration, `<body>` class |
 | `src/app/globals.css` | Tailwind setup, theme variables, color tokens |
 | `src/app/(dashboard)/dashboard/dashboard-client.tsx` | Main dashboard client — entries, stats, pinned users, watch time |
+| `src/app/(dashboard)/compare/page.tsx` | Two-user comparison — search, side-by-side table, Taste Match wiring |
+| `src/lib/compare-stats.ts` | Pure gut/dimension/season comparison statistics + labels |
+| `src/components/compare/taste-match.tsx` | Taste Match section orchestrator (KPIs, tables, card layout) |
+| `src/components/compare/taste-charts.tsx` | Scatter, radar, prediction, genre, and dimension bar charts |
+| `src/components/compare/season-agreement.tsx` | Season-by-season agreement + DNF overlap |
+| `src/components/compare/metric-help.tsx` | Contextual explainers for every compare metric |
+| `src/components/info-button.tsx` | Click-to-toggle info popover primitive |
+| `src/components/ui/chart.tsx` | Hand-written shadcn chart primitives (container, tooltip, legend) |
+| `src/components/charts/rating-distribution.tsx` | Shared gut-rating histogram |
+| `src/components/stats-charts.tsx` | `/stats` chart suite + shared-ratings chart |
 | `src/app/(dashboard)/entries/[id]/entry-detail-client.tsx` | Entry detail with TMDB synopsis fetch |
 | `src/app/(dashboard)/entries/[id]/page.tsx` | Entry detail server component |
 | `src/app/auth/callback/route.ts` | Supabase auth callback handler |
