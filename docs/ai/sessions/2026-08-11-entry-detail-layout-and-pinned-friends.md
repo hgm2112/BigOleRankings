@@ -45,6 +45,6 @@
 
 - Commits: `43377ea`, `5ad172d`, `1b2ffad`, `0e6a8a7`.
 - The `aspect-ratio` + `w-auto` flex collapse is a good gotcha to remember: a stretched flex item's main size can't be derived from its cross size via aspect-ratio when it has no intrinsic content — you need a definite main size (`w-[290px]`) plus `self-stretch`.
-- Debugging used pixel analysis of screenshots via `sharp` (no headless browser available); reference screenshots (`entrycard*.jpg`, `noposter.jpg`, `pinnedfollow*.jpg`) remain untracked in the repo root.
+- Debugging used pixel analysis of screenshots via `sharp` (no headless browser available); reference screenshots (`entrycard*.jpg`, `noposter.jpg`, `pinnedfollow*.jpg`) are committed in the repo root.
 - `h-30` is valid here because the project is on Tailwind v4 (dynamic spacing scale); it would not exist in v3.
 - tsc clean and lint at the pre-existing baseline of 78 problems throughout.

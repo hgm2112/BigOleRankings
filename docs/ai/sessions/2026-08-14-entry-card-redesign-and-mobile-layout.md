@@ -40,6 +40,6 @@
 ## Notes
 
 - Commits (all pushed): `7af9a98`, `43c8d65`, `f11e085`, `e0daaf0`, `5fbdb50`.
-- Mockup jpgs (`myratingspagecorrect.jpg`, `phonemyratingswrong.jpg`, etc.) are intentionally left untracked.
+- Mockup jpgs (`myratingspagecorrect.jpg`, `phonemyratingswrong.jpg`, etc.) are committed to the repo root.
 - Lint stayed at the pre-existing 73-error baseline (incl. the unrelated `setSelected`-in-effect on `new/page.tsx` and unescaped quotes in the delete dialog); `npm run build` passes.
 - The mobile breakpoint is `md` (768px); `<768px` also covers 2-across tablets since their cards are equally narrow.
