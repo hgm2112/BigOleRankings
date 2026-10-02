@@ -213,6 +213,37 @@ create policy "Users can unfollow"
 
 grant all on follows to authenticated, anon;
 
+-- 6. Feed likes: a "like" on one derived /social feed event.
+--    event_key matches the app-generated key:
+--      'gut:{ratingId}' | 'detailed:{ratingId}' | 'season:{userId}:{mediaId}:{seasonNumber}'
+--    user_id references profiles (like follows) so liker names can be embedded
+--    in a single query. Orphaned likes (event's rating deleted) never render.
+create table if not exists feed_likes (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid not null references profiles(id) on delete cascade,
+  event_key text not null,
+  created_at timestamptz default now(),
+  unique(user_id, event_key)
+);
+
+alter table feed_likes enable row level security;
+
+create policy "Likes are viewable by all authenticated users"
+  on feed_likes for select
+  using (auth.role() = 'authenticated');
+
+create policy "Users can like updates"
+  on feed_likes for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can unlike updates"
+  on feed_likes for delete
+  using (auth.uid() = user_id);
+
+create index if not exists feed_likes_event_key_idx on feed_likes (event_key);
+
+grant all on feed_likes to authenticated;
+
 -- Add pinned_user_id to profiles
 alter table profiles add column if not exists pinned_user_id uuid references profiles(id) on delete set null;
 
@@ -270,3 +301,10 @@ create or replace trigger on_rating_delete_cleanup
 create or replace trigger on_season_rating_delete_cleanup
   after delete on season_ratings
   for each row execute function public.cleanup_orphaned_media();
+
+-- Feed indexes for the /social activity feed (safe to re-run on an existing
+-- install from the Supabase SQL editor).
+create index if not exists ratings_user_gut_rated_at_idx on ratings (user_id, gut_rated_at);
+create index if not exists ratings_user_detailed_rated_at_idx on ratings (user_id, detailed_rated_at);
+create index if not exists season_ratings_user_updated_at_idx on season_ratings (user_id, updated_at);
+create index if not exists follows_follower_idx on follows (follower_id);

@@ -74,6 +74,10 @@ Columns: `id`, `user_id`, `media_id`, `season_number`, `rating` (1-10), `dnf` (b
 
 Key columns: `id` (uuid), `username` (text), `display_name` (text), `theme` (text), `pinned_user_id`, `pinned_user_id_2`, `pinned_user_id_3` (nullable uuid, references auth.users).
 
+### `feed_likes` — likes on derived `/social` feed events
+
+`id`, `user_id` (FK profiles, cascade), `event_key` (text, e.g. `gut:{ratingId}`, `detailed:{ratingId}`, `season:{userId}:{mediaId}:{n}`), `created_at`. Unique `(user_id, event_key)`. RLS: select for all authenticated, insert/delete own rows. `fetchSocialFeed` attaches `like_count` / `liked_by_me` / `likers` to every event; orphaned likes (rating deleted) never render.
+
 ## Runtime Calculation
 
 - **Movies**: `movies.runtime` from TMDB (direct value in minutes)
@@ -114,6 +118,8 @@ All comparison math is pure — no React, no Supabase — in `src/lib/compare-st
 | `src/components/compare/season-agreement.tsx` | Season-by-season agreement + DNF overlap |
 | `src/components/compare/metric-help.tsx` | Contextual explainers for every compare metric |
 | `src/components/info-button.tsx` | Click-to-toggle info popover primitive |
+| `src/lib/social-feed.ts` | `/social` activity feed fetcher — derives gut/detailed/season events from rating timestamps, cursor pagination |
+| `src/components/social/social-feed.tsx` | Recent Activity feed card (initial page server-rendered, Load more via `/api/social/feed`) |
 | `src/components/ui/chart.tsx` | Hand-written shadcn chart primitives (container, tooltip, legend) |
 | `src/components/charts/rating-distribution.tsx` | Shared gut-rating histogram |
 | `src/components/stats-charts.tsx` | `/stats` chart suite + shared-ratings chart |
