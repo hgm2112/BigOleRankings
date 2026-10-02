@@ -22,12 +22,21 @@ interface Follow {
   following_id: string
 }
 
+export interface Suggestion {
+  id: string
+  username: string
+  display_name: string | null
+  ratingCount: number
+  fofBy: string[]
+}
+
 interface SocialClientProps {
   initialEvents: FeedEvent[]
   feedNextCursor: string | null
+  suggestions: Suggestion[]
 }
 
-export function SocialClient({ initialEvents, feedNextCursor }: SocialClientProps) {
+export function SocialClient({ initialEvents, feedNextCursor, suggestions }: SocialClientProps) {
   const supabase = createClient()
   const [userId, setUserId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -176,6 +185,8 @@ export function SocialClient({ initialEvents, feedNextCursor }: SocialClientProp
     }
   }
 
+  const visibleSuggestions = suggestions.filter((s) => !isFollowing(s.id))
+
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Loading...</div>
   }
@@ -298,6 +309,46 @@ export function SocialClient({ initialEvents, feedNextCursor }: SocialClientProp
           )}
         </CardContent>
       </Card>
+
+      {following.length <= 2 && visibleSuggestions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Suggested Friends</CardTitle>
+            <CardDescription>People you might know — follow them to fill your feed</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {visibleSuggestions.map((s) => (
+                <div key={s.id} className="flex items-center justify-between p-2 rounded hover:bg-accent">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-xs">{(s.display_name || s.username || "U").charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="text-sm truncate">{s.display_name || s.username}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {s.ratingCount} rating{s.ratingCount === 1 ? "" : "s"}
+                        {s.fofBy.length > 0 && <> &middot; Followed by {s.fofBy.join(", ")}</>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href={`/users/${s.username}`}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleFollow(s.id)}>
+                      <UserPlus className="h-3.5 w-3.5 mr-1" />
+                      Follow
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

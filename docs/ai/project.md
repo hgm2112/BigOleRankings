@@ -74,6 +74,8 @@ Columns: `id`, `user_id`, `media_id`, `season_number`, `rating` (1-10), `dnf` (b
 
 Key columns: `id` (uuid), `username` (text), `display_name` (text), `theme` (text), `pinned_user_id`, `pinned_user_id_2`, `pinned_user_id_3` (nullable uuid, references auth.users).
 
+New signups auto-pin **and** auto-follow user `rise` (default friend) via `handle_new_user()` — only while the user has no pinned friend and only if `rise` exists. Existing installs run `supabase-migration-default-pin.sql` once (same guard: skips users who already pinned someone). The `/social` page shows a **Suggested Friends** card (friends-of-friends first, then rating count, top 5) only while the viewer follows ≤2 people.
+
 ### `feed_likes` — likes on derived `/social` feed events
 
 `id`, `user_id` (FK profiles, cascade), `event_key` (text, e.g. `gut:{ratingId}`, `detailed:{ratingId}`, `season:{userId}:{mediaId}:{n}`), `created_at`. Unique `(user_id, event_key)`. RLS: select for all authenticated, insert/delete own rows. `fetchSocialFeed` attaches `like_count` / `liked_by_me` / `likers` to every event; orphaned likes (rating deleted) never render.
