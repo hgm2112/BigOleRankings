@@ -20,13 +20,13 @@ A Next.js app for rating and comparing movies and TV shows with friends. Users c
 
 - **Server components** fetch data from Supabase and pass props to client components
 - **Client components** handle interactivity, TMDB API calls, and real-time state
-- **API routes** proxy requests to TMDB (keeps `TMDB_ACCESS_TOKEN` server-side)
+- **API routes** proxy requests to TMDB (keeps `TMDB_ACCESS_TOKEN` server-side), create entries (`POST /api/entries`), and paginate the `/social` feed (`/api/social/feed`)
 - **Middleware** (`src/lib/supabase/middleware.ts`) refreshes Supabase auth session on every request
 - **Scripts** in `scripts/` use direct Supabase REST API via `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Database
 
-The model was split (2026-08-08) from one denormalized `entries` table into shared media + per-user ratings. `src/lib/entry-queries.ts` (`ENTRY_SELECT` + `flattenEntry`) joins the pieces back into a flat "entry" shape so the rest of the app doesn't care. A fresh install uses `supabase-schema.sql`; an existing install migrates via `supabase-migration.sql` (preserves the old table as `entries_old`).
+The model was split (2026-08-08) from one denormalized `entries` table into shared media + per-user ratings. `src/lib/entry-queries.ts` (`ENTRY_SELECT` + `flattenEntry`) joins the pieces back into a flat "entry" shape so the rest of the app doesn't care. A fresh install uses `supabase-schema.sql`; an existing install migrates via `supabase-migration.sql` (preserves the old table as `entries_old`). Later DDL (e.g. `feed_likes`) ships only in `supabase-schema.sql` — existing installs paste it into the Supabase SQL editor directly, since DDL can't run through PostgREST.
 
 ### `media` table — shared metadata, deduped by `(tmdb_id, media_type)`
 
@@ -106,6 +106,8 @@ All comparison math is pure — no React, no Supabase — in `src/lib/compare-st
 - **Charts**: recharts children must be wrapped in `<ChartContainer>` from `@/components/ui/chart` (hand-written shadcn primitives — this repo has no `components.json`, so there's no `npx shadcn add` path). Without it `ResponsiveContainer` measures 0×0 and the chart silently renders nothing, and SSR always shows an empty frame because `ResizeObserver` only runs client-side. Colors are `--chart-1..5` in `:root` of `globals.css`, surfaced as `chart-N` theme tokens and as `USER_1_COLOR`/`USER_2_COLOR` (`src/components/charts/chart-colors.ts`); `@theme inline` maps them via `var(--chart-N)` so custom themes override them.
 - **Info popovers**: `InfoButton` (Radix `Popover` + lucide `Info`, toggles on click, works on touch) must sit in a parent with `gap-2` — the trigger is `-m-2 p-2`, so the 30px touch target adds no layout width. `PopoverContent` is portaled, so it doesn't clip inside scrollable tables.
 - **Entry IDs**: Always scoped to the authenticated user — queries filter by `user_id` in addition to `id`
+- **Social feed**: `/social` derives events from rating timestamps — there is no activity table. Gut events come from `ratings.gut_rated_at`, detailed from `detailed_rated_at`, season from `season_ratings.updated_at` (keyed `gut:{ratingId}`, `detailed:{ratingId}`, `season:{userId}:{mediaId}:{n}`). Audience is the viewer + the people they follow. The page server-renders the first 30 (the only page size — `FEED_DEFAULT_LIMIT` = `FEED_MAX_LIMIT` = 30); "Load more" hits `/api/social/feed?before=<timestamp>&limit=` with the last event's timestamp as cursor. Every event shows date *and* time (`toLocaleString`), a `Film`/`Tv` icon, and a like toggle backed by `feed_likes` (count + liker list popover). Placement: between the Search and Following cards.
+- **Sliders**: the shared `src/components/ui/slider.tsx` root carries `py-2` plus a `before:-inset-y-3 before:inset-x-0` strip (~46px tall) so tapping anywhere on the bar jumps the thumb — the Radix root itself is only as tall as the thumb (absolutely positioned), so without the strip the hit area is ~6px. Radix 1.4 already jumps to a non-thumb pointerdown natively.
 
 ## Key Files
 
@@ -123,6 +125,13 @@ All comparison math is pure — no React, no Supabase — in `src/lib/compare-st
 | `src/components/info-button.tsx` | Click-to-toggle info popover primitive |
 | `src/lib/social-feed.ts` | `/social` activity feed fetcher — derives gut/detailed/season events from rating timestamps, cursor pagination |
 | `src/components/social/social-feed.tsx` | Recent Activity feed card (initial page server-rendered, Load more via `/api/social/feed`) |
+| `src/app/(dashboard)/social/page.tsx` | `/social` server page — feed + follows + suggested friends |
+| `src/app/(dashboard)/social/social-client.tsx` | User search / follow / pin UI + Suggested Friends card (shown while following ≤2 people) |
+| `src/app/api/social/feed/route.ts` | Feed load-more endpoint (401 unauthenticated, `?before=&limit=` cursor) |
+| `src/app/api/entries/route.ts` | `POST /api/entries` — media + type extension + seasons upsert, then rating, then staged `season_ratings` |
+| `src/app/(dashboard)/entries/new/page.tsx` | New entry form — gut rating + notes + season ratings |
+| `src/app/(dashboard)/entries/[id]/edit/page.tsx` | Edit form — gut, detailed, season ratings, weight, delete |
+| `src/components/ui/slider.tsx` | Shared slider with enlarged tap strip (see Conventions) |
 | `src/components/ui/chart.tsx` | Hand-written shadcn chart primitives (container, tooltip, legend) |
 | `src/components/charts/rating-distribution.tsx` | Shared gut-rating histogram |
 | `src/components/stats-charts.tsx` | `/stats` chart suite + shared-ratings chart |
