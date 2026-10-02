@@ -4,8 +4,10 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { TMDSearch } from "@/components/tmdb-search"
 import { GutRatingForm } from "@/components/gut-rating-form"
+import { SeasonRatingsEditor, type SeasonRatingValue } from "@/components/season-ratings-editor"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
@@ -45,6 +47,15 @@ export default function NewEntryPage() {
   const [error, setError] = useState<string | null>(null)
   const [gutRating, setGutRating] = useState(50)
   const [notes, setNotes] = useState("")
+  const [seasonRatings, setSeasonRatings] = useState<SeasonRatingValue[]>([])
+
+  const handleSeasonChange = (seasonNumber: number, rating: number | null, dnf: boolean) => {
+    setSeasonRatings((prev) => {
+      const rest = prev.filter((r) => r.season_number !== seasonNumber)
+      if (rating == null && !dnf) return rest
+      return [...rest, { season_number: seasonNumber, rating, dnf }]
+    })
+  }
 
   useEffect(() => {
     const tmdbId = searchParams.get("tmdb_id")
@@ -68,6 +79,7 @@ export default function NewEntryPage() {
 
   const handleSelect = async (item: TMDBResult) => {
     setSelected({ ...item, runtime: null })
+    setSeasonRatings([])
     try {
       const res = await fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
       if (res.ok) {
@@ -102,6 +114,7 @@ export default function NewEntryPage() {
         episode_runtime: selected!.episode_runtime ?? null,
         network: selected!.network ?? null,
         seasons: selected!.seasons ?? null,
+        season_ratings: seasonRatings,
       }),
     })
 
@@ -120,7 +133,7 @@ export default function NewEntryPage() {
   if (selected) {
     return (
       <div className="max-w-lg mx-auto space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+        <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setSeasonRatings([]) }}>
           <ArrowLeft className="h-4 w-4 mr-1" />Back to search
         </Button>
 
@@ -144,6 +157,19 @@ export default function NewEntryPage() {
               <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                 Trust your gut. Or don&apos;t... but here is where you can decide what quick rating you would give this show or movie. This is a way to express your overall impression of an entry. Try not to be rash... but trust your intuition. Hint: there is always the detailed rating. Come back in about a week and break it down by enjoyment, impact, recommend, and watch again.
               </div>
+              {selected.media_type === "tv" && selected.seasons !== undefined && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-semibold">Seasons</h3>
+                    <SeasonRatingsEditor
+                      seasons={selected.seasons}
+                      ratings={seasonRatings}
+                      onChange={handleSeasonChange}
+                    />
+                  </div>
+                </>
+              )}
               <Button type="submit" disabled={loading}>
                 {loading ? "Saving..." : "Save Rating"}
               </Button>

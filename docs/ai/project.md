@@ -101,6 +101,7 @@ All comparison math is pure — no React, no Supabase — in `src/lib/compare-st
 - **Numeric alignment**: Use `tabular-nums` for scores and ratings
 - **TV status badge**: `StatusBadge` renders next to TV titles — `Returning Series` → "Renewed" (green), `Ended` (muted), `Canceled` (red). The next air date (`next_episode_to_air.air_date` from TMDB, returned by `/api/tmdb/details` as `next_air_date`) shows only on the entry detail page (live fetch) and only within 30 days of the air date. Stored `tv_shows.status` is refreshed weekly by the `/api/refresh-status` cron (targets only `Returning Series`/null statuses) and opportunistically patched on the detail page when the live status differs (owner only, via `@/lib/supabase/client` RLS). The same cron upserts `seasons` rows for each TV show (once per show), which are required before per-season ratings can be written.
 - **Auth**: Server components call `createClient()` from `@/lib/supabase/server`, redirect to `/login` if unauthenticated. Client components use `@/lib/supabase/client`.
+- **Season rating editing**: `SeasonRatingsEditor` (`src/components/season-ratings-editor.tsx`) is the only write UI — used by `/entries/new` (staged, sent as `season_ratings` in the `POST /api/entries` body so they land in the same request that creates the `seasons` rows) and `/entries/[id]/edit` (staged, upserted/deleted together with the gut/detailed save). The entry detail page is view-only for seasons. The select has an explicit "Clear" item (`value="clear"` → `rating: null`) because Radix `Select` has no deselect.
 - **TMDB access**: Never exposed to client — proxied through `/api/tmdb/search` and `/api/tmdb/details`
 - **Charts**: recharts children must be wrapped in `<ChartContainer>` from `@/components/ui/chart` (hand-written shadcn primitives — this repo has no `components.json`, so there's no `npx shadcn add` path). Without it `ResponsiveContainer` measures 0×0 and the chart silently renders nothing, and SSR always shows an empty frame because `ResizeObserver` only runs client-side. Colors are `--chart-1..5` in `:root` of `globals.css`, surfaced as `chart-N` theme tokens and as `USER_1_COLOR`/`USER_2_COLOR` (`src/components/charts/chart-colors.ts`); `@theme inline` maps them via `var(--chart-N)` so custom themes override them.
 - **Info popovers**: `InfoButton` (Radix `Popover` + lucide `Info`, toggles on click, works on touch) must sit in a parent with `gap-2` — the trigger is `-m-2 p-2`, so the 30px touch target adds no layout width. `PopoverContent` is portaled, so it doesn't clip inside scrollable tables.
@@ -125,7 +126,8 @@ All comparison math is pure — no React, no Supabase — in `src/lib/compare-st
 | `src/components/ui/chart.tsx` | Hand-written shadcn chart primitives (container, tooltip, legend) |
 | `src/components/charts/rating-distribution.tsx` | Shared gut-rating histogram |
 | `src/components/stats-charts.tsx` | `/stats` chart suite + shared-ratings chart |
-| `src/app/(dashboard)/entries/[id]/entry-detail-client.tsx` | Entry detail with TMDB synopsis fetch |
+| `src/app/(dashboard)/entries/[id]/entry-detail-client.tsx` | Entry detail with TMDB synopsis fetch (seasons view-only) |
+| `src/components/season-ratings-editor.tsx` | Shared per-season DNF + 1-10 editor (new-entry + edit forms) |
 | `src/app/(dashboard)/entries/[id]/page.tsx` | Entry detail server component |
 | `src/app/auth/callback/route.ts` | Supabase auth callback handler |
 | `src/app/api/tmdb/details/route.ts` | TMDB detail proxy (runtime, overview, etc.) |

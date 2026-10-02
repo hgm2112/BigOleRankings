@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -12,7 +11,6 @@ import { ScoreChip, scoreTextClass } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
 import { usePosterTheme } from "@/hooks/use-poster-theme"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
@@ -71,7 +69,6 @@ export function EntryDetailClient({
   myComparisonEntry,
   followerRatings,
   backUrl,
-  userId,
   seasons,
   seasonRatings,
   mySeasonRatings,
@@ -83,7 +80,6 @@ export function EntryDetailClient({
   myComparisonEntry: Entry | null
   followerRatings: FollowerRating[]
   backUrl?: string
-  userId: string
   seasons: Season[]
   seasonRatings: SeasonRating[]
   mySeasonRatings: SeasonRating[]
@@ -101,14 +97,11 @@ export function EntryDetailClient({
     : null
   const diff = hasDetailed && entry.gut_rating !== null ? detailedTotal! - entry.gut_rating : null
 
-  const canRateSeasons = isOwner
-
   const [overview, setOverview] = useState<string | null>(null)
   const [overviewLoading, setOverviewLoading] = useState(true)
   const [overviewError, setOverviewError] = useState(false)
   const [liveStatus, setLiveStatus] = useState<string | null>(null)
   const [liveNextAirDate, setLiveNextAirDate] = useState<string | null>(null)
-  const [localSeasonRatings, setLocalSeasonRatings] = useState<SeasonRating[]>(seasonRatings)
   const [expandedFollowers, setExpandedFollowers] = useState<Set<string>>(new Set())
 
   const toggleFollowerSeasons = (username: string) => {
@@ -123,55 +116,7 @@ export function EntryDetailClient({
     })
   }
 
-  const supabaseClient = createClient()
-
-  const seasonRatingMap = new Map(localSeasonRatings.map((sr) => [sr.season_number, sr]))
-
-  useEffect(() => {
-    setLocalSeasonRatings(seasonRatings)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.id])
-
-  const saveSeasonRating = async (seasonNumber: number, rating: number | null, dnf: boolean) => {
-    const payload = {
-      user_id: userId,
-      media_id: entry.media_id,
-      season_number: seasonNumber,
-      rating,
-      dnf,
-      updated_at: new Date().toISOString(),
-    }
-
-    if (rating == null && !dnf) {
-      const { error } = await supabaseClient
-        .from("season_ratings")
-        .delete()
-        .eq("user_id", userId)
-        .eq("media_id", entry.media_id)
-        .eq("season_number", seasonNumber)
-      if (error) {
-        console.error("Failed to clear season rating", error)
-        return
-      }
-      setLocalSeasonRatings((prev) => prev.filter((sr) => sr.season_number !== seasonNumber))
-      return
-    }
-
-    const { error } = await supabaseClient
-      .from("season_ratings")
-      .upsert(payload, { onConflict: "user_id,media_id,season_number" })
-    if (error) {
-      console.error("Failed to save season rating", error)
-      return
-    }
-    setLocalSeasonRatings((prev) => {
-      const existing = prev.find((sr) => sr.season_number === seasonNumber)
-      if (existing) {
-        return prev.map((sr) => (sr.season_number === seasonNumber ? { ...sr, rating, dnf } : sr))
-      }
-      return [...prev, payload]
-    })
-  }
+  const seasonRatingMap = new Map(seasonRatings.map((sr) => [sr.season_number, sr]))
 
   useEffect(() => {
     setOverviewLoading(true)
@@ -384,42 +329,19 @@ export function EntryDetailClient({
                         {s.air_year != null && <span className="text-xs text-muted-foreground">{s.air_year}</span>}
                         {s.episode_count != null && <span className="text-xs text-muted-foreground">· {s.episode_count} episodes</span>}
                       </div>
-                      {canRateSeasons ? (
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={sr?.dnf ?? false}
-                              onChange={(e) => saveSeasonRating(s.season_number, sr?.rating ?? null, e.target.checked)}
-                            />
-                            DNF
-                          </label>
-                          <Select
-                            value={sr?.rating != null ? String(sr.rating) : ""}
-                            onValueChange={(v) => saveSeasonRating(s.season_number, v ? Number(v) : null, sr?.dnf ?? false)}
-                          >
-                            <SelectTrigger className="w-[90px] h-8">
-                              <SelectValue placeholder="—" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                                <SelectItem key={n} value={String(n)}>{n}/10</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3 text-sm">
-                          {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
-                          {sr?.rating != null && (
-                            prefs.score_chips ? (
-                                      <ScoreChip value={sr.rating} max={10} tint={palette?.chip} />
-                            ) : (
-                              <span className="font-medium">{sr.rating}/10</span>
-                            )
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3 text-sm">
+                        {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
+                        {sr?.rating != null && (
+                          prefs.score_chips ? (
+                            <ScoreChip value={sr.rating} max={10} tint={palette?.chip} />
+                          ) : (
+                            <span className="font-medium">{sr.rating}/10</span>
+                          )
+                        )}
+                        {!sr?.dnf && sr?.rating == null && (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
                     </div>
                   )
                 })}

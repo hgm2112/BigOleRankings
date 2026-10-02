@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { GutRatingForm } from "@/components/gut-rating-form"
 import { DetailedRatingForm } from "@/components/detailed-rating-form"
+import { SeasonRatingsEditor, type SeasonRatingValue } from "@/components/season-ratings-editor"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -41,6 +42,16 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
   const [impact, setImpact] = useState(10)
   const [recommend, setRecommend] = useState(5)
   const [watchAgain, setWatchAgain] = useState(5)
+  const [seasonRatings, setSeasonRatings] = useState<SeasonRatingValue[]>([])
+  const [initialSeasonRatings, setInitialSeasonRatings] = useState<SeasonRatingValue[]>([])
+
+  const handleSeasonChange = (seasonNumber: number, rating: number | null, dnf: boolean) => {
+    setSeasonRatings((prev) => {
+      const rest = prev.filter((r) => r.season_number !== seasonNumber)
+      if (rating == null && !dnf) return rest
+      return [...rest, { season_number: seasonNumber, rating, dnf }]
+    })
+  }
 
   useEffect(() => {
     const fetchEntry = async () => {
@@ -63,6 +74,22 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
       setImpact(entry.detailed_impact ?? 10)
       setRecommend(entry.detailed_recommend ?? 5)
       setWatchAgain(entry.detailed_watch_again ?? 5)
+
+      if (entry.media_type === "tv") {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: srRows } = await supabase
+            .from("season_ratings")
+            .select("season_number, rating, dnf")
+            .eq("user_id", user.id)
+            .eq("media_id", entry.media_id)
+            .order("season_number")
+          const initial = (srRows ?? []) as SeasonRatingValue[]
+          setInitialSeasonRatings(initial)
+          setSeasonRatings(initial)
+        }
+      }
+
       setLoading(false)
     }
     fetchEntry()
@@ -92,6 +119,49 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
       setError(updateError.message)
       setSaving(false)
       return
+    }
+
+    if (entry.media_type === "tv" && (seasonRatings.length > 0 || initialSeasonRatings.length > 0)) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const stagedKeys = new Set(seasonRatings.map((r) => r.season_number))
+        const toDelete = initialSeasonRatings.map((r) => r.season_number).filter((n) => !stagedKeys.has(n))
+
+        if (toDelete.length > 0) {
+          const { error: deleteError } = await supabase
+            .from("season_ratings")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("media_id", entry.media_id)
+            .in("season_number", toDelete)
+          if (deleteError) {
+            setError(`Rating saved, but season ratings failed: ${deleteError.message}`)
+            setSaving(false)
+            return
+          }
+        }
+
+        if (seasonRatings.length > 0) {
+          const { error: seasonError } = await supabase
+            .from("season_ratings")
+            .upsert(
+              seasonRatings.map((r) => ({
+                user_id: user.id,
+                media_id: entry.media_id,
+                season_number: r.season_number,
+                rating: r.rating,
+                dnf: r.dnf,
+                updated_at: new Date().toISOString(),
+              })),
+              { onConflict: "user_id,media_id,season_number" }
+            )
+          if (seasonError) {
+            setError(`Rating saved, but season ratings failed: ${seasonError.message}`)
+            setSaving(false)
+            return
+          }
+        }
+      }
     }
 
     router.push(`/entries/${id}`)
@@ -151,6 +221,20 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
               onWatchAgainChange={setWatchAgain}
               gutRating={gutRating}
             />
+
+            {entry.media_type === "tv" && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold">Seasons</h3>
+                  <SeasonRatingsEditor
+                    seasons={entry.seasons}
+                    ratings={seasonRatings}
+                    onChange={handleSeasonChange}
+                  />
+                </div>
+              </>
+            )}
 
             <Separator />
             <div>

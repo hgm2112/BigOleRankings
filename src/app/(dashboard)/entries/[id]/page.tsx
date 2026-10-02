@@ -180,7 +180,6 @@ export default async function EntryDetailPage({ params, searchParams }: { params
       myComparisonEntry={myComparisonEntry ? flattenEntry(myComparisonEntry) : null}
       followerRatings={followerRatings}
       backUrl={backUrl}
-      userId={user.id}
       seasons={seasons}
       seasonRatings={seasonRatings}
       mySeasonRatings={mySeasonRatings}

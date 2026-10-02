@@ -108,5 +108,41 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 })
   }
 
+  // 4. Insert any season ratings staged with the entry (requires the seasons rows from step 2)
+  interface SeasonRatingInput {
+    season_number?: number
+    rating?: number | null
+    dnf?: boolean
+  }
+  const rawSeasonRatings: (SeasonRatingInput | null)[] = Array.isArray(body.season_ratings)
+    ? body.season_ratings
+    : []
+  const seasonRatingRows = rawSeasonRatings.flatMap((sr) => {
+    if (sr == null || typeof sr.season_number !== "number" || !Number.isInteger(sr.season_number)) return []
+    const ratingOk = typeof sr.rating === "number" && Number.isInteger(sr.rating) && sr.rating >= 1 && sr.rating <= 10
+    const dnfOk = sr.dnf === true
+    if (!ratingOk && !dnfOk) return []
+    return [{
+      user_id: user.id,
+      media_id: mediaId,
+      season_number: sr.season_number,
+      rating: ratingOk && sr.rating != null ? sr.rating : null,
+      dnf: dnfOk,
+    }]
+  })
+
+  if (body.media_type === "tv" && seasonRatingRows.length > 0) {
+    const { error: seasonRatingsError } = await supabase
+      .from("season_ratings")
+      .upsert(seasonRatingRows, { onConflict: "user_id,media_id,season_number" })
+
+    if (seasonRatingsError) {
+      return Response.json(
+        { error: `Rating saved, but season ratings failed: ${seasonRatingsError.message}` },
+        { status: 500 }
+      )
+    }
+  }
+
   return Response.json({ success: true })
 }
