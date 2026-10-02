@@ -44,6 +44,7 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
   const [watchAgain, setWatchAgain] = useState(5)
   const [seasonRatings, setSeasonRatings] = useState<SeasonRatingValue[]>([])
   const [initialSeasonRatings, setInitialSeasonRatings] = useState<SeasonRatingValue[]>([])
+  const [initialDetailed, setInitialDetailed] = useState({ enjoyment: 30, impact: 10, recommend: 5, watchAgain: 5 })
 
   const handleSeasonChange = (seasonNumber: number, rating: number | null, dnf: boolean) => {
     setSeasonRatings((prev) => {
@@ -74,6 +75,12 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
       setImpact(entry.detailed_impact ?? 10)
       setRecommend(entry.detailed_recommend ?? 5)
       setWatchAgain(entry.detailed_watch_again ?? 5)
+      setInitialDetailed({
+        enjoyment: entry.detailed_enjoyment ?? 30,
+        impact: entry.detailed_impact ?? 10,
+        recommend: entry.detailed_recommend ?? 5,
+        watchAgain: entry.detailed_watch_again ?? 5,
+      })
 
       if (entry.media_type === "tv") {
         const { data: { user } } = await supabase.auth.getUser()
@@ -100,18 +107,28 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
     setSaving(true)
     setError(null)
 
+    const detailedChanged =
+      enjoyment !== initialDetailed.enjoyment ||
+      impact !== initialDetailed.impact ||
+      recommend !== initialDetailed.recommend ||
+      watchAgain !== initialDetailed.watchAgain
+
     const { error: updateError } = await supabase
       .from("ratings")
       .update({
         gut_rating: gutRating,
         notes,
         weight,
-        detailed_enjoyment: enjoyment,
-        detailed_impact: impact,
-        detailed_recommend: recommend,
-        detailed_watch_again: watchAgain,
-        detailed_rated_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        ...(detailedChanged
+          ? {
+              detailed_enjoyment: enjoyment,
+              detailed_impact: impact,
+              detailed_recommend: recommend,
+              detailed_watch_again: watchAgain,
+              detailed_rated_at: new Date().toISOString(),
+            }
+          : {}),
       })
       .eq("id", id)
 
@@ -126,6 +143,11 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
       if (user) {
         const stagedKeys = new Set(seasonRatings.map((r) => r.season_number))
         const toDelete = initialSeasonRatings.map((r) => r.season_number).filter((n) => !stagedKeys.has(n))
+        const initialBySeason = new Map(initialSeasonRatings.map((r) => [r.season_number, r]))
+        const toUpsert = seasonRatings.filter((r) => {
+          const init = initialBySeason.get(r.season_number)
+          return !init || init.rating !== r.rating || init.dnf !== r.dnf
+        })
 
         if (toDelete.length > 0) {
           const { error: deleteError } = await supabase
@@ -141,11 +163,11 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
           }
         }
 
-        if (seasonRatings.length > 0) {
+        if (toUpsert.length > 0) {
           const { error: seasonError } = await supabase
             .from("season_ratings")
             .upsert(
-              seasonRatings.map((r) => ({
+              toUpsert.map((r) => ({
                 user_id: user.id,
                 media_id: entry.media_id,
                 season_number: r.season_number,
