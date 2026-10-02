@@ -257,98 +257,104 @@ export function SocialClient({ initialEvents, feedNextCursor, suggestions }: Soc
         </CardContent>
       </Card>
 
-      <SocialFeed initialEvents={initialEvents} initialCursor={feedNextCursor} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-10 lg:items-start">
+        <div className="lg:col-span-7 lg:min-w-0">
+          <SocialFeed initialEvents={initialEvents} initialCursor={feedNextCursor} />
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Following ({following.length})</CardTitle>
-          <CardDescription>Pin a user to see their latest rating on your dashboard</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {followingProfiles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">You&apos;re not following anyone yet. Search for users above.</p>
-          ) : (
-            <div className="space-y-1">
-              {followingProfiles.map((p) => {
-                const pinSlotIdx = pinnedUserIds.indexOf(p.id)
-                const isPinned = pinSlotIdx !== -1
-                const allSlotsFull = pinnedUserIds.every((id) => id !== null)
-                return (
-                  <div key={p.id} className="flex items-center justify-between p-2 rounded hover:bg-accent">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">{(p.display_name || p.username || "U").charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">{p.display_name || p.username}</span>
-                      {isPinned && <span className="text-xs text-primary font-medium">Pinned ({pinSlotIdx + 1})</span>}
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" asChild>
-                        <Link href={`/users/${p.username}`}>
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Link>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={isPinned ? "default" : "ghost"}
-                        onClick={() => togglePin(p.id)}
-                        disabled={!isPinned && allSlotsFull}
-                        title={!isPinned && allSlotsFull ? "Unpin someone first (max 3)" : ""}
-                      >
-                        {isPinned ? <PinOff className="h-3.5 w-3.5 mr-1" /> : <Pin className="h-3.5 w-3.5 mr-1" />}
-                        {isPinned ? "Unpin" : "Pin"}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => toggleFollow(p.id)}>
-                        Unfollow
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {following.length <= 2 && visibleSuggestions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Suggested Friends</CardTitle>
-            <CardDescription>People you might know — follow them to fill your feed</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {visibleSuggestions.map((s) => (
-                <div key={s.id} className="flex items-center justify-between p-2 rounded hover:bg-accent">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs">{(s.display_name || s.username || "U").charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="text-sm truncate">{s.display_name || s.username}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {s.ratingCount} rating{s.ratingCount === 1 ? "" : "s"}
-                        {s.fofBy.length > 0 && <> &middot; Followed by {s.fofBy.join(", ")}</>}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <Button size="sm" variant="ghost" asChild>
-                      <Link href={`/users/${s.username}`}>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Link>
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => toggleFollow(s.id)}>
-                      <UserPlus className="h-3.5 w-3.5 mr-1" />
-                      Follow
-                    </Button>
-                  </div>
+        <div className="space-y-6 lg:col-span-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Following ({following.length})</CardTitle>
+              <CardDescription>Pin a user to see their latest rating on your dashboard</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {followingProfiles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">You&apos;re not following anyone yet. Search for users above.</p>
+              ) : (
+                <div className="space-y-1">
+                  {followingProfiles.map((p) => {
+                    const pinSlotIdx = pinnedUserIds.indexOf(p.id)
+                    const isPinned = pinSlotIdx !== -1
+                    const allSlotsFull = pinnedUserIds.every((id) => id !== null)
+                    return (
+                      <div key={p.id} className="flex items-center justify-between p-2 rounded hover:bg-accent">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs">{(p.display_name || p.username || "U").charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{p.display_name || p.username}</span>
+                          {isPinned && <span className="text-xs text-primary font-medium">Pinned ({pinSlotIdx + 1})</span>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" asChild>
+                            <Link href={`/users/${p.username}`}>
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={isPinned ? "default" : "ghost"}
+                            onClick={() => togglePin(p.id)}
+                            disabled={!isPinned && allSlotsFull}
+                            title={!isPinned && allSlotsFull ? "Unpin someone first (max 3)" : ""}
+                          >
+                            {isPinned ? <PinOff className="h-3.5 w-3.5 mr-1" /> : <Pin className="h-3.5 w-3.5 mr-1" />}
+                            {isPinned ? "Unpin" : "Pin"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => toggleFollow(p.id)}>
+                            Unfollow
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              )}
+            </CardContent>
+          </Card>
+
+          {following.length <= 2 && visibleSuggestions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Suggested Friends</CardTitle>
+                <CardDescription>People you might know — follow them to fill your feed</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  {visibleSuggestions.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between p-2 rounded hover:bg-accent">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs">{(s.display_name || s.username || "U").charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="text-sm truncate">{s.display_name || s.username}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {s.ratingCount} rating{s.ratingCount === 1 ? "" : "s"}
+                            {s.fofBy.length > 0 && <> &middot; Followed by {s.fofBy.join(", ")}</>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button size="sm" variant="ghost" asChild>
+                          <Link href={`/users/${s.username}`}>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => toggleFollow(s.id)}>
+                          <UserPlus className="h-3.5 w-3.5 mr-1" />
+                          Follow
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
