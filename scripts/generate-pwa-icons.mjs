@@ -4,7 +4,7 @@ import sharp from "sharp"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const SRC = path.join(root, "public", "icons", "icon.svg")
-const BRAND = "#43009B"
+const BRAND = "#5C00C6"
 
 async function render(file, size) {
   await sharp(SRC).resize(size, size).png().toFile(file)
