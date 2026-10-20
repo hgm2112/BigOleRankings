@@ -41,7 +41,7 @@ export function AuthBlurb({ variant = "default" }: { variant?: "default" | "logi
           priority
           unoptimized
         />
-        <p className="mt-2 text-lg text-muted-foreground">Get in here you old so and so!</p>
+        <p className="mt-2 text-lg text-muted-foreground text-center">Get in here you old so and so!</p>
       </div>
     )
   }

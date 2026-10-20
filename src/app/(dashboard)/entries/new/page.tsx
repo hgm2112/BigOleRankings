@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { TMDSearch } from "@/components/tmdb-search"
 import { GutRatingForm } from "@/components/gut-rating-form"
 import { SeasonRatingsEditor, type SeasonRatingValue } from "@/components/season-ratings-editor"
@@ -23,6 +24,8 @@ interface TMDBResult {
   status?: string | null
   next_air_date?: string | null
   network?: string | null
+  already_rated?: boolean
+  entry_id?: string | null
   seasons?: {
     season_number: number
     name: string | null
@@ -43,11 +46,18 @@ export default function NewEntryPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selected, setSelected] = useState<TMDBResult | null>(null)
+  const [alreadyRated, setAlreadyRated] = useState<{ entry_id: string; title: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [gutRating, setGutRating] = useState(50)
   const [notes, setNotes] = useState("")
   const [seasonRatings, setSeasonRatings] = useState<SeasonRatingValue[]>([])
+
+  const tmdbIdParam = searchParams.get("tmdb_id")
+  const mediaTypeParam = searchParams.get("media_type")
+  const titleParam = searchParams.get("title")
+  const yearParam = searchParams.get("year")
+  const posterPathParam = searchParams.get("poster_path")
 
   const handleSeasonChange = (seasonNumber: number, rating: number | null, dnf: boolean) => {
     setSeasonRatings((prev) => {
@@ -58,26 +68,70 @@ export default function NewEntryPage() {
   }
 
   useEffect(() => {
-    const tmdbId = searchParams.get("tmdb_id")
-    const mediaType = searchParams.get("media_type")
-    if (!tmdbId || !mediaType) return
-    const item: TMDBResult = {
-      tmdb_id: Number(tmdbId),
-      media_type: mediaType,
-      title: searchParams.get("title") || "",
-      year: searchParams.get("year") || "",
-      poster_path: searchParams.get("poster_path") || null,
+    if (!tmdbIdParam || !mediaTypeParam) return
+
+    let cancelled = false
+
+    const load = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user) {
+        const { data: mediaRow } = await supabase
+          .from("media")
+          .select("id")
+          .eq("tmdb_id", Number(tmdbIdParam))
+          .eq("media_type", mediaTypeParam)
+          .maybeSingle()
+
+        if (mediaRow) {
+          const { data: ratingRow } = await supabase
+            .from("ratings")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("media_id", mediaRow.id)
+            .maybeSingle()
+
+          if (ratingRow) {
+            if (!cancelled) {
+              setAlreadyRated({ entry_id: ratingRow.id, title: titleParam || "" })
+            }
+            return
+          }
+        }
+      }
+
+      if (cancelled) return
+
+      const item: TMDBResult = {
+        tmdb_id: Number(tmdbIdParam),
+        media_type: mediaTypeParam,
+        title: titleParam || "",
+        year: yearParam || "",
+        poster_path: posterPathParam || null,
+      }
+      setAlreadyRated(null)
+      setSelected({ ...item, runtime: null })
+      fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((details) => {
+          if (!cancelled && details) setSelected(details)
+        })
+        .catch(() => {})
     }
-    setSelected({ ...item, runtime: null })
-    fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((details) => {
-        if (details) setSelected(details)
-      })
-      .catch(() => {})
-  }, [searchParams])
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [tmdbIdParam, mediaTypeParam, titleParam, yearParam, posterPathParam])
 
   const handleSelect = async (item: TMDBResult) => {
+    if (item.already_rated) {
+      setAlreadyRated({ entry_id: item.entry_id ?? "", title: item.title })
+      return
+    }
+    setAlreadyRated(null)
     setSelected({ ...item, runtime: null })
     setSeasonRatings([])
     try {
@@ -128,6 +182,34 @@ export default function NewEntryPage() {
 
     router.push("/entries")
     router.refresh()
+  }
+
+  if (alreadyRated) {
+    return (
+      <div className="max-w-lg mx-auto space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => setAlreadyRated(null)}>
+          <ArrowLeft className="h-4 w-4 mr-1" />Back to search
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{alreadyRated.title || "Already rated"}</CardTitle>
+            <CardDescription>You&apos;ve already rated this title.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {alreadyRated.entry_id ? (
+              <Button asChild>
+                <Link href={`/entries/${alreadyRated.entry_id}`}>View rating</Link>
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link href="/entries">Back to my ratings</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (selected) {

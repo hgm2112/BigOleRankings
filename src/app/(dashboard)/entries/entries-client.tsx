@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { EntryCard } from "@/components/entry-card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
-import { Plus } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 
 interface SeasonRating {
   media_id: string
@@ -54,6 +55,7 @@ export function EntriesClient({ entries, userId, seasonRatings = [], initialSort
   const [currentEntries, setCurrentEntries] = useState(entries)
   const [sortField, setSortField] = useState(initialSort || "recent")
   const [sortDir, setSortDir] = useState(initialDir || "desc")
+  const [query, setQuery] = useState("")
 
   const showOrder = !["recent", "name", "status"].includes(sortField)
 
@@ -123,6 +125,12 @@ export function EntriesClient({ entries, userId, seasonRatings = [], initialSort
     return list
   }, [currentEntries, sortField, sortDir])
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return sorted
+    return sorted.filter((e) => e.title.toLowerCase().includes(q))
+  }, [sorted, query])
+
   const seasonRatingsByMedia = useMemo(() => {
     const map = new Map<string, SeasonRating[]>()
     for (const sr of seasonRatings) {
@@ -133,8 +141,11 @@ export function EntriesClient({ entries, userId, seasonRatings = [], initialSort
     return map
   }, [seasonRatings])
 
-  const movies = sorted.filter((e) => e.media_type === "movie")
-  const tvShows = sorted.filter((e) => e.media_type === "tv")
+  const totalMovies = sorted.filter((e) => e.media_type === "movie").length
+  const totalTvShows = sorted.filter((e) => e.media_type === "tv").length
+
+  const movies = filtered.filter((e) => e.media_type === "movie")
+  const tvShows = filtered.filter((e) => e.media_type === "tv")
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("ratings").delete().eq("id", id).eq("user_id", userId)
@@ -175,13 +186,24 @@ export function EntriesClient({ entries, userId, seasonRatings = [], initialSort
       </div>
 
       <Tabs defaultValue="all">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <TabsList>
             <TabsTrigger value="all">All ({currentEntries.length})</TabsTrigger>
-            <TabsTrigger value="movies">Movies ({movies.length})</TabsTrigger>
-            <TabsTrigger value="tv">TV Shows ({tvShows.length})</TabsTrigger>
+            <TabsTrigger value="movies">Movies ({totalMovies})</TabsTrigger>
+            <TabsTrigger value="tv">TV Shows ({totalTvShows})</TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2">
+          <div className="relative w-64 max-w-full">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              aria-label="Search your ratings"
+              placeholder="Search…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="h-9 pl-8"
+            />
+          </div>
+          <div className="ml-auto flex items-center gap-2">
             <Select value={sortField} onValueChange={updateSort}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Sort by" />
@@ -225,19 +247,41 @@ export function EntriesClient({ entries, userId, seasonRatings = [], initialSort
           </div>
         </div>
         <TabsContent value="all" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {sorted.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
-          ))}
+          {filtered.length === 0 ? (
+            <p className="col-span-full py-8 text-center text-muted-foreground">
+              No matches for &ldquo;{query.trim()}&rdquo;.
+            </p>
+          ) : (
+            filtered.map((entry) => (
+              <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
+            ))
+          )}
         </TabsContent>
         <TabsContent value="movies" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {movies.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
-          ))}
+          {movies.length === 0 ? (
+            query.trim() ? (
+              <p className="col-span-full py-8 text-center text-muted-foreground">
+                No matches for &ldquo;{query.trim()}&rdquo;.
+              </p>
+            ) : null
+          ) : (
+            movies.map((entry) => (
+              <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
+            ))
+          )}
         </TabsContent>
         <TabsContent value="tv" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {tvShows.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
-          ))}
+          {tvShows.length === 0 ? (
+            query.trim() ? (
+              <p className="col-span-full py-8 text-center text-muted-foreground">
+                No matches for &ldquo;{query.trim()}&rdquo;.
+              </p>
+            ) : null
+          ) : (
+            tvShows.map((entry) => (
+              <EntryCard key={entry.id} entry={entry} onDelete={readOnly ? undefined : handleDelete} backQuery={backQuery} readOnly={readOnly} seasonRatings={seasonRatingsByMedia.get(entry.media_id ?? "") ?? []} />
+            ))
+          )}
         </TabsContent>
       </Tabs>
     </div>

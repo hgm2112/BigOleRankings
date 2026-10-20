@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,6 +18,8 @@ interface TMDBResult {
   media_type: string
   overview: string
   runtime?: number | null
+  already_rated?: boolean
+  entry_id?: string | null
 }
 
 interface TMDBSearchProps {
@@ -91,8 +94,12 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
             return (
               <Card
                 key={item.tmdb_id}
-                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => onSelect(item)}
+                className={`flex items-center gap-3 p-3 transition-colors ${
+                  item.already_rated ? "cursor-default opacity-80" : "cursor-pointer hover:bg-accent"
+                }`}
+                onClick={() => {
+                  if (!item.already_rated) onSelect(item)
+                }}
               >
                 {poster ? (
                   <Image src={poster} alt={item.title} width={46} height={69} quality={90} className="rounded object-cover flex-shrink-0" />
@@ -106,14 +113,33 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{item.year}</span>
                     <span>{item.media_type === "tv" ? "TV Show" : "Movie"}</span>
+                    {item.already_rated && (
+                      <span className="rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-medium">
+                        Already rated
+                      </span>
+                    )}
                   </div>
                   {item.overview && (
                     <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.overview}</p>
                   )}
                 </div>
-                <Button size="sm" className="ml-auto flex-shrink-0" onClick={(e) => { e.stopPropagation(); onSelect(item) }}>
-                  Select
-                </Button>
+                {item.already_rated ? (
+                  item.entry_id ? (
+                    <Button asChild size="sm" variant="outline" className="ml-auto flex-shrink-0">
+                      <Link href={`/entries/${item.entry_id}`} onClick={(e) => e.stopPropagation()}>
+                        View rating
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" disabled className="ml-auto flex-shrink-0">
+                      Already rated
+                    </Button>
+                  )
+                ) : (
+                  <Button size="sm" className="ml-auto flex-shrink-0" onClick={(e) => { e.stopPropagation(); onSelect(item) }}>
+                    Select
+                  </Button>
+                )}
               </Card>
             )
           })}
