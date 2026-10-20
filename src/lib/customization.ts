@@ -11,7 +11,7 @@ export const DEFAULT_CUSTOMIZATION: CustomizationPrefs = {
   media_badges: true,
   stat_chips: true,
   poster_themes: false,
-  background: "black",
+  background: "purple",
 }
 
 export function mergeCustomization(value: Partial<CustomizationPrefs> | null | undefined): CustomizationPrefs {

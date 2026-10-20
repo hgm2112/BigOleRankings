@@ -13,7 +13,7 @@ create table if not exists profiles (
   display_name text,
   avatar_url text,
   theme text not null default 'default',
-  customization jsonb not null default '{"score_chips": true, "media_badges": true, "stat_chips": true, "background": "black"}'::jsonb,
+  customization jsonb not null default '{"score_chips": true, "media_badges": true, "stat_chips": true, "poster_themes": false, "background": "purple"}'::jsonb,
   created_at timestamptz default now()
 );
 
@@ -275,7 +275,7 @@ alter table profiles add column if not exists pinned_user_id_3 uuid references p
 
 -- UI accent toggles (score chips, media badges, stat chips) and background color
 alter table profiles add column if not exists customization jsonb
-  not null default '{"score_chips": true, "media_badges": true, "stat_chips": true, "background": "black"}'::jsonb;
+  not null default '{"score_chips": true, "media_badges": true, "stat_chips": true, "poster_themes": false, "background": "purple"}'::jsonb;
 
 -- Updated_at triggers
 create or replace function public.handle_updated_at()

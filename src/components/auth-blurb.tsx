@@ -1,10 +1,19 @@
+import Image from "next/image"
 import { Check } from "lucide-react"
 
 export function AuthBlurb({ variant = "default" }: { variant?: "default" | "login" | "register" }) {
   if (variant === "register") {
     return (
       <div>
-        <h1 className="text-3xl font-bold">BigOleRankings</h1>
+        <Image
+          src="/bigolerankingslogolong1.svg"
+          alt="BigOleRankings"
+          width={936}
+          height={216}
+          className="w-full h-auto"
+          priority
+          unoptimized
+        />
         <p className="mt-2 text-lg text-muted-foreground">Hey there new bestie!</p>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
           You here to rate some tv shows and movies? BigOleRankings is a site for you to catalog your favorites and
@@ -23,7 +32,15 @@ export function AuthBlurb({ variant = "default" }: { variant?: "default" | "logi
   if (variant === "login") {
     return (
       <div>
-        <h1 className="text-3xl font-bold">BigOleRankings</h1>
+        <Image
+          src="/bigolerankingslogolong1.svg"
+          alt="BigOleRankings"
+          width={936}
+          height={216}
+          className="w-full h-auto"
+          priority
+          unoptimized
+        />
         <p className="mt-2 text-lg text-muted-foreground">Get in here you old so and so!</p>
       </div>
     )
@@ -31,7 +48,15 @@ export function AuthBlurb({ variant = "default" }: { variant?: "default" | "logi
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">BigOleRankings</h1>
+      <Image
+        src="/bigolerankingslogolong1.svg"
+        alt="BigOleRankings"
+        width={936}
+        height={216}
+        className="w-full h-auto"
+        priority
+        unoptimized
+      />
       <p className="mt-2 text-lg text-muted-foreground">Rate by gut. Rank with friends.</p>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
         Keep a running score of everything you watch. Give each movie and TV show a quick 1–100 gut rating,

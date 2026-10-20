@@ -313,3 +313,34 @@ create or replace trigger on_season_rating_delete_cleanup
 delete from media m
 where not exists (select 1 from ratings r where r.media_id = m.id)
   and not exists (select 1 from season_ratings sr where sr.media_id = m.id);
+
+-- 9. Branding refresh: default the site to the deep-purple background.
+--    New signups get purple via the column default; untouched existing rows are
+--    migrated below. A user counts as "untouched" when every customization field
+--    still equals its default (older rows lack the poster_themes key, so this is
+--    matched field-wise rather than by exact object equality).
+--    Idempotent: after the update the predicate no longer matches.
+alter table profiles alter column customization
+  set default '{"score_chips": true, "media_badges": true, "stat_chips": true, "poster_themes": false, "background": "purple"}'::jsonb;
+
+-- Verify how many rows will change (run separately if desired):
+--   select count(*) from profiles
+--   where customization is null
+--      or (
+--        coalesce((customization->>'score_chips')::boolean, true) = true
+--        and coalesce((customization->>'media_badges')::boolean, true) = true
+--        and coalesce((customization->>'stat_chips')::boolean, true) = true
+--        and coalesce((customization->>'poster_themes')::boolean, false) = false
+--        and coalesce(customization->>'background', 'black') = 'black'
+--      );
+
+update profiles
+set customization = '{"score_chips": true, "media_badges": true, "stat_chips": true, "poster_themes": false, "background": "purple"}'::jsonb
+where customization is null
+   or (
+     coalesce((customization->>'score_chips')::boolean, true) = true
+     and coalesce((customization->>'media_badges')::boolean, true) = true
+     and coalesce((customization->>'stat_chips')::boolean, true) = true
+     and coalesce((customization->>'poster_themes')::boolean, false) = false
+     and coalesce(customization->>'background', 'black') = 'black'
+   );

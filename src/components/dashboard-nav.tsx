@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -46,8 +47,16 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
   return (
     <header className="border-b">
       <div className="container mx-auto flex h-14 items-center px-4">
-        <Link href="/dashboard" className="font-bold text-lg mr-6">
-          BigOleRankings
+        <Link href="/dashboard" className="mr-6 flex items-center">
+          <Image
+            src="/bigolerankingslogolong1.svg"
+            alt="BigOleRankings"
+            width={936}
+            height={216}
+            className="h-11 w-auto"
+            priority
+            unoptimized
+          />
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">

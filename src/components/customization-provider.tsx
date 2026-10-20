@@ -31,9 +31,7 @@ export function CustomizationProvider({
     for (const bg of BACKGROUND_OPTIONS) {
       html.classList.remove(`bg-${bg.key}`)
     }
-    if (prefs.background !== "black") {
-      html.classList.add(`bg-${prefs.background}`)
-    }
+    html.classList.add(`bg-${prefs.background}`)
   }, [prefs.background])
 
   return (
