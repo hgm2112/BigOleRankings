@@ -26,6 +26,8 @@ export default function SettingsPage() {
   const [deviceBusy, setDeviceBusy] = useState(false)
   const [enableSuccess, setEnableSuccess] = useState(false)
   const [enableError, setEnableError] = useState<string | null>(null)
+  const [deviceSubscribed, setDeviceSubscribed] = useState(false)
+  const [justSentTest, setJustSentTest] = useState(false)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -45,6 +47,21 @@ export default function SettingsPage() {
     }
     fetchProfile()
   }, [supabase])
+
+  // Check if this device already has an active push subscription (for toggle button state)
+  useEffect(() => {
+    const checkDeviceSubscription = async () => {
+      if (!("serviceWorker" in navigator)) return
+      try {
+        const registration = await navigator.serviceWorker.getRegistration()
+        const subscription = await registration?.pushManager.getSubscription()
+        setDeviceSubscribed(!!subscription)
+      } catch {
+        // ignore – treat as not subscribed
+      }
+    }
+    checkDeviceSubscription()
+  }, [])
 
   const handleDisplayNameChange = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -119,6 +136,7 @@ export default function SettingsPage() {
     setDeviceBusy(true)
     setEnableError(null)
     setEnableSuccess(false)
+    setJustSentTest(false)
 
     try {
       const permission = await Notification.requestPermission()
@@ -159,9 +177,15 @@ export default function SettingsPage() {
         return
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
+      // Ensure fresh auth state (important for PWA after reinstall or cookie clearing)
+      let { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        setEnableError("Not signed in.")
+        // Attempt a session refresh
+        const { data: { session } } = await supabase.auth.getSession()
+        user = session?.user ?? null
+      }
+      if (!user) {
+        setEnableError("Not signed in. Log in again inside the app and retry.")
         return
       }
 
@@ -183,8 +207,63 @@ export default function SettingsPage() {
       }
 
       setEnableSuccess(true)
+      setDeviceSubscribed(true)
+      setJustSentTest(true)
+
+      // Automatically send a test notification right after enabling
+      try {
+        await fetch("/api/test-push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: json.endpoint }),
+        })
+      } catch {
+        // Test send is best-effort; subscription was successful
+      }
     } catch (err: any) {
       setEnableError(err?.message || "Failed to enable notifications on this device.")
+    } finally {
+      setDeviceBusy(false)
+    }
+  }
+
+  async function disableOnThisDevice() {
+    setDeviceBusy(true)
+    setEnableError(null)
+    setEnableSuccess(false)
+    setJustSentTest(false)
+
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setEnableError("This browser does not support web push notifications.")
+        return
+      }
+
+      const registration = await navigator.serviceWorker.getRegistration()
+      const subscription = await registration?.pushManager.getSubscription()
+
+      if (!subscription) {
+        setDeviceSubscribed(false)
+        return
+      }
+
+      const json = subscription.toJSON()
+      const endpoint = json?.endpoint
+
+      await subscription.unsubscribe()
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && endpoint) {
+        await supabase
+          .from("push_subscriptions")
+          .update({ active: false, updated_at: new Date().toISOString() })
+          .eq("endpoint", endpoint)
+          .eq("user_id", user.id)
+      }
+
+      setDeviceSubscribed(false)
+    } catch (err: any) {
+      setEnableError(err?.message || "Failed to disable notifications on this device.")
     } finally {
       setDeviceBusy(false)
     }
@@ -272,39 +351,34 @@ export default function SettingsPage() {
           </p>
 
           <Button
-            onClick={enableOnThisDevice}
+            onClick={deviceSubscribed ? disableOnThisDevice : enableOnThisDevice}
             disabled={deviceBusy}
             variant="outline"
           >
-            {deviceBusy ? "Enabling..." : "Enable on this device"}
+            {deviceBusy
+              ? deviceSubscribed
+                ? "Disabling..."
+                : "Enabling..."
+              : deviceSubscribed
+                ? "Disable on this device"
+                : "Enable on this device"}
           </Button>
 
           {enableSuccess && (
             <p className="text-sm text-green-600 mt-2">
-              This device is now subscribed to detailed rating reminders.
+              This device is now subscribed to detailed rating reminders. A test notification has been sent.
             </p>
           )}
           {enableError && (
             <p className="text-sm text-destructive mt-2">{enableError}</p>
           )}
 
-          <p className="text-xs text-muted-foreground mt-3">
-            If you already have Big Ole Rankings installed as a PWA, remove the home screen icon and reinstall the app after enabling. This is required for push notifications to activate on existing installs.
-          </p>
+          {justSentTest && (
+            <p className="text-xs text-muted-foreground mt-3">
+              A test notification titled "Successful Notification from BigOleRankings" was sent when you enabled notifications. If you didn't receive it, remove the home screen icon and reinstall the PWA.
+            </p>
+          )}
 
-          {/* Test notification button - hidden by default. Remove or expose when ready. */}
-          {/*
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2"
-            onClick={async () => {
-              // implement test send via direct admin call or action if needed
-            }}
-          >
-            Send test (dev)
-          </Button>
-          */}
         </CardContent>
       </Card>
     </div>
