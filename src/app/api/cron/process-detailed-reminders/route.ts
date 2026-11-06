@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
       title: "Time for your detailed rating",
       body: `Do your detailed rating for ${r.title}.`,
       url: `/entries/${r.target_id}`,
+      icon: "/icons/notification-icon-192.png",
+      badge: "/icons/notification-icon-192.png",
     });
 
     for (const sub of subs as any[]) {

@@ -64,6 +64,8 @@ export async function POST(request: NextRequest) {
     title: "Successful Notification from BigOleRankings",
     body: "If you see this, push notifications are working correctly on this device.",
     url: "/settings",
+    icon: "/icons/notification-icon-192.png",
+    badge: "/icons/notification-icon-192.png",
   });
 
   try {

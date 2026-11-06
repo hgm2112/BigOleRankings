@@ -1,13 +1,13 @@
 self.addEventListener("push", (event) => {
-  let payload = { title: "Big Ole Rankings", body: "", url: "/entries" };
+  let payload = { title: "Big Ole Rankings", body: "", url: "/entries", icon: "/icons/notification-icon-192.png", badge: "/icons/notification-icon-192.png" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {}
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      icon: payload.icon || "/icons/notification-icon-192.png",
+      badge: payload.badge || "/icons/notification-icon-192.png",
       data: { url: payload.url },
     })
   );
