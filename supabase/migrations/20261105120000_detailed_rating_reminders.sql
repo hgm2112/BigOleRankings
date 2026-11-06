@@ -48,11 +48,13 @@ create table if not exists public.notification_settings (
 create index if not exists notification_settings_user_idx on public.notification_settings (user_id);
 
 alter table public.push_subscriptions enable row level security;
+drop policy if exists "own push subscriptions" on public.push_subscriptions;
 create policy "own push subscriptions"
   on public.push_subscriptions for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 alter table public.scheduled_reminders enable row level security;
+drop policy if exists "own scheduled reminders" on public.scheduled_reminders;
 create policy "own scheduled reminders"
   on public.scheduled_reminders for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
@@ -61,6 +63,19 @@ alter table public.reminder_deliveries enable row level security;
 -- deliveries table intentionally has no policies (cron-only via service role)
 
 alter table public.notification_settings enable row level security;
+drop policy if exists "own notification settings" on public.notification_settings;
 create policy "own notification settings"
   on public.notification_settings for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- Grants are required for the roles used by the app (anon for public reads where allowed,
+-- authenticated for user operations, service_role for crons/admin).
+-- These were present in the original project schema but were omitted from this migration,
+-- which is why even the service role and authenticated clients were getting
+-- "permission denied for table push_subscriptions".
+grant usage on schema public to anon, authenticated, service_role;
+grant all on public.push_subscriptions to anon, authenticated, service_role;
+grant all on public.scheduled_reminders to anon, authenticated, service_role;
+grant all on public.reminder_deliveries to anon, authenticated, service_role;
+grant all on public.notification_settings to anon, authenticated, service_role;
+grant all on all sequences in schema public to anon, authenticated, service_role;
