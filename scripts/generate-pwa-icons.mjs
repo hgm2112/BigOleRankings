@@ -44,7 +44,10 @@ smallContent = smallContent.replace(/#4802CE/g, '#5C00C6').replace(/#C9C9C9/g, '
 await sharp(Buffer.from(smallContent)).resize(192, 192).png().toFile(path.join(root, "public", "icons", "notification-small-192.png"))
 console.log(`wrote ${path.relative(root, "public/icons/notification-small-192.png")} (192x192, recolored to live purple)`)
 
-// Notification badge (96x96) - EXACTLY the provided PNG (white background + star cutout, no letters)
-const EXACT_BADGE = path.join(root, "bigolerankingsbadge1.png")
-fs.copyFileSync(EXACT_BADGE, path.join(root, "public/icons/notification-badge.png"))
-console.log(`wrote ${path.relative(root, "public/icons/notification-badge.png")} (96x96, exact provided PNG: white bg + transparent star cutout)`)
+// Notification badge (96x96) - convert the provided SVG exactly to PNG
+const BADGE_SVG = path.join(root, "bigolerankingsbadge1.svg")
+await sharp(BADGE_SVG, { density: 300 })
+  .resize(96, 96, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+  .png()
+  .toFile(path.join(root, "public/icons/notification-badge.png"))
+console.log(`wrote ${path.relative(root, "public/icons/notification-badge.png")} (96x96, from provided SVG)`)
