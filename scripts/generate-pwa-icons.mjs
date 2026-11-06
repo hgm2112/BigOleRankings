@@ -44,11 +44,11 @@ smallContent = smallContent.replace(/#4802CE/g, '#5C00C6').replace(/#C9C9C9/g, '
 await sharp(Buffer.from(smallContent)).resize(192, 192).png().toFile(path.join(root, "public", "icons", "notification-small-192.png"))
 console.log(`wrote ${path.relative(root, "public/icons/notification-small-192.png")} (192x192, recolored to live purple)`)
 
-// Notification badge (96x96) - white circle with transparent star from icon1, centered
+// Notification badge (96x96) - white background with star from badge1 transparent, centered
 const BADGE_SRC = path.join(root, "public", "icons", "notification-badge.svg")
 const badgeSize = 96
-const circleRadius = 40
-const starSize = 70
+const starSize = 55  // fits nicely inside the circle
+const circleRadius = 42
 const circleSvg = `<svg width="${badgeSize}" height="${badgeSize}"><circle cx="${badgeSize/2}" cy="${badgeSize/2}" r="${circleRadius}" fill="white"/></svg>`
 const circleBuffer = Buffer.from(circleSvg)
 const starBuffer = await sharp(BADGE_SRC).resize(starSize, starSize).png().toBuffer()
