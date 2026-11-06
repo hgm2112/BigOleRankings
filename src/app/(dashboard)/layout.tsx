@@ -4,6 +4,7 @@ import { DashboardNav } from "@/components/dashboard-nav"
 import { ThemeSetter } from "@/components/theme-setter"
 import { CustomizationProvider } from "@/components/customization-provider"
 import { mergeCustomization, CustomizationPrefs } from "@/lib/customization"
+import { ServiceWorkerRegister } from "@/components/service-worker-register"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -35,6 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <CustomizationProvider prefs={customization}>
       <div className="min-h-screen flex flex-col">
         <ThemeSetter theme={profile?.theme ?? "default"} />
+        <ServiceWorkerRegister />
         <DashboardNav user={user} profile={resolvedProfile} />
         <main className="flex-1 container mx-auto px-4 py-6">
           {children}

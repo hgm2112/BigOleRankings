@@ -186,6 +186,21 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
       }
     }
 
+    // Cancel any pending detailed rating reminder
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (currentUser && entry?.media_id) {
+        await supabase
+          .from("scheduled_reminders")
+          .delete()
+          .eq("user_id", currentUser.id)
+          .eq("target_id", entry.media_id)
+          .eq("target_type", "detailed_rating")
+      }
+    } catch (e) {
+      console.error("Failed to cancel scheduled reminder on save", e)
+    }
+
     router.push(`/entries/${id}`)
     router.refresh()
   }
@@ -201,6 +216,16 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
       .eq("user_id", user.id)
 
     if (!error) {
+      // Also remove any scheduled reminder
+      try {
+        await supabase
+          .from("scheduled_reminders")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("target_id", entry.media_id)
+          .eq("target_type", "detailed_rating")
+      } catch {}
+
       router.push("/entries")
       router.refresh()
     }

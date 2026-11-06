@@ -169,6 +169,7 @@ export default function NewEntryPage() {
         network: selected!.network ?? null,
         seasons: selected!.seasons ?? null,
         season_ratings: seasonRatings,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     })
 

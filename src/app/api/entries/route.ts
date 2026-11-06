@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createClient as createUserClient } from "@/lib/supabase/server"
+import { localParts, addDaysToLocalDate } from "@/lib/reminder"
 
 export async function POST(request: NextRequest) {
   const supabase = await createUserClient()
@@ -106,6 +107,58 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "You've already rated this title!" }, { status: 409 })
     }
     return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  // === Guard: skip detailed rating reminder if user already has one for this title ===
+  let shouldScheduleReminder = true
+  try {
+    const { data: existing } = await service
+      .from("ratings")
+      .select("detailed_enjoyment")
+      .eq("user_id", user.id)
+      .eq("media_id", mediaId)
+      .maybeSingle()
+    if (existing?.detailed_enjoyment != null) {
+      shouldScheduleReminder = false
+    }
+  } catch (e) {
+    console.error("Failed to check for existing detailed rating", e)
+  }
+
+  // === Schedule detailed rating reminder (7 calendar days) ===
+  if (shouldScheduleReminder) {
+    try {
+      // Respect per-user notification setting if present (default true for future options)
+      const { data: prefs } = await service
+        .from("notification_settings")
+        .select("detailed_rating_reminders")
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (prefs && prefs.detailed_rating_reminders === false) {
+        shouldScheduleReminder = false
+      }
+    } catch (e) {
+      console.error("Failed to check notification settings", e)
+    }
+  }
+
+  if (shouldScheduleReminder) {
+    try {
+      const tz = (body.timezone as string) || Intl.DateTimeFormat().resolvedOptions().timeZone
+      const nowParts = localParts(new Date(), tz)
+      const scheduledDate = addDaysToLocalDate(nowParts.date, 7)
+
+      await service.from("scheduled_reminders").insert({
+        user_id: user.id,
+        target_type: "detailed_rating",
+        target_id: mediaId,
+        title: body.title,
+        scheduled_local_date: scheduledDate,
+        timezone: tz,
+      })
+    } catch (e) {
+      console.error("Failed to schedule detailed reminder", e)
+    }
   }
 
   // 4. Insert any season ratings staged with the entry (requires the seasons rows from step 2)

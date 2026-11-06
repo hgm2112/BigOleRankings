@@ -65,6 +65,19 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
       return
     }
 
+    // Cancel the scheduled detailed rating reminder now that it's done
+    try {
+      await supabase
+        .from("scheduled_reminders")
+        .delete()
+        .eq("user_id", entry.user_id)
+        .eq("target_id", entry.media_id)
+        .eq("target_type", "detailed_rating")
+    } catch (e) {
+      // non-fatal
+      console.error("Failed to cancel scheduled reminder", e)
+    }
+
     router.push(`/entries/${id}`)
     router.refresh()
   }

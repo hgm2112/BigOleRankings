@@ -22,6 +22,11 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
 
+  // Basic push notification enable (detailed rating reminders)
+  const [deviceBusy, setDeviceBusy] = useState(false)
+  const [enableSuccess, setEnableSuccess] = useState(false)
+  const [enableError, setEnableError] = useState<string | null>(null)
+
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -99,6 +104,92 @@ export default function SettingsPage() {
     setPasswordSuccess(true)
   }
 
+  function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+    const raw = window.atob(base64)
+    const bytes = new Uint8Array(new ArrayBuffer(raw.length))
+    for (let i = 0; i < raw.length; i++) {
+      bytes[i] = raw.charCodeAt(i)
+    }
+    return bytes
+  }
+
+  async function enableOnThisDevice() {
+    setDeviceBusy(true)
+    setEnableError(null)
+    setEnableSuccess(false)
+
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== "granted") {
+        setEnableError(
+          permission === "denied"
+            ? "Notifications are blocked. Allow them in your browser/OS settings and try again."
+            : "Notification permission was not granted."
+        )
+        return
+      }
+
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setEnableError("This browser does not support web push notifications.")
+        return
+      }
+
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      if (!publicKey) {
+        setEnableError("Push is not configured on this build.")
+        return
+      }
+
+      const registration = await navigator.serviceWorker.register("/sw.js", {
+        scope: "/",
+        updateViaCache: "none",
+      })
+      await navigator.serviceWorker.ready
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      })
+
+      const json = subscription.toJSON()
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        setEnableError("Could not read push subscription from this device.")
+        return
+      }
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setEnableError("Not signed in.")
+        return
+      }
+
+      const { error: subError } = await supabase.from("push_subscriptions").upsert(
+        {
+          user_id: user.id,
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
+          active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "endpoint" }
+      )
+
+      if (subError) {
+        setEnableError(subError.message)
+        return
+      }
+
+      setEnableSuccess(true)
+    } catch (err: any) {
+      setEnableError(err?.message || "Failed to enable notifications on this device.")
+    } finally {
+      setDeviceBusy(false)
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Loading...</div>
   }
@@ -169,6 +260,51 @@ export default function SettingsPage() {
               {passwordSaving ? "Saving..." : "Update Password"}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <h2 className="font-semibold mb-4">Detailed Rating Reminders</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Get a push notification ~7 days after your gut rating to add a detailed rating.
+            Works best when the app is installed to your home screen.
+          </p>
+
+          <Button
+            onClick={enableOnThisDevice}
+            disabled={deviceBusy}
+            variant="outline"
+          >
+            {deviceBusy ? "Enabling..." : "Enable on this device"}
+          </Button>
+
+          {enableSuccess && (
+            <p className="text-sm text-green-600 mt-2">
+              This device is now subscribed to detailed rating reminders.
+            </p>
+          )}
+          {enableError && (
+            <p className="text-sm text-destructive mt-2">{enableError}</p>
+          )}
+
+          <p className="text-xs text-muted-foreground mt-3">
+            If you already have Big Ole Rankings installed as a PWA, remove the home screen icon and reinstall the app after enabling. This is required for push notifications to activate on existing installs.
+          </p>
+
+          {/* Test notification button - hidden by default. Remove or expose when ready. */}
+          {/*
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            onClick={async () => {
+              // implement test send via direct admin call or action if needed
+            }}
+          >
+            Send test (dev)
+          </Button>
+          */}
         </CardContent>
       </Card>
     </div>
