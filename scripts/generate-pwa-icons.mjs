@@ -1,6 +1,7 @@
 import path from "path"
 import { fileURLToPath } from "url"
 import sharp from "sharp"
+import fs from "fs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const SRC = path.join(root, "public", "icons", "icon.svg")
@@ -35,6 +36,13 @@ await sharp(NOTIF_SRC).resize(192, 192).png().toFile(path.join(root, "public", "
 console.log(`wrote ${path.relative(root, "public/icons/notification-icon-192.png")} (192x192)`)
 await sharp(NOTIF_SRC).resize(512, 512).png().toFile(path.join(root, "public", "icons", "notification-icon-512.png"))
 console.log(`wrote ${path.relative(root, "public/icons/notification-icon-512.png")} (512x512)`)
+
+// Small icon (for PWA manifest / right small icon in notifications) from small1, recolored to live app colors
+const SMALL_SRC = path.join(root, "public", "icons", "notification-small.svg")
+let smallContent = fs.readFileSync(SMALL_SRC, 'utf8')
+smallContent = smallContent.replace(/#4802CE/g, '#5C00C6').replace(/#C9C9C9/g, '#FFFFFF')
+await sharp(Buffer.from(smallContent)).resize(192, 192).png().toFile(path.join(root, "public", "icons", "notification-small-192.png"))
+console.log(`wrote ${path.relative(root, "public/icons/notification-small-192.png")} (192x192, recolored to live purple)`)
 
 // Notification badge (96x96) - white circle with transparent star from icon1, centered
 const BADGE_SRC = path.join(root, "public", "icons", "notification-badge.svg")
