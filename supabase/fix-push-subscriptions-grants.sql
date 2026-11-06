@@ -1,5 +1,6 @@
--- Run this ONCE in the Supabase SQL Editor (https://supabase.com/dashboard/project/dbpoechkclfleutplmmj/sql)
--- for the project using the keys stored in .env.local
+-- One-off grants script for an already-provisioned Supabase project.
+-- Executed against the live project (https://supabase.com/dashboard/project/dbpoechkclfleutplmmj/sql) on 2026-11-05.
+-- Fresh installs get these grants from supabase/migrations/20261105120000_detailed_rating_reminders.sql.
 -- This grants the missing table privileges that cause "permission denied for table push_subscriptions"
 -- even for the service_role key.
 -- Safe to re-run. After this, the browser client upsert from "Enable on this device" will work

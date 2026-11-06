@@ -88,12 +88,12 @@ Installing the migration alone still produced `permission denied for table push_
 
 ## Notes
 
-- **Required deploy/setup steps**: run the migration *and* `supabase/fix-push-subscriptions-grants.sql` in the Supabase SQL editor; set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET` in Vercel; redeploy so `vercel.json` crons register.
+- **Deploy/setup steps**: set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET` in Vercel; redeploy so `vercel.json` crons register. For a fresh Supabase project (or a reset), run the migration — it now includes the grants. `supabase/fix-push-subscriptions-grants.sql` was only needed for the already-provisioned project; it was executed there on 2026-11-05 and remains safe to re-run.
 - **Same-origin VAPID subject** must be a `mailto:` or `https:` URL — `web-push` rejects anything else.
 - **Badge geometry caveat**: `bigolerankingsbadge1.svg` and `bigolerankingssmall1.svg` keep most artwork at negative coordinates outside their `0 0 720 720` viewBox. Anything at negative coords is clipped by any SVG renderer (browser or librsvg), so only the in-viewBox white path (with bar cutouts) survives in the badge. Expanding the viewBox would be required if the full lettering/star artwork is ever wanted.
 - **Right small icon updates are device-side**: that icon is the installed PWA's app icon from the manifest. On Android, uninstall/reinstall the PWA (or clear site data) after a manifest/icon change; a push alone won't update it. The `icon` and `badge` fields in the push payload do update immediately on the next notification.
 - **Android tints badges**: status-bar badges are treated as masks, so the white circle/background can appear tinted by the system. This is expected and not a bug in the PNG.
 - **Icon verification**: the generated badge was checked visually and by pixel sampling (96×96 RGBA; white background with the bar cutouts at `alpha: 0`). `npx tsc --noEmit` / `npm run build` were **not** run in this session.
-- The grants edit in `supabase/migrations/20261105120000_detailed_rating_reminders.sql` and the hand-run `supabase/fix-push-subscriptions-grants.sql` are committed alongside this write-up.
+- The grants edit in `supabase/migrations/20261105120000_detailed_rating_reminders.sql` and the hand-run `supabase/fix-push-subscriptions-grants.sql` are committed alongside this write-up; the script was executed against the live Supabase project on 2026-11-05.
 - **Left uncommitted on purpose**: `bigolerankingssmall1.svg` (path data re-wrapped across lines — no numeric change), `bigolerankingsicon1.svg`, the Teko `.ttf` files, and `src/app/icon.png`.
 - The old `public/icons/notification-badge.svg` is retained but no longer read by the generator (it rasterizes the root `bigolerankingsbadge1.svg` instead).
