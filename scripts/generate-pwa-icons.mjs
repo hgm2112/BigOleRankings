@@ -44,9 +44,9 @@ smallContent = smallContent.replace(/#4802CE/g, '#5C00C6').replace(/#C9C9C9/g, '
 await sharp(Buffer.from(smallContent)).resize(192, 192).png().toFile(path.join(root, "public", "icons", "notification-small-192.png"))
 console.log(`wrote ${path.relative(root, "public/icons/notification-small-192.png")} (192x192, recolored to live purple)`)
 
-// --- Badge helper: take ONLY the star from badge1.svg (by tightening viewBox to the star cluster)
-// then render it cleanly at the desired size for use as transparent cutout.
-function extractNormalizedStar(svgContent, targetSize) {
+// --- Badge helper: extract ONLY the star polygons from badge1.svg
+// Builds a minimal clean SVG containing *just* the star (no "BIG" letters or other elements).
+async function extractStarOnly(svgContent, targetSize) {
   const polyRegex = /points="([^"]+)"/g
   const starPolys = []
   let match
@@ -58,36 +58,40 @@ function extractNormalizedStar(svgContent, targetSize) {
 
     if (raw.length === 0) continue
     const minX = Math.min(...raw.map(p => p.x))
+    // Only the main star cluster (very negative coords, no letter paths)
     if (minX < -1200) {
       starPolys.push(raw)
     }
   }
 
   if (starPolys.length === 0) {
-    console.warn('No star polygons found — falling back')
-    return null
+    console.warn('No star polygons found — falling back to raw render')
+    return await sharp(Buffer.from(svgContent)).resize(targetSize, targetSize).png().toBuffer()
   }
 
-  const all = []
-  for (const p of starPolys) all.push(...p)
-  const minX = Math.min(...all.map(p => p.x))
-  const minY = Math.min(...all.map(p => p.y))
-  const maxX = Math.max(...all.map(p => p.x))
-  const maxY = Math.max(...all.map(p => p.y))
-  const vbW = maxX - minX
-  const vbH = maxY - minY
+  // Build a brand new minimal SVG containing ONLY the star polygons
+  let polyTags = ''
+  for (const poly of starPolys) {
+    const minX = Math.min(...poly.map(p => p.x))
+    const minY = Math.min(...poly.map(p => p.y))
+    const maxX = Math.max(...poly.map(p => p.x))
+    const maxY = Math.max(...poly.map(p => p.y))
+    const w = maxX - minX
+    const h = maxY - minY
+    const scale = targetSize / Math.max(w, h)
+    const offset = (targetSize - Math.max(w, h) * scale) / 2
 
-  // rewrite a copy of the svg to focus exactly on the star cluster
-  let focused = svgContent
-    .replace(/viewBox="[^"]*"/, `viewBox="${minX} ${minY} ${vbW} ${vbH}"`)
-    .replace(/width="[^"]*"/, `width="${vbW}"`)
-    .replace(/height="[^"]*"/, `height="${vbH}"`)
+    const pts = poly.map(p => {
+      const sx = (p.x - minX) * scale + offset
+      const sy = (p.y - minY) * scale + offset
+      return `${sx.toFixed(2)},${sy.toFixed(2)}`
+    }).join(' ')
 
-  // render the focused star and scale it to targetSize
-  return sharp(Buffer.from(focused))
-    .resize(targetSize, targetSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toBuffer()
+    polyTags += `<polygon points="${pts}" fill="#000"/>`
+  }
+
+  const cleanSvg = `<svg width="${targetSize}" height="${targetSize}" viewBox="0 0 ${targetSize} ${targetSize}" xmlns="http://www.w3.org/2000/svg">${polyTags}</svg>`
+  return await sharp(Buffer.from(cleanSvg)).png().toBuffer()
 }
 
 // Notification badge (96x96) - white circle + star from badge1.svg made transparent (centered)
@@ -98,7 +102,7 @@ const circleRadius = 43
 const circleSvg = `<svg width="${badgeSize}" height="${badgeSize}"><circle cx="${badgeSize/2}" cy="${badgeSize/2}" r="${circleRadius}" fill="white"/></svg>`
 const circleBuffer = Buffer.from(circleSvg)
 
-let starRendered = await extractNormalizedStar(fs.readFileSync(BADGE_SRC, 'utf8'), starSize)
+let starRendered = await extractStarOnly(fs.readFileSync(BADGE_SRC, 'utf8'), starSize)
 if (!starRendered) {
   starRendered = await sharp(BADGE_SRC).resize(starSize, starSize).png().toBuffer()
 }
