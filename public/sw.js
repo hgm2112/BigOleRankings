@@ -1,5 +1,5 @@
 self.addEventListener("push", (event) => {
-  let payload = { title: "Big Ole Rankings", body: "", url: "/entries", icon: "/icons/notification-icon-192.png", badge: "/icons/notification-icon-192.png" };
+  let payload = { title: "Big Ole Rankings", body: "", url: "/entries", icon: "/icons/notification-icon-192.png", badge: "/icons/notification-badge.png" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {}
@@ -7,7 +7,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(payload.title, {
       body: payload.body,
       icon: payload.icon || "/icons/notification-icon-192.png",
-      badge: payload.badge || "/icons/notification-icon-192.png",
+      badge: payload.badge || "/icons/notification-badge.png",
       data: { url: payload.url },
     })
   );

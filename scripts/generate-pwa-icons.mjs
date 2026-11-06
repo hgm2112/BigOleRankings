@@ -29,9 +29,30 @@ await renderMaskable(path.join(root, "public", "icons", "icon-512-maskable.png")
 await render(path.join(root, "src", "app", "apple-icon.png"), 180)
 await render(path.join(root, "src", "app", "icon.png"), 192)
 
-// Notification icon (used for push notifications) - separate source, no background
+// Notification icon (used for push notifications) - large icon from logo1
 const NOTIF_SRC = path.join(root, "public", "icons", "notification-icon.svg")
 await sharp(NOTIF_SRC).resize(192, 192).png().toFile(path.join(root, "public", "icons", "notification-icon-192.png"))
 console.log(`wrote ${path.relative(root, "public/icons/notification-icon-192.png")} (192x192)`)
 await sharp(NOTIF_SRC).resize(512, 512).png().toFile(path.join(root, "public", "icons", "notification-icon-512.png"))
 console.log(`wrote ${path.relative(root, "public/icons/notification-icon-512.png")} (512x512)`)
+
+// Notification badge (96x96) - white circle with transparent star from icon1, centered
+const BADGE_SRC = path.join(root, "public", "icons", "notification-badge.svg")
+const badgeSize = 96
+const circleRadius = 40
+const starSize = 70
+const circleSvg = `<svg width="${badgeSize}" height="${badgeSize}"><circle cx="${badgeSize/2}" cy="${badgeSize/2}" r="${circleRadius}" fill="white"/></svg>`
+const circleBuffer = Buffer.from(circleSvg)
+const starBuffer = await sharp(BADGE_SRC).resize(starSize, starSize).png().toBuffer()
+const left = Math.round((badgeSize - starSize) / 2)
+const top = Math.round((badgeSize - starSize) / 2)
+await sharp({
+  create: { width: badgeSize, height: badgeSize, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+})
+  .composite([
+    { input: circleBuffer, left: 0, top: 0 },
+    { input: starBuffer, left, top, blend: 'dest-out' }
+  ])
+  .png()
+  .toFile(path.join(root, "public", "icons", "notification-badge.png"))
+console.log(`wrote ${path.relative(root, "public/icons/notification-badge.png")} (96x96, white circle + transparent star)`)
