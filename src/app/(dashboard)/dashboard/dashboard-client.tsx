@@ -98,85 +98,92 @@ function PinnedLastRated({ pinnedUser, pinnedEntry, myComparisonEntry }: {
     ? (myComparisonEntry.detailed_enjoyment ?? 0) + (myComparisonEntry.detailed_impact ?? 0) + (myComparisonEntry.detailed_recommend ?? 0) + (myComparisonEntry.detailed_watch_again ?? 0)
     : 0
   const diff = hasMyDetailed ? myTotal - pinTotal : 0
+  const gutDiff =
+    pinnedEntry.gut_rating != null && myComparisonEntry?.gut_rating != null
+      ? myComparisonEntry.gut_rating - pinnedEntry.gut_rating
+      : null
+  const pinnedName = pinnedUser.display_name || pinnedUser.username
+
+  const poster = pinnedEntry.poster_path ? (
+    <div className="relative w-16 h-24 rounded overflow-hidden bg-muted flex-shrink-0">
+      <Image
+        src={`https://image.tmdb.org/t/p/w185${pinnedEntry.poster_path}`}
+        alt={pinnedEntry.title}
+        fill
+        sizes="64px"
+        quality={90}
+        className="object-cover"
+      />
+    </div>
+  ) : (
+    <div className="w-16 h-24 rounded bg-muted flex items-center justify-center flex-shrink-0">
+      {pinnedEntry.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
+    </div>
+  )
 
   return (
-    <div className="flex gap-3">
-      {pinnedEntry.poster_path ? (
-        <div className="relative w-20 h-30 rounded overflow-hidden bg-muted flex-shrink-0">
-          <Image
-            src={`https://image.tmdb.org/t/p/w185${pinnedEntry.poster_path}`}
-            alt={pinnedEntry.title}
-            fill
-            sizes="80px"
-            quality={90}
-            className="object-cover"
-          />
-        </div>
-      ) : (
-        <div className="w-20 h-30 rounded bg-muted flex items-center justify-center flex-shrink-0">
-          {pinnedEntry.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
-        </div>
-      )}
-      <div className="flex-1 min-w-0 space-y-1">
-        <div className="flex items-center gap-2">
-          <Link href={`/entries/${pinnedEntry.id}`} className="font-semibold hover:underline line-clamp-1">
-            {pinnedEntry.title}
-          </Link>
-          <StatusBadge status={pinnedEntry.status ?? null} mediaType={pinnedEntry.media_type} />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {pinnedEntry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={pinnedEntry.media_type} /> : pinnedEntry.media_type === "tv" ? "TV Show" : "Movie"}
-        </p>
-        <div className="flex items-center gap-4 text-sm flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <span className="font-medium text-foreground">{pinnedUser.display_name || pinnedUser.username}: </span>
-            {prefs.score_chips ? (
-              <ScoreChip value={pinnedEntry.gut_rating} />
-            ) : (
-              <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
-            )}
-            <span className="text-xs text-muted-foreground">/100</span>
+    <>
+      <div className="hidden sm:flex gap-3">
+        {poster}
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2">
+            <Link href={`/entries/${pinnedEntry.id}`} className="font-semibold hover:underline line-clamp-1">
+              {pinnedEntry.title}
+            </Link>
+            <StatusBadge status={pinnedEntry.status ?? null} mediaType={pinnedEntry.media_type} />
           </div>
-          {myComparisonEntry ? (
-            <>
-              <div className="flex items-center gap-1.5">
-                <span className="text-muted-foreground">Your rating: </span>
-                {prefs.score_chips ? (
-                  <ScoreChip value={myComparisonEntry.gut_rating} />
-                ) : (
-                  <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
-                )}
-                <span className="text-xs text-muted-foreground">/100</span>
-              </div>
-              {pinnedEntry.gut_rating != null && myComparisonEntry.gut_rating != null && (
-                <div>
-                  <span className="text-muted-foreground">Δ </span>
-                  <span className={`font-medium ${myComparisonEntry.gut_rating > pinnedEntry.gut_rating ? "text-green-600" : myComparisonEntry.gut_rating < pinnedEntry.gut_rating ? "text-destructive" : ""}`}>
-                    {myComparisonEntry.gut_rating - pinnedEntry.gut_rating > 0 ? "+" : ""}{myComparisonEntry.gut_rating - pinnedEntry.gut_rating}
-                  </span>
-                </div>
+          <p className="text-xs text-muted-foreground">
+            {pinnedEntry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={pinnedEntry.media_type} /> : pinnedEntry.media_type === "tv" ? "TV Show" : "Movie"}
+          </p>
+          <div className="flex items-center gap-4 text-sm flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="font-medium text-foreground">{pinnedName}: </span>
+              {prefs.score_chips ? (
+                <ScoreChip value={pinnedEntry.gut_rating} />
+              ) : (
+                <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
               )}
-            </>
-          ) : (
-            <p className="text-xs text-muted-foreground">You haven&apos;t rated this yet.</p>
-          )}
-        </div>
-
-        {pinnedEntry.detailed_enjoyment != null && (
-          <div className="border-t border-border/50 pt-1.5 space-y-0.5">
-            <div className="flex gap-x-1 items-baseline text-sm flex-wrap">
-              <span className="font-medium text-foreground shrink-0 w-24">{pinnedUser.display_name || pinnedUser.username}:</span>
-              {prefs.score_chips ? <ScoreChip value={pinTotal} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{pinTotal}</span>}
-              <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {pinnedEntry.detailed_enjoyment}/60</span>
-              <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {pinnedEntry.detailed_impact ?? 0}/20</span>
-              <span className="text-xs text-muted-foreground tabular-nums shrink-0">R {pinnedEntry.detailed_recommend ?? 0}/10</span>
-              <span className="text-xs text-muted-foreground tabular-nums shrink-0">W {pinnedEntry.detailed_watch_again ?? 0}/10</span>
+              <span className="text-xs text-muted-foreground">/100</span>
             </div>
-            <div className="flex gap-x-1 items-baseline text-sm flex-wrap">
-              <span className="text-muted-foreground shrink-0 w-24">Your rating:</span>
-              {prefs.score_chips ? <ScoreChip value={hasMyDetailed ? myTotal : null} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{hasMyDetailed ? myTotal : "—"}</span>}
-              {hasMyDetailed ? (
-                <>
+            {myComparisonEntry ? (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Your rating: </span>
+                  {prefs.score_chips ? (
+                    <ScoreChip value={myComparisonEntry.gut_rating} />
+                  ) : (
+                    <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground">/100</span>
+                </div>
+                {gutDiff != null && (
+                  <div>
+                    <span className="text-muted-foreground">Δ </span>
+                    <span className={`font-medium ${gutDiff > 0 ? "text-green-600" : gutDiff < 0 ? "text-destructive" : ""}`}>
+                      {gutDiff > 0 ? "+" : ""}{gutDiff}
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">You haven&apos;t seen this yet.</p>
+            )}
+          </div>
+
+          {pinnedEntry.detailed_enjoyment != null && (
+            <div className="border-t border-border/50 pt-1.5 space-y-0.5">
+              <div className="flex gap-x-1 items-baseline text-sm flex-wrap">
+                <span className="font-medium text-foreground shrink-0 w-24">{pinnedName}:</span>
+                {prefs.score_chips ? <ScoreChip value={pinTotal} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{pinTotal}</span>}
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {pinnedEntry.detailed_enjoyment}/60</span>
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {pinnedEntry.detailed_impact ?? 0}/20</span>
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">R {pinnedEntry.detailed_recommend ?? 0}/10</span>
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">W {pinnedEntry.detailed_watch_again ?? 0}/10</span>
+              </div>
+              {hasMyDetailed && (
+                <div className="flex gap-x-1 items-baseline text-sm flex-wrap">
+                  <span className="text-muted-foreground shrink-0 w-24">Your rating:</span>
+                  {prefs.score_chips ? <ScoreChip value={myTotal} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{myTotal}</span>}
                   <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {myComparisonEntry.detailed_enjoyment}/60</span>
                   <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {myComparisonEntry.detailed_impact ?? 0}/20</span>
                   <span className="text-xs text-muted-foreground tabular-nums shrink-0">R {myComparisonEntry.detailed_recommend ?? 0}/10</span>
@@ -184,15 +191,93 @@ function PinnedLastRated({ pinnedUser, pinnedEntry, myComparisonEntry }: {
                   <span className={`font-medium tabular-nums shrink-0 ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
                     {diff > 0 ? "+" : ""}{diff}
                   </span>
-                </>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="sm:hidden">
+        <div className="flex gap-3">
+          {poster}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Link href={`/entries/${pinnedEntry.id}`} className="font-semibold hover:underline line-clamp-1">
+                {pinnedEntry.title}
+              </Link>
+              <StatusBadge status={pinnedEntry.status ?? null} mediaType={pinnedEntry.media_type} />
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {pinnedEntry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={pinnedEntry.media_type} /> : pinnedEntry.media_type === "tv" ? "TV Show" : "Movie"}
+            </p>
+            <div className="mt-1 space-y-0.5 text-sm">
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium text-foreground shrink-0 w-28 truncate">{pinnedName}:</span>
+                {prefs.score_chips ? (
+                  <ScoreChip value={pinnedEntry.gut_rating} />
+                ) : (
+                  <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
+                )}
+                <span className="text-xs text-muted-foreground">/100</span>
+              </div>
+              {myComparisonEntry ? (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-muted-foreground shrink-0 w-28">Your rating:</span>
+                  {prefs.score_chips ? (
+                    <ScoreChip value={myComparisonEntry.gut_rating} />
+                  ) : (
+                    <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground">/100</span>
+                  {gutDiff != null && (
+                    <span className={`font-medium ${gutDiff > 0 ? "text-green-600" : gutDiff < 0 ? "text-destructive" : ""}`}>
+                      {gutDiff > 0 ? "+" : ""}{gutDiff}
+                    </span>
+                  )}
+                </div>
               ) : (
-                <span className="text-xs text-muted-foreground italic">No detailed rating yet</span>
+                <p className="text-xs text-muted-foreground">You haven&apos;t seen this yet.</p>
               )}
             </div>
           </div>
+        </div>
+
+        {pinnedEntry.detailed_enjoyment != null && (
+          <div className="border-t border-border/50 mt-2 pt-2 space-y-1 text-sm">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-medium text-foreground shrink-0 w-28 truncate">{pinnedName}:</span>
+              {prefs.score_chips ? <ScoreChip value={pinTotal} /> : <span className="font-medium tabular-nums">{pinTotal}</span>}
+              <span className="text-xs text-muted-foreground">/100</span>
+            </div>
+            <div className="flex gap-x-2 items-baseline flex-wrap text-xs text-muted-foreground tabular-nums">
+              <span><span className="font-semibold text-foreground">E</span> {pinnedEntry.detailed_enjoyment}/60</span>
+              <span><span className="font-semibold text-foreground">I</span> {pinnedEntry.detailed_impact ?? 0}/20</span>
+              <span><span className="font-semibold text-foreground">R</span> {pinnedEntry.detailed_recommend ?? 0}/10</span>
+              <span><span className="font-semibold text-foreground">W</span> {pinnedEntry.detailed_watch_again ?? 0}/10</span>
+            </div>
+            {hasMyDetailed && (
+              <>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-muted-foreground shrink-0 w-28">Your rating:</span>
+                  {prefs.score_chips ? <ScoreChip value={myTotal} /> : <span className="font-medium tabular-nums">{myTotal}</span>}
+                  <span className="text-xs text-muted-foreground">/100</span>
+                  <span className={`font-medium ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
+                    {diff > 0 ? "+" : ""}{diff}
+                  </span>
+                </div>
+                <div className="flex gap-x-2 items-baseline flex-wrap text-xs text-muted-foreground tabular-nums">
+                  <span><span className="font-semibold text-foreground">E</span> {myComparisonEntry.detailed_enjoyment}/60</span>
+                  <span><span className="font-semibold text-foreground">I</span> {myComparisonEntry.detailed_impact ?? 0}/20</span>
+                  <span><span className="font-semibold text-foreground">R</span> {myComparisonEntry.detailed_recommend ?? 0}/10</span>
+                  <span><span className="font-semibold text-foreground">W</span> {myComparisonEntry.detailed_watch_again ?? 0}/10</span>
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
-    </div>
+    </>
   )
 }
 
