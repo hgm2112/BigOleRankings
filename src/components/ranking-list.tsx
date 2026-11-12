@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { StatusBadge } from "@/components/status-badge"
 import { ScoreChip } from "@/components/score-chip"
+import { PosterLightbox } from "@/components/poster-lightbox"
 import { useCustomization } from "@/components/customization-provider"
 import { Film, Tv } from "lucide-react"
 
@@ -46,29 +47,32 @@ export function RankingList({ title, entries, type = "best" }: RankingListProps)
             : null
 
           return (
-            <Link
+            <div
               key={entry.id}
-              href={`/entries/${entry.id}`}
               className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
             >
               <span className={`text-sm font-bold w-5 text-right ${type === "worst" ? "text-destructive" : "text-green-600"}`}>
                 {index + 1}
               </span>
               {posterUrl ? (
-                <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover flex-shrink-0" />
+                <PosterLightbox posterPath={entry.poster_path} alt={entry.title} className="block rounded flex-shrink-0">
+                  <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover" />
+                </PosterLightbox>
               ) : (
                 <div className="w-[28px] h-[42px] rounded bg-muted flex items-center justify-center flex-shrink-0">
                   {entry.media_type === "tv" ? <Tv className="h-3 w-3" /> : <Film className="h-3 w-3" />}
                 </div>
               )}
-              <span className="text-sm truncate flex-1">{entry.title}</span>
-              <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
-              {prefs.score_chips ? (
-                <ScoreChip value={entry.score} />
-              ) : (
-                <span className="text-sm font-medium tabular-nums">{entry.score}</span>
-              )}
-            </Link>
+              <Link href={`/entries/${entry.id}`} className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-sm truncate flex-1">{entry.title}</span>
+                <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
+                {prefs.score_chips ? (
+                  <ScoreChip value={entry.score} />
+                ) : (
+                  <span className="text-sm font-medium tabular-nums">{entry.score}</span>
+                )}
+              </Link>
+            </div>
           )
         })}
       </div>

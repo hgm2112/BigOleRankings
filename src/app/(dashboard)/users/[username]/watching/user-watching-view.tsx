@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { MediaTypeBadge } from "@/components/media-type-badge"
+import { PosterLightbox } from "@/components/poster-lightbox"
 import { Film, Tv, Play, PlayCircle, Star } from "lucide-react"
 import { formatDuration, type WatchPeriodWithMedia } from "@/lib/watching"
 
@@ -116,9 +117,11 @@ export function UserWatchingView({
                   <CardContent className="pt-4">
                     <div className="flex gap-3">
                       {url ? (
-                        <div className="relative w-20 h-30 rounded overflow-hidden bg-muted flex-shrink-0">
-                          <Image src={url} alt={p.media.title} fill sizes="80px" className="object-cover" />
-                        </div>
+                        <PosterLightbox posterPath={p.media.poster_path} alt={p.media.title} className="block rounded overflow-hidden flex-shrink-0">
+                          <div className="relative w-20 h-30 bg-muted">
+                            <Image src={url} alt={p.media.title} fill sizes="80px" className="object-cover" />
+                          </div>
+                        </PosterLightbox>
                       ) : (
                         <div className="w-20 h-30 rounded bg-muted flex items-center justify-center flex-shrink-0">
                           {p.media.media_type === "tv" ? <Tv className="h-5 w-5" /> : <Film className="h-5 w-5" />}
@@ -167,9 +170,11 @@ export function UserWatchingView({
                   <CardContent className="p-[10px] h-full">
                     <div className="flex gap-3 h-full">
                       {url ? (
-                        <div className="relative w-20 h-30 rounded overflow-hidden bg-muted flex-shrink-0">
-                          <Image src={url} alt={p.media.title} fill sizes="80px" className="object-cover" />
-                        </div>
+                        <PosterLightbox posterPath={p.media.poster_path} alt={p.media.title} className="block rounded overflow-hidden flex-shrink-0">
+                          <div className="relative w-20 h-30 bg-muted">
+                            <Image src={url} alt={p.media.title} fill sizes="80px" className="object-cover" />
+                          </div>
+                        </PosterLightbox>
                       ) : (
                         <div className="w-20 h-30 rounded bg-muted flex items-center justify-center flex-shrink-0">
                           {p.media.media_type === "tv" ? <Tv className="h-4 w-4" /> : <Film className="h-4 w-4" />}

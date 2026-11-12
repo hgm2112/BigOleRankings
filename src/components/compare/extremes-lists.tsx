@@ -5,6 +5,7 @@ import { Handshake, Flame, Trophy } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { MediaTypeBadge } from "@/components/media-type-badge"
+import { PosterLightbox } from "@/components/poster-lightbox"
 import { USER_1_COLOR, USER_2_COLOR } from "@/components/charts/chart-colors"
 import type { ExtremesItem, TopOverlap } from "@/lib/compare-stats"
 import { AgreementsHelp, FightsHelp, TopTenHelp } from "./metric-help"
@@ -15,7 +16,9 @@ function Row({ item, nameA, nameB }: { item: ExtremesItem; nameA: string; nameB:
   return (
     <div className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-accent/50">
       {posterUrl ? (
-        <Image src={posterUrl} alt={item.title} width={26} height={39} quality={90} className="rounded object-cover flex-shrink-0" />
+        <PosterLightbox posterPath={item.poster_path} alt={item.title} className="block rounded flex-shrink-0">
+          <Image src={posterUrl} alt={item.title} width={26} height={39} quality={90} className="rounded object-cover" />
+        </PosterLightbox>
       ) : (
         <div className="w-[26px] h-[39px] rounded bg-muted flex-shrink-0" />
       )}

@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/status-badge"
 import { ScoreChip, scoreTextClass } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
+import { PosterLightbox } from "@/components/poster-lightbox"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { Film, Tv, Trash2, Edit3, StickyNote, ChevronDown, ChevronUp } from "lucide-react"
 import {
@@ -149,16 +150,18 @@ export function EntryCard({ entry, onDelete, backQuery, readOnly = false, season
       <div className="flex gap-3 p-3">
         <div className="flex flex-col flex-shrink-0">
           {posterUrl ? (
-            <div className="relative w-[77px] h-[115px] rounded overflow-hidden bg-muted">
-              <Image
-                src={posterUrl}
-                alt={entry.title}
-                fill
-                sizes="77px"
-                quality={90}
-                className="object-cover"
-              />
-            </div>
+            <PosterLightbox posterPath={entry.poster_path} alt={entry.title} className="block rounded overflow-hidden">
+              <div className="relative w-[77px] h-[115px] bg-muted">
+                <Image
+                  src={posterUrl}
+                  alt={entry.title}
+                  fill
+                  sizes="77px"
+                  quality={90}
+                  className="object-cover"
+                />
+              </div>
+            </PosterLightbox>
           ) : (
             <div className="w-[77px] h-[115px] rounded bg-muted flex items-center justify-center">
               {entry.media_type === "tv" ? <Tv className="h-6 w-6 text-muted-foreground" /> : <Film className="h-6 w-6 text-muted-foreground" />}

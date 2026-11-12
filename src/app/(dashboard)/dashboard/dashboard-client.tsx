@@ -9,6 +9,7 @@ import { RankingList } from "@/components/ranking-list"
 import { StatusBadge } from "@/components/status-badge"
 import { ScoreChip } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
+import { PosterLightbox } from "@/components/poster-lightbox"
 import { useCustomization } from "@/components/customization-provider"
 import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks, PlayCircle, ChevronDown, ChevronUp } from "lucide-react"
 
@@ -105,16 +106,18 @@ function PinnedLastRated({ pinnedUser, pinnedEntry, myComparisonEntry }: {
   const pinnedName = pinnedUser.display_name || pinnedUser.username
 
   const poster = pinnedEntry.poster_path ? (
-    <div className="relative w-16 h-24 rounded overflow-hidden bg-muted flex-shrink-0">
-      <Image
-        src={`https://image.tmdb.org/t/p/w185${pinnedEntry.poster_path}`}
-        alt={pinnedEntry.title}
-        fill
-        sizes="64px"
-        quality={90}
-        className="object-cover"
-      />
-    </div>
+    <PosterLightbox posterPath={pinnedEntry.poster_path} alt={pinnedEntry.title} className="block rounded overflow-hidden flex-shrink-0">
+      <div className="relative w-16 h-24 bg-muted">
+        <Image
+          src={`https://image.tmdb.org/t/p/w185${pinnedEntry.poster_path}`}
+          alt={pinnedEntry.title}
+          fill
+          sizes="64px"
+          quality={90}
+          className="object-cover"
+        />
+      </div>
+    </PosterLightbox>
   ) : (
     <div className="w-16 h-24 rounded bg-muted flex items-center justify-center flex-shrink-0">
       {pinnedEntry.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
@@ -294,16 +297,18 @@ function PinnedCurrentlyWatching({ items, username }: { items: PinnedWatchItem[]
   const renderItem = (w: PinnedWatchItem, showToggle: boolean) => (
     <div key={w.id} className="flex gap-3">
       {w.media.poster_path ? (
-        <div className="relative w-16 h-24 rounded overflow-hidden bg-muted flex-shrink-0">
-          <Image
-            src={`https://image.tmdb.org/t/p/w185${w.media.poster_path}`}
-            alt={w.media.title}
-            fill
-            sizes="64px"
-            quality={90}
-            className="object-cover"
-          />
-        </div>
+        <PosterLightbox posterPath={w.media.poster_path} alt={w.media.title} className="block rounded overflow-hidden flex-shrink-0">
+          <div className="relative w-16 h-24 bg-muted">
+            <Image
+              src={`https://image.tmdb.org/t/p/w185${w.media.poster_path}`}
+              alt={w.media.title}
+              fill
+              sizes="64px"
+              quality={90}
+              className="object-cover"
+            />
+          </div>
+        </PosterLightbox>
       ) : (
         <div className="w-16 h-24 rounded bg-muted flex items-center justify-center flex-shrink-0">
           {w.media.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
@@ -679,34 +684,37 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                       const dueDate = new Date(new Date(entry.gut_rated_at!).getTime() + 7 * 24 * 60 * 60 * 1000)
                       const hasDetailed = entry.detailed_enjoyment != null
                       return (
-                        <Link
+                        <div
                           key={entry.id}
-                          href={`/entries/${entry.id}`}
                           className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
                         >
                           {posterUrl ? (
-                            <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover flex-shrink-0" />
+                            <PosterLightbox posterPath={entry.poster_path} alt={entry.title} className="block rounded flex-shrink-0">
+                              <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover" />
+                            </PosterLightbox>
                           ) : (
                             <div className="w-[28px] h-[42px] rounded bg-muted flex items-center justify-center flex-shrink-0">
                               {entry.media_type === "tv" ? <Tv className="h-3 w-3" /> : <Film className="h-3 w-3" />}
                             </div>
                           )}
-                          <span className="text-sm truncate flex-1">{entry.title}</span>
-                          <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
-                          {prefs.score_chips ? (
-                            <ScoreChip value={entry.gut_rating} />
-                          ) : (
-                            <span className="text-sm font-medium tabular-nums shrink-0">{entry.gut_rating}/100</span>
-                          )}
-                          <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                            {new Date(entry.gut_rated_at!).toLocaleDateString()}
-                          </span>
-                          {!hasDetailed && (
-                            <span className="text-xs text-muted-foreground/60 italic">
-                              Due by {dueDate.toLocaleDateString()}
+                          <Link href={`/entries/${entry.id}`} className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-sm truncate flex-1">{entry.title}</span>
+                            <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
+                            {prefs.score_chips ? (
+                              <ScoreChip value={entry.gut_rating} />
+                            ) : (
+                              <span className="text-sm font-medium tabular-nums shrink-0">{entry.gut_rating}/100</span>
+                            )}
+                            <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                              {new Date(entry.gut_rated_at!).toLocaleDateString()}
                             </span>
-                          )}
-                        </Link>
+                            {!hasDetailed && (
+                              <span className="text-xs text-muted-foreground/60 italic">
+                                Due by {dueDate.toLocaleDateString()}
+                              </span>
+                            )}
+                          </Link>
+                        </div>
                       )
                     })}
                   </div>
@@ -729,29 +737,32 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                         : null
                       const detailedTotal = (entry.detailed_enjoyment ?? 0) + (entry.detailed_impact ?? 0) + (entry.detailed_recommend ?? 0) + (entry.detailed_watch_again ?? 0)
                       return (
-                        <Link
+                        <div
                           key={entry.id}
-                          href={`/entries/${entry.id}`}
                           className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
                         >
                           {posterUrl ? (
-                            <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover flex-shrink-0" />
+                            <PosterLightbox posterPath={entry.poster_path} alt={entry.title} className="block rounded flex-shrink-0">
+                              <Image src={posterUrl} alt={entry.title} width={28} height={42} quality={90} className="rounded object-cover" />
+                            </PosterLightbox>
                           ) : (
                             <div className="w-[28px] h-[42px] rounded bg-muted flex items-center justify-center flex-shrink-0">
                               {entry.media_type === "tv" ? <Tv className="h-3 w-3" /> : <Film className="h-3 w-3" />}
                             </div>
                           )}
-                          <span className="text-sm truncate flex-1">{entry.title}</span>
-                          <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
-                          {prefs.score_chips ? (
-                            <ScoreChip value={detailedTotal} />
-                          ) : (
-                            <span className="text-sm font-medium tabular-nums shrink-0">{detailedTotal}/100</span>
-                          )}
-                          <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                            {new Date(entry.detailed_rated_at!).toLocaleDateString()}
-                          </span>
-                        </Link>
+                          <Link href={`/entries/${entry.id}`} className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-sm truncate flex-1">{entry.title}</span>
+                            <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
+                            {prefs.score_chips ? (
+                              <ScoreChip value={detailedTotal} />
+                            ) : (
+                              <span className="text-sm font-medium tabular-nums shrink-0">{detailedTotal}/100</span>
+                            )}
+                            <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                              {new Date(entry.detailed_rated_at!).toLocaleDateString()}
+                            </span>
+                          </Link>
+                        </div>
                       )
                     })}
                   </div>

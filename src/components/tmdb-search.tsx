@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
+import { PosterLightbox } from "@/components/poster-lightbox"
 import { Search, Film, Tv } from "lucide-react"
 
 interface TMDBResult {
@@ -104,7 +105,9 @@ export function TMDSearch({ onSelect, selectionMode = "rating" }: TMDBSearchProp
                 }}
               >
                 {poster ? (
-                  <Image src={poster} alt={item.title} width={46} height={69} quality={90} className="rounded object-cover flex-shrink-0" />
+                  <PosterLightbox posterPath={item.poster_path} alt={item.title} className="block rounded flex-shrink-0">
+                    <Image src={poster} alt={item.title} width={46} height={69} quality={90} className="rounded object-cover" />
+                  </PosterLightbox>
                 ) : (
                   <div className="w-[46px] h-[69px] rounded bg-muted flex items-center justify-center flex-shrink-0">
                     {item.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}

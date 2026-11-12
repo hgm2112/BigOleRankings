@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScoreChip } from "@/components/score-chip"
+import { PosterLightbox } from "@/components/poster-lightbox"
 import { createClient } from "@/lib/supabase/client"
 import { FeedEvent, FEED_DEFAULT_LIMIT } from "@/lib/social-feed"
 import { cn } from "@/lib/utils"
@@ -276,9 +277,19 @@ function FeedRow({
           aria-label={`${displayName} ${mobileAction} ${event.media.title}`}
           className="absolute inset-0 z-0 rounded-md"
         />
-        <div className="relative w-16 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 z-0">
-          {event.media.poster_path ? poster : <div className="w-full h-full flex items-center justify-center">{poster}</div>}
-        </div>
+        {event.media.poster_path ? (
+          <PosterLightbox
+            posterPath={event.media.poster_path}
+            alt={event.media.title}
+            className="relative z-10 block w-16 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0"
+          >
+            {poster}
+          </PosterLightbox>
+        ) : (
+          <div className="relative w-16 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 z-0">
+            <div className="w-full h-full flex items-center justify-center">{poster}</div>
+          </div>
+        )}
         <div className="flex-1 min-w-0 flex flex-col gap-1 relative z-0 min-h-24">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-sm font-medium truncate">{displayName}</span>
@@ -364,16 +375,22 @@ function FeedRow({
       {/* Desktop layout */}
       <div className="hidden sm:flex gap-3">
         {event.media.poster_path ? (
-          <div className="relative w-10 h-[60px] rounded overflow-hidden bg-muted flex-shrink-0">
-            <Image
-              src={`https://image.tmdb.org/t/p/w154${event.media.poster_path}`}
-              alt={event.media.title}
-              fill
-              sizes="40px"
-              quality={90}
-              className="object-cover"
-            />
-          </div>
+          <PosterLightbox
+            posterPath={event.media.poster_path}
+            alt={event.media.title}
+            className="block w-10 h-[60px] rounded overflow-hidden bg-muted flex-shrink-0"
+          >
+            <div className="relative w-full h-full">
+              <Image
+                src={`https://image.tmdb.org/t/p/w154${event.media.poster_path}`}
+                alt={event.media.title}
+                fill
+                sizes="40px"
+                quality={90}
+                className="object-cover"
+              />
+            </div>
+          </PosterLightbox>
         ) : (
           <div className="w-10 h-[60px] rounded bg-muted flex items-center justify-center flex-shrink-0">
             {event.media.media_type === "tv" ? (
