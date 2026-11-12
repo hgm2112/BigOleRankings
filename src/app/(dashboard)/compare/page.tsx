@@ -63,7 +63,7 @@ export default function ComparePage() {
         supabase.from("follows").select("following_id").eq("follower_id", user.id),
       ])
 
-      const followingIds = (followsData || []).map((f) => f.following_id as string)
+      const followingIds = (followsData || []).map((f: { following_id: string }) => f.following_id)
       let followingProfiles: Profile[] = []
       if (followingIds.length > 0) {
         const { data } = await supabase
