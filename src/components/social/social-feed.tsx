@@ -430,50 +430,96 @@ function FeedRow({
             </span>
           </p>
         </div>
-        <div className="flex items-center gap-1 self-center flex-shrink-0">
-          <button
-            type="button"
-            aria-label={event.liked_by_me ? "Unlike this update" : "Like this update"}
-            aria-pressed={event.liked_by_me}
-            disabled={!me}
-            onClick={() => onToggleLike(event)}
-            className="p-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <Heart
-              className={cn("h-4 w-4 transition-colors", event.liked_by_me && "fill-current text-red-500")}
-            />
-          </button>
-          {event.like_count > 0 && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`${event.like_count} likes`}
-                  className="text-xs text-muted-foreground tabular-nums hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded px-1"
-                >
-                  {event.like_count}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-60 p-2">
-                <p className="text-xs font-medium text-muted-foreground px-1 pb-1">Liked by</p>
-                <div className="max-h-48 overflow-y-auto space-y-0.5">
-                  {event.likers.map((liker) => (
-                    <Link
-                      key={liker.username}
-                      href={`/users/${liker.username}`}
-                      className="flex items-center gap-2 rounded p-1 text-sm hover:bg-accent"
+        <div className="flex items-center self-center flex-shrink-0">
+          {isOwn ? (
+            event.like_count > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`${event.like_count} ${event.like_count === 1 ? "person likes" : "people like"} this`}
+                    className="inline-flex items-center gap-1 p-1.5 rounded-sm text-amber-400 transition-colors hover:text-amber-300 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <span className="text-xs tabular-nums">{event.like_count}</span>
+                    <Heart className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-60 p-2">
+                  <p className="text-xs font-medium text-muted-foreground px-1 pb-1">Liked by</p>
+                  {event.likers.length > 0 ? (
+                    <div className="max-h-48 overflow-y-auto space-y-0.5">
+                      {event.likers.map((liker) => (
+                        <Link
+                          key={liker.username}
+                          href={`/users/${liker.username}`}
+                          className="flex items-center gap-2 rounded p-1 text-sm hover:bg-accent"
+                        >
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs">
+                              {(liker.display_name || liker.username).charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{liker.display_name || liker.username}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground px-1 py-1">Someone liked this.</p>
+                  )}
+                </PopoverContent>
+              </Popover>
+            )
+          ) : (
+            <div className="inline-flex items-center gap-1">
+              {event.like_count > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`${event.like_count} ${event.like_count === 1 ? "person likes" : "people like"} this`}
+                      className="text-xs text-muted-foreground tabular-nums hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded px-1"
                     >
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">
-                          {(liker.display_name || liker.username).charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="truncate">{liker.display_name || liker.username}</span>
-                    </Link>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                      {event.like_count}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-60 p-2">
+                    <p className="text-xs font-medium text-muted-foreground px-1 pb-1">Liked by</p>
+                    {event.likers.length > 0 ? (
+                      <div className="max-h-48 overflow-y-auto space-y-0.5">
+                        {event.likers.map((liker) => (
+                          <Link
+                            key={liker.username}
+                            href={`/users/${liker.username}`}
+                            className="flex items-center gap-2 rounded p-1 text-sm hover:bg-accent"
+                          >
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs">
+                                {(liker.display_name || liker.username).charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{liker.display_name || liker.username}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground px-1 py-1">Someone liked this.</p>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
+              <button
+                type="button"
+                aria-label={event.liked_by_me ? "Unlike this update" : "Like this update"}
+                aria-pressed={event.liked_by_me}
+                disabled={!me}
+                onClick={() => onToggleLike(event)}
+                className="p-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <Heart
+                  className={cn("h-4 w-4 transition-colors", event.liked_by_me && "fill-current text-red-500")}
+                />
+              </button>
+            </div>
           )}
         </div>
       </div>
