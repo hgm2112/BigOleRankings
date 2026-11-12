@@ -2,13 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RankingList } from "@/components/ranking-list"
 import { StatusBadge } from "@/components/status-badge"
 import { ScoreChip } from "@/components/score-chip"
@@ -17,7 +14,7 @@ import { ENTRY_SELECT, flattenEntries } from "@/lib/entry-queries"
 import type { FlatEntry } from "@/lib/entry-queries"
 import type { SeasonRatingRow } from "@/lib/compare-stats"
 import { TasteMatchSection } from "@/components/compare/taste-match"
-import { Search, TrendingUp, TrendingDown, Users, ArrowUp, ArrowDown } from "lucide-react"
+import { TrendingUp, TrendingDown, Users, ArrowUp, ArrowDown } from "lucide-react"
 
 interface Profile {
   id: string
@@ -29,17 +26,21 @@ type Entry = FlatEntry
 
 type SortField = "title" | "user1_gut" | "user2_gut" | "delta_gut" | "user1_det" | "user2_det" | "delta_det"
 
+function profileLabel(p: Profile, meId: string | null) {
+  const name = p.display_name || p.username || "User"
+  return p.id === meId ? `${name} (You)` : name
+}
+
 export default function ComparePage() {
   const supabase = createClient()
   const { prefs } = useCustomization()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<Profile[]>([])
+  const [meId, setMeId] = useState<string | null>(null)
+  const [options, setOptions] = useState<Profile[]>([])
+  const [optionsLoading, setOptionsLoading] = useState(true)
   const [user1, setUser1] = useState<Profile | null>(null)
   const [user2, setUser2] = useState<Profile | null>(null)
   const [entries1, setEntries1] = useState<Entry[]>([])
   const [entries2, setEntries2] = useState<Entry[]>([])
-  const [loading, setLoading] = useState(false)
-  const [searched, setSearched] = useState(false)
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortAsc, setSortAsc] = useState(true)
 
@@ -47,6 +48,43 @@ export default function ComparePage() {
 
   const seasonKey = user1 && user2 ? `${user1.id}:${user2.id}` : ""
   const seasonRows = seasonCache && seasonCache.key === seasonKey ? seasonCache.rows : []
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setOptionsLoading(false)
+        return
+      }
+      setMeId(user.id)
+
+      const [{ data: meProfile }, { data: followsData }] = await Promise.all([
+        supabase.from("profiles").select("id, username, display_name").eq("id", user.id).single(),
+        supabase.from("follows").select("following_id").eq("follower_id", user.id),
+      ])
+
+      const followingIds = (followsData || []).map((f) => f.following_id as string)
+      let followingProfiles: Profile[] = []
+      if (followingIds.length > 0) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, username, display_name")
+          .in("id", followingIds)
+        followingProfiles = (data || []) as Profile[]
+      }
+
+      followingProfiles.sort((a, b) =>
+        (a.display_name || a.username || "").localeCompare(b.display_name || b.username || "")
+      )
+
+      const list: Profile[] = []
+      if (meProfile) list.push(meProfile as Profile)
+      list.push(...followingProfiles)
+      setOptions(list)
+      setOptionsLoading(false)
+    }
+    loadOptions()
+  }, [supabase])
 
   useEffect(() => {
     if (!seasonKey) return
@@ -64,35 +102,36 @@ export default function ComparePage() {
     }
   }, [seasonKey])
 
-
-  const handleSearch = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (!searchQuery.trim()) return
-    setLoading(true)
-    setSearched(true)
-
+  const loadEntries = async (profileId: string) => {
     const { data } = await supabase
-      .from("profiles")
-      .select("id, username, display_name")
-      .ilike("username", `%${searchQuery}%`)
-      .limit(10)
-
-    setSearchResults(data || [])
-    setLoading(false)
+      .from("ratings")
+      .select(ENTRY_SELECT)
+      .eq("user_id", profileId)
+      .not("gut_rating", "is", null)
+    return flattenEntries(data)
   }
 
-  const selectUser = async (profile: Profile, slot: 1 | 2) => {
+  const handleSelect = async (slot: 1 | 2, value: string) => {
+    if (!value || value === "none") {
+      if (slot === 1) {
+        setUser1(null)
+        setEntries1([])
+      } else {
+        setUser2(null)
+        setEntries2([])
+      }
+      return
+    }
+    const profile = options.find((p) => p.id === value)
+    if (!profile) return
+    const entries = await loadEntries(profile.id)
     if (slot === 1) {
       setUser1(profile)
-      const { data } = await supabase.from("ratings").select(ENTRY_SELECT).eq("user_id", profile.id).not("gut_rating", "is", null)
-      setEntries1(flattenEntries(data))
+      setEntries1(entries)
     } else {
       setUser2(profile)
-      const { data } = await supabase.from("ratings").select(ENTRY_SELECT).eq("user_id", profile.id).not("gut_rating", "is", null)
-      setEntries2(flattenEntries(data))
+      setEntries2(entries)
     }
-    setSearchResults([])
-    setSearchQuery("")
   }
 
   const intersection = (() => {
@@ -206,7 +245,7 @@ export default function ComparePage() {
     const isActive = sortField === field
     return (
       <th
-        className={`cursor-pointer select-none py-2 hover:bg-accent/50 ${className ?? ""} ${isActive ? "font-bold" : ""}`}
+        className={`cursor-pointer select-none py-2 bg-card hover:bg-accent/50 max-sm:sticky max-sm:top-0 max-sm:z-20 ${className ?? ""} ${isActive ? "font-bold" : ""}`}
         onClick={() => handleSort(field)}
       >
         <span className="inline-flex items-center gap-1">
@@ -229,43 +268,34 @@ export default function ComparePage() {
           <CardHeader>
             <CardTitle className="text-sm">User 1</CardTitle>
           </CardHeader>
-          <CardContent>
-            {user1 ? (
-              <div className="flex items-center gap-2 mb-3">
+          <CardContent className="space-y-3">
+            {user1 && (
+              <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>{(user1.display_name || user1.username || "U").charAt(0)}</AvatarFallback>
                 </Avatar>
-                <span className="font-medium">{user1.display_name || user1.username}</span>
-                <Button variant="ghost" size="sm" onClick={() => { setUser1(null); setEntries1([]) }}>Change</Button>
-              </div>
-            ) : null}
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <Input placeholder="Search by username..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-              <Button type="submit" size="sm" disabled={loading || !searchQuery.trim()}>
-                <Search className="h-4 w-4" />
-              </Button>
-            </form>
-            {searchResults.length > 0 && (
-              <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                {searchResults.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-2 rounded hover:bg-accent">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">{(p.display_name || p.username || "U").charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">{p.display_name || p.username}</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => selectUser(p, 1)} disabled={user2?.id === p.id}>User 1</Button>
-                      <Button size="sm" variant="outline" onClick={() => selectUser(p, 2)} disabled={user1?.id === p.id}>User 2</Button>
-                    </div>
-                  </div>
-                ))}
+                <span className="font-medium">{profileLabel(user1, meId)}</span>
               </div>
             )}
-            {searched && searchResults.length === 0 && !loading && (
-              <p className="text-sm text-muted-foreground mt-2">No users found.</p>
-            )}
+            <Select
+              value={user1?.id ?? "none"}
+              onValueChange={(value) => handleSelect(1, value)}
+              disabled={optionsLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={optionsLoading ? "Loading users..." : "Select a user"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{optionsLoading ? "Loading..." : "Select a user"}</SelectItem>
+                {options
+                  .filter((p) => p.id !== user2?.id)
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {profileLabel(p, meId)}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
@@ -273,18 +303,34 @@ export default function ComparePage() {
           <CardHeader>
             <CardTitle className="text-sm">User 2</CardTitle>
           </CardHeader>
-          <CardContent>
-            {user2 ? (
-              <div className="flex items-center gap-2 mb-3">
+          <CardContent className="space-y-3">
+            {user2 && (
+              <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>{(user2.display_name || user2.username || "U").charAt(0)}</AvatarFallback>
                 </Avatar>
-                <span className="font-medium">{user2.display_name || user2.username}</span>
-                <Button variant="ghost" size="sm" onClick={() => { setUser2(null); setEntries2([]) }}>Change</Button>
+                <span className="font-medium">{profileLabel(user2, meId)}</span>
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Select User 1 first, then search for User 2.</p>
             )}
+            <Select
+              value={user2?.id ?? "none"}
+              onValueChange={(value) => handleSelect(2, value)}
+              disabled={optionsLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={optionsLoading ? "Loading users..." : "Select a user"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{optionsLoading ? "Loading..." : "Select a user"}</SelectItem>
+                {options
+                  .filter((p) => p.id !== user1?.id)
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {profileLabel(p, meId)}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
       </div>
@@ -312,17 +358,17 @@ export default function ComparePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[70vh] sm:max-h-none sm:overflow-x-auto sm:overflow-y-visible">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <SortHeader field="title" className="text-left pr-4">Title</SortHeader>
-                      <SortHeader field="user1_gut" className="text-center px-2">{user1.display_name || user1.username} Gut</SortHeader>
-                      <SortHeader field="user2_gut" className="text-center px-2">{user2.display_name || user2.username} Gut</SortHeader>
-                      <SortHeader field="delta_gut" className="text-center px-2">Δ Gut</SortHeader>
-                      <SortHeader field="user1_det" className="text-center px-2">{user1.display_name || user1.username} Det</SortHeader>
-                      <SortHeader field="user2_det" className="text-center px-2">{user2.display_name || user2.username} Det</SortHeader>
-                      <SortHeader field="delta_det" className="text-center pl-2">Δ Det</SortHeader>
+                      <SortHeader field="title" className="text-left pr-4 max-sm:pr-2 max-sm:left-0 max-sm:z-30 max-sm:w-[8.5rem] max-sm:max-w-[8.5rem]">Title</SortHeader>
+                      <SortHeader field="user1_gut" className="text-center px-2 max-sm:px-1.5">{user1.display_name || user1.username} Gut</SortHeader>
+                      <SortHeader field="user2_gut" className="text-center px-2 max-sm:px-1.5">{user2.display_name || user2.username} Gut</SortHeader>
+                      <SortHeader field="delta_gut" className="text-center px-2 max-sm:px-1.5">Δ Gut</SortHeader>
+                      <SortHeader field="user1_det" className="text-center px-2 max-sm:px-1.5">{user1.display_name || user1.username} Det</SortHeader>
+                      <SortHeader field="user2_det" className="text-center px-2 max-sm:px-1.5">{user2.display_name || user2.username} Det</SortHeader>
+                      <SortHeader field="delta_det" className="text-center pl-2 max-sm:px-1.5">Δ Det</SortHeader>
                     </tr>
                   </thead>
                   <tbody>
@@ -334,28 +380,30 @@ export default function ComparePage() {
 
                       return (
                         <tr key={entry.id} className="border-b last:border-0 hover:bg-accent/50">
-                          <td className="py-2 pr-4 font-medium">
-                            <div className="flex items-center gap-2">
-                              {entry.title}
-                              <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
+                          <td className="py-2 pr-4 font-medium max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-card max-sm:w-[8.5rem] max-sm:max-w-[8.5rem] max-sm:pr-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="truncate" title={entry.title}>{entry.title}</span>
+                              <span className="hidden sm:inline-flex shrink-0">
+                                <StatusBadge status={entry.status ?? null} mediaType={entry.media_type} />
+                              </span>
                             </div>
                           </td>
-                          <td className="text-center py-2 px-2">
+                          <td className="text-center py-2 px-2 max-sm:px-1.5">
                             {prefs.score_chips ? <ScoreChip value={entry.gut_rating} /> : entry.gut_rating ?? "—"}
                           </td>
-                          <td className="text-center py-2 px-2">
+                          <td className="text-center py-2 px-2 max-sm:px-1.5">
                             {prefs.score_chips ? <ScoreChip value={user2Entry.gut_rating} /> : user2Entry.gut_rating ?? "—"}
                           </td>
-                          <td className={`text-center py-2 px-2 ${gutDiff !== null ? (gutDiff > 0 ? "text-green-600" : gutDiff < 0 ? "text-destructive" : "") : ""}`}>
+                          <td className={`text-center py-2 px-2 max-sm:px-1.5 ${gutDiff !== null ? (gutDiff > 0 ? "text-green-600" : gutDiff < 0 ? "text-destructive" : "") : ""}`}>
                             {gutDiff !== null ? `${gutDiff > 0 ? "+" : ""}${gutDiff}` : "—"}
                           </td>
-                          <td className="text-center py-2 px-2">
+                          <td className="text-center py-2 px-2 max-sm:px-1.5">
                             {prefs.score_chips ? <ScoreChip value={det1} /> : det1 !== null ? det1 : "—"}
                           </td>
-                          <td className="text-center py-2 px-2">
+                          <td className="text-center py-2 px-2 max-sm:px-1.5">
                             {prefs.score_chips ? <ScoreChip value={det2} /> : det2 !== null ? det2 : "—"}
                           </td>
-                          <td className={`text-center py-2 px-2 ${detDiff !== null ? (detDiff > 0 ? "text-green-600" : detDiff < 0 ? "text-destructive" : "") : ""}`}>
+                          <td className={`text-center py-2 px-2 max-sm:px-1.5 ${detDiff !== null ? (detDiff > 0 ? "text-green-600" : detDiff < 0 ? "text-destructive" : "") : ""}`}>
                             {detDiff !== null ? `${detDiff > 0 ? "+" : ""}${detDiff}` : "—"}
                           </td>
                         </tr>

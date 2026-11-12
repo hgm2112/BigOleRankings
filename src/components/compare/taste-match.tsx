@@ -420,7 +420,7 @@ export function TasteMatchSection({
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 max-sm:px-3 max-sm:pt-4">
             <CardTitle className="flex items-center gap-2 text-base">
               If I rated it X, what do they give it?
               <PredictionHelp
@@ -439,7 +439,7 @@ export function TasteMatchSection({
                   })`}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 max-sm:px-3 max-sm:pb-4">
             <PredictionChart
               buckets={stats.prediction.buckets}
               regression={stats.prediction.regression}
@@ -451,16 +451,16 @@ export function TasteMatchSection({
             </p>
             {stats.prediction.buckets.length > 0 && (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="w-full text-xs max-sm:table-fixed max-sm:[&_th]:text-center max-sm:[&_td]:text-center max-sm:[&_th]:px-0.5 max-sm:[&_td]:px-0.5 max-sm:[&_th]:py-1 max-sm:[&_td]:py-1">
                   <thead className="border-b text-muted-foreground">
                     <tr>
-                      <th className="py-1.5 text-left font-medium">{nameA} rated</th>
-                      <th className="py-1.5 text-right font-medium">Titles</th>
-                      <th className="py-1.5 text-right font-medium">{nameB} averaged</th>
-                      <th className="py-1.5 text-right font-medium">Enj.</th>
-                      <th className="py-1.5 text-right font-medium">Imp.</th>
-                      <th className="py-1.5 text-right font-medium">Rec.</th>
-                      <th className="py-1.5 text-right font-medium">Again</th>
+                      <th className="py-1.5 text-left font-medium max-sm:w-[15%]">{nameA} rated</th>
+                      <th className="py-1.5 text-right font-medium max-sm:w-[10%]">Titles</th>
+                      <th className="py-1.5 text-right font-medium max-sm:w-[23%]"><span className="sm:hidden">{nameB} Avg</span><span className="hidden sm:inline">{nameB} averaged</span></th>
+                      <th className="py-1.5 text-right font-medium max-sm:w-[13%]">Enj.</th>
+                      <th className="py-1.5 text-right font-medium max-sm:w-[13%]">Imp.</th>
+                      <th className="py-1.5 text-right font-medium max-sm:w-[13%]">Rec.</th>
+                      <th className="py-1.5 text-right font-medium max-sm:w-[13%]">Again</th>
                     </tr>
                   </thead>
                   <tbody>
