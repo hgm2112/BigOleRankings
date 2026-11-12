@@ -10,7 +10,7 @@ import { StatusBadge } from "@/components/status-badge"
 import { ScoreChip } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
-import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks, PlayCircle } from "lucide-react"
+import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks, PlayCircle, ChevronDown, ChevronUp } from "lucide-react"
 
 interface Entry {
   id: string
@@ -198,40 +198,62 @@ function PinnedLastRated({ pinnedUser, pinnedEntry, myComparisonEntry }: {
 
 function PinnedCurrentlyWatching({ items }: { items: PinnedWatchItem[] }) {
   const { prefs } = useCustomization()
+  const [expanded, setExpanded] = useState(false)
   if (!items || items.length === 0) {
     return <p className="text-sm text-muted-foreground">Not currently watching anything.</p>
   }
+
+  const renderItem = (w: PinnedWatchItem) => (
+    <div key={w.id} className="flex gap-3">
+      {w.media.poster_path ? (
+        <div className="relative w-16 h-24 rounded overflow-hidden bg-muted flex-shrink-0">
+          <Image
+            src={`https://image.tmdb.org/t/p/w185${w.media.poster_path}`}
+            alt={w.media.title}
+            fill
+            sizes="64px"
+            quality={90}
+            className="object-cover"
+          />
+        </div>
+      ) : (
+        <div className="w-16 h-24 rounded bg-muted flex items-center justify-center flex-shrink-0">
+          {w.media.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
+        </div>
+      )}
+      <div className="min-w-0 space-y-1">
+        <p className="font-semibold line-clamp-1">{w.media.title}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          {prefs.media_badges ? <MediaTypeBadge type={w.media.media_type} /> : <span>{w.media.media_type === "tv" ? "TV Show" : "Movie"}</span>}
+          {w.media.media_type === "tv" && w.season_number != null && <span>Season {w.season_number}</span>}
+          {w.media.year && <span>{w.media.year}</span>}
+        </div>
+        <p className="text-xs text-muted-foreground">Started {w.started_at}</p>
+      </div>
+    </div>
+  )
+
+  const latest = items[0]
+  const rest = items.slice(1)
+
   return (
     <div className="space-y-3">
-      {items.map((w) => (
-        <div key={w.id} className="flex gap-3">
-          {w.media.poster_path ? (
-            <div className="relative w-16 h-24 rounded overflow-hidden bg-muted flex-shrink-0">
-              <Image
-                src={`https://image.tmdb.org/t/p/w185${w.media.poster_path}`}
-                alt={w.media.title}
-                fill
-                sizes="64px"
-                quality={90}
-                className="object-cover"
-              />
-            </div>
-          ) : (
-            <div className="w-16 h-24 rounded bg-muted flex items-center justify-center flex-shrink-0">
-              {w.media.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
-            </div>
-          )}
-          <div className="min-w-0 space-y-1">
-            <p className="font-semibold line-clamp-1">{w.media.title}</p>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-              {prefs.media_badges ? <MediaTypeBadge type={w.media.media_type} /> : <span>{w.media.media_type === "tv" ? "TV Show" : "Movie"}</span>}
-              {w.media.media_type === "tv" && w.season_number != null && <span>Season {w.season_number}</span>}
-              {w.media.year && <span>{w.media.year}</span>}
-            </div>
-            <p className="text-xs text-muted-foreground">Started {w.started_at}</p>
-          </div>
-        </div>
-      ))}
+      {renderItem(latest)}
+      {rest.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-label={expanded ? "Show less currently watching" : `Show ${rest.length} more currently watching`}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <span>{expanded ? "Show less" : `Show ${rest.length} more`}</span>
+          </button>
+          {expanded && <div className="space-y-3">{rest.map(renderItem)}</div>}
+        </>
+      )}
     </div>
   )
 }
