@@ -218,17 +218,17 @@ function eventActionClass(event: FeedEvent, compact = false): string | undefined
   const chip = compact
     ? "inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset"
     : "inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[12px] font-medium ring-1 ring-inset"
-  if (event.type === "gut") return `${chip} bg-teal-600 text-teal-50 ring-teal-300/30`
-  if (event.type === "detailed") return `${chip} bg-violet-600 text-violet-50 ring-violet-300/30`
+  if (event.type === "gut") return `${chip} bg-[#064e4e] text-[#5eead4] ring-[#5eead4]/35`
+  if (event.type === "detailed") return `${chip} bg-[#3b0764] text-[#d8b4fe] ring-[#d8b4fe]/35`
   if (event.type === "watch") {
-    if (event.watch_event_type === "started") return `${chip} bg-sky-600 text-sky-50 ring-sky-300/30`
+    if (event.watch_event_type === "started") return `${chip} bg-[#0c4a6e] text-[#7dd3fc] ring-[#7dd3fc]/35`
     if (event.watch_event_type === "finished") return `${chip} bg-[#8a5b00] text-[#ffc94d] ring-[#ffd27a]/40`
     if (event.watch_event_type === "stopped") return `${chip} bg-[#7a2e00] text-[#ff9a3d] ring-[#ffb066]/40`
     if (event.watch_event_type === "dnf") return `${chip} bg-[#6b0000] text-[#ff6b6b] ring-[#ff8a8a]/35`
   }
   if (event.type === "season") {
     if (event.dnf) return `${chip} bg-[#6b0000] text-[#ff6b6b] ring-[#ff8a8a]/35`
-    return `${chip} bg-indigo-600 text-indigo-50 ring-indigo-300/30`
+    return `${chip} bg-[#312e81] text-[#a5b4fc] ring-[#a5b4fc]/35`
   }
   return undefined
 }
