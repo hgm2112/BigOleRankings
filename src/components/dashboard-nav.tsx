@@ -44,6 +44,7 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
     { href: "/compare", label: "Compare", icon: Users },
     { href: "/social", label: "Social", icon: UserPlus },
   ]
+  const mobileNavLinks = navLinks.filter((link) => link.href !== "/stats" && link.href !== "/compare")
 
   return (
     <header className="border-b">
@@ -98,6 +99,12 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
                   <Link href="/settings"><Settings className="h-4 w-4 mr-2" />Settings</Link>
                 </Button>
+                <Button variant="ghost" size="sm" className="justify-start" asChild>
+                  <Link href="/stats"><BarChart3 className="h-4 w-4 mr-2" />Stats</Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="justify-start" asChild>
+                  <Link href="/compare"><Users className="h-4 w-4 mr-2" />Compare</Link>
+                </Button>
               </div>
               <Separator className="my-2" />
               <Button variant="ghost" size="sm" className="justify-start w-full" onClick={handleSignOut}>
@@ -109,14 +116,13 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
       </div>
 
       <nav className="md:hidden flex items-center gap-0 px-2 pb-2 overflow-x-auto">
-        {navLinks.map((link) => {
+        {mobileNavLinks.map((link) => {
           const Icon = link.icon
           const isActive = pathname === link.href || pathname?.startsWith(link.href + "/")
           return (
-            <Button key={link.href} variant={isActive ? "secondary" : "ghost"} size="sm" asChild className="flex-shrink-0">
+            <Button key={link.href} variant={isActive ? "secondary" : "ghost"} size="sm" asChild className="flex-shrink-0" aria-label={link.label} title={link.label}>
               <Link href={link.href}>
-                <Icon className="h-4 w-4 mr-1" />
-                {link.label}
+                <Icon className="h-4 w-4" />
               </Link>
             </Button>
           )
