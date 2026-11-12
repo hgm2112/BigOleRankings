@@ -45,10 +45,19 @@ export async function GET(request: NextRequest) {
 
     if (!subs?.length) continue;
 
+    const { data: rating } = await admin
+      .from("ratings")
+      .select("id")
+      .eq("user_id", r.user_id)
+      .eq("media_id", r.target_id)
+      .maybeSingle();
+
+    const url = rating?.id ? `/entries/${rating.id}/detailed` : "/entries";
+
     const payload = JSON.stringify({
       title: "Time for your detailed rating",
       body: `Do your detailed rating for ${r.title}.`,
-      url: `/entries/${r.target_id}`,
+      url,
       icon: "/icons/notification-icon-192.png",
       badge: "/icons/notification-badge.png",
     });
@@ -71,10 +80,10 @@ export async function GET(request: NextRequest) {
         const status = err?.statusCode;
         if ([404, 410, 400, 413].includes(status)) {
           await admin.from("push_subscriptions").update({ active: false }).eq("id", sub.id);
-        } else if (status === 429 || status >= 500 || status === undefined) {
-          await admin.from("reminder_deliveries")
-            .delete().eq("reminder_id", r.id).eq("subscription_id", sub.id);
         }
+        // Release claim on failure so it can be retried (dead subs won't be targeted again once inactive)
+        await admin.from("reminder_deliveries")
+          .delete().eq("reminder_id", r.id).eq("subscription_id", sub.id);
       }
     }
   }
