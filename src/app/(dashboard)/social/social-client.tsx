@@ -296,9 +296,6 @@ export function SocialClient({ initialEvents, feedNextCursor, suggestions }: Soc
                     return (
                       <div key={p.id} className="flex items-center justify-between p-2 rounded hover:bg-accent">
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs">{(p.display_name || p.username || "U").charAt(0)}</AvatarFallback>
-                          </Avatar>
                           <span className="text-sm">{p.display_name || p.username}</span>
                           {isPinned && <span className="text-xs text-primary font-medium">Pinned ({pinSlotIdx + 1})</span>}
                         </div>
