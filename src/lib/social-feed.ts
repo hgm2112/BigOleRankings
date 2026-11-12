@@ -318,7 +318,17 @@ export async function fetchSocialFeed(
     )
   }
 
+  const watchRows = ((watchRes.data ?? []) as unknown as WatchEventRow[])
+
+  const completionKeys = new Set(
+    watchRows
+      .filter((w) => (w.event_type === "finished" || w.event_type === "dnf") && w.season_number != null)
+      .map((w) => `${w.user_id}:${w.media_id}:${w.season_number}`)
+  )
+
   for (const raw of seasonRows) {
+    const seasonKey = `${raw.user_id}:${raw.media_id}:${raw.season_number}`
+    if (completionKeys.has(seasonKey)) continue
     const media = normalizeMedia(asMedia(raw.media))
     if (!media) continue
     const user = profileById.get(raw.user_id)
@@ -336,7 +346,7 @@ export async function fetchSocialFeed(
     })
   }
 
-  const watchRows = ((watchRes.data ?? []) as unknown as WatchEventRow[])
+  const watchSeasonRatingByKey = new Map<string, { rating: number | null; dnf: boolean }>()
   if (watchRows.length > 0) {
     const watchMediaIds = [...new Set(watchRows.map((r) => r.media_id))]
     const watchUserIds = [...new Set(watchRows.map((r) => r.user_id))]
@@ -355,6 +365,20 @@ export async function fetchSocialFeed(
         entryIdByKey.set(`${r.user_id}:${r.media_id}`, r.id)
       }
     }
+
+    const tvSeasonWatchRows = watchRows.filter((w) => w.season_number != null)
+    if (tvSeasonWatchRows.length > 0) {
+      const srUserIds = [...new Set(tvSeasonWatchRows.map((w) => w.user_id))]
+      const srMediaIds = [...new Set(tvSeasonWatchRows.map((w) => w.media_id))]
+      const { data: srRows } = await supabase
+        .from("season_ratings")
+        .select("user_id, media_id, season_number, rating, dnf")
+        .in("user_id", srUserIds)
+        .in("media_id", srMediaIds)
+      for (const sr of (srRows ?? []) as { user_id: string; media_id: string; season_number: number; rating: number | null; dnf: boolean }[]) {
+        watchSeasonRatingByKey.set(`${sr.user_id}:${sr.media_id}:${sr.season_number}`, { rating: sr.rating, dnf: sr.dnf })
+      }
+    }
   }
 
   for (const raw of watchRows) {
@@ -362,6 +386,8 @@ export async function fetchSocialFeed(
     if (!media) continue
     const user = profileById.get(raw.user_id)
     if (!user) continue
+    const seasonKey = raw.season_number != null ? `${raw.user_id}:${raw.media_id}:${raw.season_number}` : null
+    const sr = seasonKey ? watchSeasonRatingByKey.get(seasonKey) : undefined
     events.push({
       key: `watch:${raw.id}`,
       type: "watch",
@@ -370,8 +396,9 @@ export async function fetchSocialFeed(
       media,
       entryId: entryIdByKey.get(`${raw.user_id}:${raw.media_id}`) ?? null,
       season_number: raw.season_number ?? undefined,
+      season_rating: sr?.rating ?? undefined,
       watch_event_type: raw.event_type,
-      dnf: raw.event_type === "dnf",
+      dnf: raw.event_type === "dnf" || sr?.dnf === true,
     })
   }
 

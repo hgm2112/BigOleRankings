@@ -41,7 +41,21 @@ function EventScore({ event }: { event: FeedEvent }) {
       </span>
     )
   }
-  if (event.type === "watch") return null
+  if (event.type === "watch") {
+    if (
+      (event.watch_event_type !== "finished" && event.watch_event_type !== "dnf") ||
+      event.season_number == null ||
+      event.season_rating == null
+    ) {
+      return null
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <ScoreChip value={event.season_rating} max={10} />
+        <span className="tabular-nums">/10</span>
+      </span>
+    )
+  }
   if (event.dnf) return null
   return (
     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -51,38 +65,60 @@ function EventScore({ event }: { event: FeedEvent }) {
   )
 }
 
-function eventVerb(event: FeedEvent): string {
-  if (event.type === "gut") return "gut-rated"
-  if (event.type === "detailed") return "detailed-rated"
+function eventVerbParts(event: FeedEvent): { action: string; suffix: string } {
+  if (event.type === "gut") return { action: "gut-rated", suffix: "" }
+  if (event.type === "detailed") return { action: "detailed-rated", suffix: "" }
   if (event.type === "season") {
-    if (event.dnf) return `DNF'd S${event.season_number} of`
-    return `rated S${event.season_number} of`
+    if (event.dnf) return { action: `DNF'd S${event.season_number} of`, suffix: "" }
+    return { action: `rated S${event.season_number} of`, suffix: "" }
   }
   // watch
-  const season =
+  const seasonSuffix =
     event.media.media_type === "tv" && event.season_number != null
-      ? ` — Season ${event.season_number}`
+      ? ` — Season ${event.season_number} of`
       : ""
   switch (event.watch_event_type) {
     case "started":
       return event.media.media_type === "tv" && event.season_number != null
-        ? `started watching${season} of`
-        : "started watching"
+        ? { action: "started watching", suffix: seasonSuffix }
+        : { action: "started watching", suffix: "" }
     case "finished":
       return event.media.media_type === "tv" && event.season_number != null
-        ? `finished${season} of`
-        : "finished watching"
+        ? { action: "finished", suffix: seasonSuffix }
+        : { action: "finished watching", suffix: "" }
     case "stopped":
       return event.media.media_type === "tv" && event.season_number != null
-        ? `paused watching${season} of`
-        : "paused watching"
+        ? { action: "paused watching", suffix: seasonSuffix }
+        : { action: "paused watching", suffix: "" }
     case "dnf":
       return event.media.media_type === "tv" && event.season_number != null
-        ? `DNF'd${season} of`
-        : "DNF'd"
+        ? { action: "DNF'd", suffix: seasonSuffix }
+        : { action: "DNF'd", suffix: "" }
     default:
-      return "is watching"
+      return { action: "is watching", suffix: "" }
   }
+}
+
+function eventVerb(event: FeedEvent): string {
+  const { action, suffix } = eventVerbParts(event)
+  return `${action}${suffix}`
+}
+
+function eventActionClass(event: FeedEvent): string | undefined {
+  const chip = "rounded px-1.5 py-0.5 text-xs font-medium"
+  if (event.type === "gut") return `${chip} bg-teal-500/10 text-teal-700 dark:text-teal-400`
+  if (event.type === "detailed") return `${chip} bg-violet-500/10 text-violet-700 dark:text-violet-400`
+  if (event.type === "watch") {
+    if (event.watch_event_type === "started") return `${chip} bg-sky-500/10 text-sky-700 dark:text-sky-400`
+    if (event.watch_event_type === "finished") return `${chip} bg-[#8a5b00]/20 text-[#ffc94d]`
+    if (event.watch_event_type === "stopped") return `${chip} bg-[#7a2e00]/20 text-[#ff9a3d]`
+    if (event.watch_event_type === "dnf") return `${chip} bg-[#6b0000]/20 text-[#ff6b6b]`
+  }
+  if (event.type === "season") {
+    if (event.dnf) return `${chip} bg-[#6b0000]/20 text-[#ff6b6b]`
+    return `${chip} bg-indigo-500/10 text-indigo-700 dark:text-indigo-400`
+  }
+  return undefined
 }
 
 function FeedRow({
@@ -96,6 +132,8 @@ function FeedRow({
 }) {
   const titleHref = event.entryId ? `/entries/${event.entryId}` : `/users/${event.user.username}`
   const displayName = event.user.display_name || event.user.username
+  const { action, suffix } = eventVerbParts(event)
+  const actionClass = eventActionClass(event)
 
   return (
     <div className="flex gap-3 p-2 rounded hover:bg-accent">
@@ -130,15 +168,14 @@ function FeedRow({
           >
             {displayName}
           </Link>
-          <span
-            className={cn(
-              "text-muted-foreground",
-              event.type === "gut" && "rounded px-1.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400",
-              event.type === "detailed" && "rounded px-1.5 py-0.5 text-xs font-medium bg-violet-500/10 text-violet-700 dark:text-violet-400"
-            )}
-          >
-            {eventVerb(event)}
-          </span>
+          {actionClass ? (
+            <>
+              <span className={cn("text-muted-foreground", actionClass)}>{action}</span>
+              {suffix && <span className="text-muted-foreground">{suffix}</span>}
+            </>
+          ) : (
+            <span className="text-muted-foreground">{action}{suffix}</span>
+          )}
           <Link href={titleHref} className="font-medium hover:underline line-clamp-1">
             {event.media.title}
           </Link>

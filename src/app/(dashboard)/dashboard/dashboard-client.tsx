@@ -196,14 +196,17 @@ function PinnedLastRated({ pinnedUser, pinnedEntry, myComparisonEntry }: {
   )
 }
 
-function PinnedCurrentlyWatching({ items }: { items: PinnedWatchItem[] }) {
+function PinnedCurrentlyWatching({ items, username }: { items: PinnedWatchItem[]; username: string | null }) {
   const { prefs } = useCustomization()
   const [expanded, setExpanded] = useState(false)
   if (!items || items.length === 0) {
     return <p className="text-sm text-muted-foreground">Not currently watching anything.</p>
   }
 
-  const renderItem = (w: PinnedWatchItem) => (
+  const latest = items[0]
+  const rest = items.slice(1)
+
+  const renderItem = (w: PinnedWatchItem, showToggle: boolean) => (
     <div key={w.id} className="flex gap-3">
       {w.media.poster_path ? (
         <div className="relative w-16 h-24 rounded overflow-hidden bg-muted flex-shrink-0">
@@ -221,7 +224,7 @@ function PinnedCurrentlyWatching({ items }: { items: PinnedWatchItem[] }) {
           {w.media.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
         </div>
       )}
-      <div className="min-w-0 space-y-1">
+      <div className="min-w-0 flex-1 space-y-1">
         <p className="font-semibold line-clamp-1">{w.media.title}</p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
           {prefs.media_badges ? <MediaTypeBadge type={w.media.media_type} /> : <span>{w.media.media_type === "tv" ? "TV Show" : "Movie"}</span>}
@@ -229,31 +232,38 @@ function PinnedCurrentlyWatching({ items }: { items: PinnedWatchItem[] }) {
           {w.media.year && <span>{w.media.year}</span>}
         </div>
         <p className="text-xs text-muted-foreground">Started {w.started_at}</p>
+        <div className="flex items-center justify-between gap-2">
+          {username ? (
+            <Link
+              href={`/users/${encodeURIComponent(username)}/watching`}
+              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              View All
+            </Link>
+          ) : (
+            <span />
+          )}
+          {showToggle && rest.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              aria-label={expanded ? "Show less currently watching" : `Show ${rest.length} more currently watching`}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              <span>{expanded ? "Show less" : `Show ${rest.length} more`}</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
 
-  const latest = items[0]
-  const rest = items.slice(1)
-
   return (
     <div className="space-y-3">
-      {renderItem(latest)}
-      {rest.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            aria-label={expanded ? "Show less currently watching" : `Show ${rest.length} more currently watching`}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            <span>{expanded ? "Show less" : `Show ${rest.length} more`}</span>
-          </button>
-          {expanded && <div className="space-y-3">{rest.map(renderItem)}</div>}
-        </>
-      )}
+      {renderItem(latest, true)}
+      {expanded && rest.length > 0 && <div className="space-y-3">{rest.map((w) => renderItem(w, false))}</div>}
     </div>
   )
 }
@@ -305,7 +315,7 @@ function PinnedFriendCard({ pinnedUser, pinnedEntry, myComparisonEntry, watching
             <TabsTrigger value="last_rated" className="text-xs">Last Rated</TabsTrigger>
           </TabsList>
           <TabsContent value="watching" className="mt-3">
-            <PinnedCurrentlyWatching items={watchingItems} />
+            <PinnedCurrentlyWatching items={watchingItems} username={pinnedUser.username} />
           </TabsContent>
           <TabsContent value="last_rated" className="mt-3">
             <PinnedLastRated pinnedUser={pinnedUser} pinnedEntry={pinnedEntry} myComparisonEntry={myComparisonEntry} />
