@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { RatingDistributionChart } from "@/components/charts/rating-distribution"
 import { CHART_1, CHART_2, CHART_3, CHART_4, CHART_5 } from "@/components/charts/chart-colors"
+import { formatMonthYear } from "@/lib/format-date"
 import type { FlatEntry } from "@/lib/entry-queries"
 
 const DIMENSION_DEFS = [
@@ -51,7 +52,7 @@ export function StatsCharts({ entries }: { entries: FlatEntry[] }) {
     const overTime = [...monthMap.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([month, b]) => ({
-        label: month,
+        label: formatMonthYear(month),
         count: b.count,
         avgGut: b.gutted > 0 ? round1(b.sum / b.gutted) : null,
       }))

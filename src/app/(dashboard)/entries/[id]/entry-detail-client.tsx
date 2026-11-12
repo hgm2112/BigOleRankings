@@ -11,6 +11,7 @@ import { ScoreChip, scoreTextClass } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
 import { PosterLightbox } from "@/components/poster-lightbox"
+import { formatDate } from "@/lib/format-date"
 import { usePosterTheme } from "@/hooks/use-poster-theme"
 import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye } from "lucide-react"
 import { Film, Tv } from "lucide-react"
@@ -229,7 +230,7 @@ export function EntryDetailClient({
             </div>
             {entry.gut_rated_at && (
               <p className="text-xs text-muted-foreground mt-1">
-                Rated on {new Date(entry.gut_rated_at).toLocaleDateString()}
+                Rated on {formatDate(entry.gut_rated_at)}
               </p>
             )}
           </div>
@@ -268,7 +269,7 @@ export function EntryDetailClient({
                 </div>
                 {entry.detailed_rated_at && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Detailed rating on {new Date(entry.detailed_rated_at).toLocaleDateString()}
+                    Detailed rating on {formatDate(entry.detailed_rated_at)}
                   </p>
                 )}
               </div>

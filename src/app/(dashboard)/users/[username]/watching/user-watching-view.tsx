@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { Film, Tv, Play, PlayCircle, Star } from "lucide-react"
+import { formatDate } from "@/lib/format-date"
 import { formatDuration, type WatchPeriodWithMedia } from "@/lib/watching"
 
 function posterUrl(path: string | null, size = "w185") {
@@ -31,13 +32,13 @@ function StatusPill({ status }: { status: WatchPeriodWithMedia["status"] }) {
 }
 
 function historyDateLine(startedAt: string, endedAt: string | null) {
-  if (!endedAt) return formatHistoryDate(startedAt)
+  if (!endedAt) return formatDate(startedAt)
   const start = new Date(`${startedAt}T00:00:00`)
   const end = new Date(`${endedAt}T00:00:00`)
   if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start.getTime() === end.getTime()) {
-    return formatHistoryDate(startedAt)
+    return formatDate(startedAt)
   }
-  return `${formatHistoryDate(startedAt)} to ${formatHistoryDate(endedAt)}`
+  return `${formatDate(startedAt)} to ${formatDate(endedAt)}`
 }
 
 function historyDurationLine(startedAt: string, endedAt: string | null) {
@@ -52,12 +53,7 @@ function historyDurationLine(startedAt: string, endedAt: string | null) {
 }
 
 function formatHistoryDate(dateStr: string) {
-  const d = new Date(`${dateStr}T00:00:00`)
-  if (Number.isNaN(d.getTime())) return dateStr
-  const currentYear = new Date().getFullYear()
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
-  if (d.getFullYear() !== currentYear) opts.year = "numeric"
-  return d.toLocaleDateString("en-US", opts)
+  return formatDate(dateStr)
 }
 
 export function UserWatchingView({
@@ -140,7 +136,7 @@ export function UserWatchingView({
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">Started {p.started_at}</p>
+                        <p className="text-xs text-muted-foreground">Started {formatDate(p.started_at)}</p>
                       </div>
                     </div>
                   </CardContent>

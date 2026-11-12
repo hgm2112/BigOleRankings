@@ -1,3 +1,5 @@
+import { formatDate } from "@/lib/format-date"
+
 interface StatusBadgeProps {
   status: string | null
   mediaType?: string
@@ -37,7 +39,7 @@ export function StatusBadge({ status, mediaType, nextAirDate }: StatusBadgeProps
       {showDate && nextAirDate != null && (
         <>
           <span aria-hidden>&middot;</span>
-          <span className="tabular-nums">{new Date(nextAirDate).toLocaleDateString()}</span>
+          <span className="tabular-nums">{formatDate(nextAirDate)}</span>
         </>
       )}
     </span>

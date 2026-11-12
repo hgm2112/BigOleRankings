@@ -11,6 +11,7 @@ import { ScoreChip } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { useCustomization } from "@/components/customization-provider"
+import { formatDate } from "@/lib/format-date"
 import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks, PlayCircle, ChevronDown, ChevronUp } from "lucide-react"
 
 interface Entry {
@@ -321,7 +322,7 @@ function PinnedCurrentlyWatching({ items, username }: { items: PinnedWatchItem[]
           {w.media.media_type === "tv" && w.season_number != null && <span>Season {w.season_number}</span>}
           {w.media.year && <span>{w.media.year}</span>}
         </div>
-        <p className="text-xs text-muted-foreground">Started {w.started_at}</p>
+        <p className="text-xs text-muted-foreground">Started {formatDate(w.started_at)}</p>
         <div className="flex items-center justify-between gap-2">
           {username ? (
             <Link
@@ -706,11 +707,11 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                               <span className="text-sm font-medium tabular-nums shrink-0">{entry.gut_rating}/100</span>
                             )}
                             <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                              {new Date(entry.gut_rated_at!).toLocaleDateString()}
+                              {formatDate(entry.gut_rated_at)}
                             </span>
                             {!hasDetailed && (
                               <span className="text-xs text-muted-foreground/60 italic">
-                                Due by {dueDate.toLocaleDateString()}
+                                Due by {formatDate(dueDate.toISOString())}
                               </span>
                             )}
                           </Link>
@@ -759,7 +760,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
                               <span className="text-sm font-medium tabular-nums shrink-0">{detailedTotal}/100</span>
                             )}
                             <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                              {new Date(entry.detailed_rated_at!).toLocaleDateString()}
+                              {formatDate(entry.detailed_rated_at)}
                             </span>
                           </Link>
                         </div>
