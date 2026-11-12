@@ -118,11 +118,26 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
       <nav className="md:hidden flex items-center justify-center gap-0 px-2 pb-2 overflow-x-auto">
         {mobileNavLinks.map((link) => {
           const Icon = link.href === "/social" ? Activity : link.icon
-          const isActive = pathname === link.href || pathname?.startsWith(link.href + "/")
+          const isActive =
+            link.href === "/entries"
+              ? pathname === "/entries" ||
+                (pathname?.startsWith("/entries/") &&
+                  pathname !== "/entries/new" &&
+                  !pathname?.startsWith("/entries/new/"))
+              : pathname === link.href || pathname?.startsWith(link.href + "/")
           return (
-            <Button key={link.href} variant={isActive ? "secondary" : "ghost"} size="sm" asChild className="flex-shrink-0" aria-label={link.label} title={link.label}>
-              <Link href={link.href}>
+            <Button
+              key={link.href}
+              variant={isActive ? "secondary" : "ghost"}
+              size="sm"
+              asChild
+              className={`flex-shrink-0 ${isActive ? "px-3" : "px-2"}`}
+              aria-label={link.label}
+              title={link.label}
+            >
+              <Link href={link.href} className="flex items-center gap-1.5">
                 <Icon className="h-4 w-4" />
+                {isActive && <span className="text-xs font-medium">{link.label}</span>}
               </Link>
             </Button>
           )
