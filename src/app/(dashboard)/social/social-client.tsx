@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import Link from "next/link"
-import { Search, Pin, PinOff, UserPlus, UserCheck, Loader2, ExternalLink } from "lucide-react"
+import { Search, Pin, PinOff, UserPlus, UserCheck, Loader2, ExternalLink, MoreHorizontal } from "lucide-react"
 import { SocialFeed } from "@/components/social/social-feed"
 import type { FeedEvent } from "@/lib/social-feed"
 
@@ -34,6 +35,21 @@ interface SocialClientProps {
   initialEvents: FeedEvent[]
   feedNextCursor: string | null
   suggestions: Suggestion[]
+}
+
+function avatarColor(id: string) {
+  const colors = [
+    "bg-violet-400",
+    "bg-blue-400",
+    "bg-emerald-400",
+    "bg-orange-400",
+    "bg-teal-400",
+    "bg-fuchsia-400",
+    "bg-yellow-400",
+  ]
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
+  return colors[Math.abs(hash) % colors.length]
 }
 
 export function SocialClient({ initialEvents, feedNextCursor, suggestions }: SocialClientProps) {
@@ -263,7 +279,7 @@ export function SocialClient({ initialEvents, feedNextCursor, suggestions }: Soc
         </div>
 
         <div className="space-y-6 lg:col-span-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-          <Card>
+          <Card className="hidden sm:block">
             <CardHeader>
               <CardTitle className="text-sm">Following ({following.length})</CardTitle>
               <CardDescription>Pin a user to see their latest rating on your dashboard</CardDescription>
@@ -305,6 +321,78 @@ export function SocialClient({ initialEvents, feedNextCursor, suggestions }: Soc
                           <Button size="sm" variant="ghost" onClick={() => toggleFollow(p.id)}>
                             Unfollow
                           </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="sm:hidden">
+            <CardHeader>
+              <CardTitle>Following ({following.length})</CardTitle>
+              <CardDescription>Pin a user to see their latest rating on your dashboard</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {followingProfiles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">You&apos;re not following anyone yet. Search for users above.</p>
+              ) : (
+                <div>
+                  {followingProfiles.map((p) => {
+                    const pinSlotIdx = pinnedUserIds.indexOf(p.id)
+                    const isPinned = pinSlotIdx !== -1
+                    const allSlotsFull = pinnedUserIds.every((id) => id !== null)
+                    const name = p.display_name || p.username || "U"
+                    return (
+                      <div key={p.id} className="flex items-center gap-3 py-4 border-b border-border last:border-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-base font-semibold truncate">{name}</p>
+                          {isPinned && (
+                            <p className="text-sm text-muted-foreground">Pinned · {pinSlotIdx + 1}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => togglePin(p.id)}
+                            disabled={!isPinned && allSlotsFull}
+                            className={
+                              isPinned
+                                ? "h-8 w-[72px] shrink-0 whitespace-nowrap inline-flex items-center justify-center rounded-full border border-transparent bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
+                                : "h-8 w-[72px] shrink-0 whitespace-nowrap inline-flex items-center justify-center rounded-full border border-primary text-primary bg-transparent text-xs font-medium hover:bg-primary/10 disabled:opacity-50"
+                            }
+                            title={!isPinned && allSlotsFull ? "Unpin someone first (max 3)" : ""}
+                          >
+                            {isPinned ? "Unpin" : "Pin"}
+                          </button>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={`More actions for ${name}`}
+                                className="h-11 w-11 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                              >
+                                <MoreHorizontal className="h-5 w-5" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-44 p-1">
+                              <Link
+                                href={`/users/${p.username}`}
+                                className="flex items-center rounded-sm px-3 py-2 text-sm hover:bg-accent"
+                              >
+                                View profile
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => toggleFollow(p.id)}
+                                className="flex w-full items-center rounded-sm px-3 py-2 text-sm text-destructive hover:bg-accent"
+                              >
+                                Unfollow
+                              </button>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                     )
