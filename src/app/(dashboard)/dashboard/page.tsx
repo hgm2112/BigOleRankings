@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { DashboardClient } from "./dashboard-client"
 import { ENTRY_SELECT, flattenEntry, flattenEntries, fetchDnfSeasonKeys } from "@/lib/entry-queries"
+import { WATCH_PERIOD_SELECT, normalizeWatchPeriods } from "@/lib/watching"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -42,11 +43,13 @@ export default async function DashboardPage() {
   const pinnedUsers: { username: string | null; display_name: string | null }[] = []
   const pinnedEntries: any[] = []
   const myComparisonEntries: (any | null)[] = []
+  const pinnedWatching: any[][] = []
 
   for (const pinnedUserId of pinColumns) {
     if (!pinnedUserId) {
       pinnedEntries.push(null)
       myComparisonEntries.push(null)
+      pinnedWatching.push([])
       continue
     }
 
@@ -59,17 +62,27 @@ export default async function DashboardPage() {
     if (pinUser) {
       pinnedUsers.push(pinUser)
 
-      const { data: latest } = await supabase
-        .from("ratings")
-        .select(ENTRY_SELECT)
-        .eq("user_id", pinnedUserId)
-        .not("gut_rating", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      const [{ data: latest }, { data: watching }] = await Promise.all([
+        supabase
+          .from("ratings")
+          .select(ENTRY_SELECT)
+          .eq("user_id", pinnedUserId)
+          .not("gut_rating", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("watch_periods")
+          .select(WATCH_PERIOD_SELECT)
+          .eq("user_id", pinnedUserId)
+          .eq("status", "currently_watching")
+          .order("started_at", { ascending: false })
+          .order("created_at", { ascending: false }),
+      ])
 
       const latestEntry = latest ? flattenEntry(latest) : null
       pinnedEntries.push(latestEntry)
+      pinnedWatching.push(normalizeWatchPeriods(watching))
 
       if (latestEntry) {
         const { data: mine } = await supabase
@@ -85,6 +98,7 @@ export default async function DashboardPage() {
     } else {
       pinnedEntries.push(null)
       myComparisonEntries.push(null)
+      pinnedWatching.push([])
     }
   }
 
@@ -95,6 +109,7 @@ export default async function DashboardPage() {
       pinnedUsers={pinnedUsers}
       pinnedEntries={pinnedEntries}
       myComparisonEntries={myComparisonEntries}
+      pinnedWatching={pinnedWatching}
       pendingDetailedEntries={flattenEntries(pendingDetailed)}
     />
   )

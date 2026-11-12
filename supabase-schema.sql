@@ -330,3 +330,107 @@ create index if not exists ratings_user_gut_rated_at_idx on ratings (user_id, gu
 create index if not exists ratings_user_detailed_rated_at_idx on ratings (user_id, detailed_rated_at);
 create index if not exists season_ratings_user_updated_at_idx on season_ratings (user_id, updated_at);
 create index if not exists follows_follower_idx on follows (follower_id);
+
+-- 7. Currently Watching: watch periods (history) and activities (social feed)
+--    New-period-on-resume: resuming a stopped movie/season creates a new
+--    currently_watching period so previous dates/outcomes remain intact.
+--    Feed events are append-only (watch_activities) so date corrections on
+--    periods do not duplicate or rewrite meaningful activity.
+
+create table if not exists watch_periods (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  media_id uuid not null references media(id) on delete cascade,
+  media_type text not null check (media_type in ('movie', 'tv')),
+  season_number int null,
+  status text not null check (status in ('currently_watching', 'finished', 'dnf', 'stopped')),
+  started_at date not null,
+  ended_at date null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint watch_periods_media_season_check check (
+    (media_type = 'movie' and season_number is null)
+    or (media_type = 'tv' and season_number is not null and season_number >= 1)
+  ),
+  constraint watch_periods_status_dates_check check (
+    (status = 'currently_watching' and ended_at is null)
+    or (status in ('finished', 'dnf', 'stopped') and ended_at is not null)
+  ),
+  constraint watch_periods_date_order_check check (
+    ended_at is null or ended_at >= started_at
+  ),
+  -- MATCH SIMPLE: movie rows (season_number null) are not required to match a
+  -- seasons row; TV rows must reference an existing season.
+  constraint watch_periods_tv_season_fk
+    foreign key (media_id, season_number)
+    references seasons(media_id, season_number)
+    on delete restrict
+);
+
+create unique index if not exists watch_periods_one_active_idx
+  on watch_periods (user_id, media_id, coalesce(season_number, 0))
+  where status = 'currently_watching';
+
+create index if not exists watch_periods_user_status_updated_idx
+  on watch_periods (user_id, status, updated_at desc);
+create index if not exists watch_periods_user_media_season_started_idx
+  on watch_periods (user_id, media_id, season_number, started_at desc, created_at desc);
+create index if not exists watch_periods_user_ended_idx
+  on watch_periods (user_id, ended_at desc);
+
+alter table watch_periods enable row level security;
+
+create policy "Watch periods are viewable by all authenticated users"
+  on watch_periods for select
+  using (auth.role() = 'authenticated');
+
+create policy "Users can insert their own watch periods"
+  on watch_periods for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own watch periods"
+  on watch_periods for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own watch periods"
+  on watch_periods for delete
+  using (auth.uid() = user_id);
+
+create or replace trigger on_watch_period_updated
+  before update on watch_periods
+  for each row execute function public.handle_updated_at();
+
+grant all on watch_periods to authenticated, service_role;
+grant select on watch_periods to anon;
+
+create table if not exists watch_activities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  media_id uuid not null references media(id) on delete cascade,
+  period_id uuid not null references watch_periods(id) on delete cascade,
+  event_type text not null check (event_type in ('started', 'finished', 'stopped', 'dnf')),
+  season_number int null,
+  occurred_at timestamptz not null default now(),
+  payload jsonb null
+);
+
+create index if not exists watch_activities_occurred_idx
+  on watch_activities (occurred_at desc);
+create index if not exists watch_activities_user_occurred_idx
+  on watch_activities (user_id, occurred_at desc);
+create index if not exists watch_activities_period_idx
+  on watch_activities (period_id);
+
+alter table watch_activities enable row level security;
+
+create policy "Watch activities are viewable by all authenticated users"
+  on watch_activities for select
+  using (auth.role() = 'authenticated');
+
+create policy "Users can insert their own watch activities"
+  on watch_activities for insert
+  with check (auth.uid() = user_id);
+
+grant select, insert on watch_activities to authenticated;
+grant all on watch_activities to service_role;
+grant select on watch_activities to anon;

@@ -25,7 +25,7 @@ export interface FeedLiker {
 
 export interface FeedEvent {
   key: string
-  type: "gut" | "detailed" | "season"
+  type: "gut" | "detailed" | "season" | "watch"
   at: string
   user: FeedUser
   media: FeedMedia
@@ -35,6 +35,7 @@ export interface FeedEvent {
   season_number?: number
   season_rating?: number
   dnf?: boolean
+  watch_event_type?: "started" | "finished" | "stopped" | "dnf"
   like_count: number
   liked_by_me: boolean
   likers: FeedLiker[]
@@ -90,6 +91,22 @@ interface SeasonEventRow {
   } | null
 }
 
+interface WatchEventRow {
+  id: string
+  user_id: string
+  media_id: string
+  event_type: "started" | "finished" | "stopped" | "dnf"
+  season_number: number | null
+  occurred_at: string
+  media: {
+    title: string
+    media_type: string
+    year: number | null
+    poster_path: string | null
+    tmdb_id: number
+  } | null
+}
+
 interface LikeRow {
   event_key: string
   user_id: string
@@ -104,6 +121,9 @@ const EVENT_SELECT = `id, user_id, media_id,
   media:media_id (title, media_type, year, poster_path, tmdb_id)`
 
 const SEASON_SELECT = `user_id, media_id, season_number, rating, dnf, updated_at,
+  media:media_id (title, media_type, year, poster_path, tmdb_id)`
+
+const WATCH_SELECT = `id, user_id, media_id, event_type, season_number, occurred_at,
   media:media_id (title, media_type, year, poster_path, tmdb_id)`
 
 function normalizeMedia(raw: RatingEventRow["media"] | SeasonEventRow["media"]): FeedMedia | null {
@@ -211,13 +231,26 @@ export async function fetchSocialFeed(
     .order("updated_at", { ascending: false })
     .limit(limit)
 
+  const watchQuery = supabase
+    .from("watch_activities")
+    .select(WATCH_SELECT)
+    .in("user_id", ids)
+    .order("occurred_at", { ascending: false })
+    .limit(limit)
+
   if (before) {
     gutQuery.lt("gut_rated_at", before)
     detailedQuery.lt("detailed_rated_at", before)
     seasonQuery.lt("updated_at", before)
+    watchQuery.lt("occurred_at", before)
   }
 
-  const [gutRes, detailedRes, seasonRes] = await Promise.all([gutQuery, detailedQuery, seasonQuery])
+  const [gutRes, detailedRes, seasonRes, watchRes] = await Promise.all([
+    gutQuery,
+    detailedQuery,
+    seasonQuery,
+    watchQuery,
+  ])
 
   const events: DraftEvent[] = []
 
@@ -300,6 +333,45 @@ export async function fetchSocialFeed(
       season_number: raw.season_number,
       season_rating: raw.rating ?? undefined,
       dnf: raw.dnf,
+    })
+  }
+
+  const watchRows = ((watchRes.data ?? []) as unknown as WatchEventRow[])
+  if (watchRows.length > 0) {
+    const watchMediaIds = [...new Set(watchRows.map((r) => r.media_id))]
+    const watchUserIds = [...new Set(watchRows.map((r) => r.user_id))]
+    const missingPairs = watchUserIds.flatMap((uid) =>
+      watchMediaIds
+        .filter((mid) => !entryIdByKey.has(`${uid}:${mid}`))
+        .map((mid) => ({ uid, mid }))
+    )
+    if (missingPairs.length > 0) {
+      const { data: ratingLinks } = await supabase
+        .from("ratings")
+        .select("id, user_id, media_id")
+        .in("user_id", [...new Set(missingPairs.map((p) => p.uid))])
+        .in("media_id", [...new Set(missingPairs.map((p) => p.mid))])
+      for (const r of (ratingLinks ?? []) as { id: string; user_id: string; media_id: string }[]) {
+        entryIdByKey.set(`${r.user_id}:${r.media_id}`, r.id)
+      }
+    }
+  }
+
+  for (const raw of watchRows) {
+    const media = normalizeMedia(asMedia(raw.media))
+    if (!media) continue
+    const user = profileById.get(raw.user_id)
+    if (!user) continue
+    events.push({
+      key: `watch:${raw.id}`,
+      type: "watch",
+      at: raw.occurred_at,
+      user,
+      media,
+      entryId: entryIdByKey.get(`${raw.user_id}:${raw.media_id}`) ?? null,
+      season_number: raw.season_number ?? undefined,
+      watch_event_type: raw.event_type,
+      dnf: raw.event_type === "dnf",
     })
   }
 

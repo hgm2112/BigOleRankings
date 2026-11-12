@@ -58,6 +58,8 @@ export default function NewEntryPage() {
   const titleParam = searchParams.get("title")
   const yearParam = searchParams.get("year")
   const posterPathParam = searchParams.get("poster_path")
+  const returnToParam = searchParams.get("returnTo")
+  const returnTo = returnToParam && returnToParam.startsWith("/") && !returnToParam.startsWith("//") ? returnToParam : null
 
   const handleSeasonChange = (seasonNumber: number, rating: number | null, dnf: boolean) => {
     setSeasonRatings((prev) => {
@@ -75,6 +77,8 @@ export default function NewEntryPage() {
     const load = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
+
+      let existingSeasonRatings: SeasonRatingValue[] = []
 
       if (user) {
         const { data: mediaRow } = await supabase
@@ -98,6 +102,20 @@ export default function NewEntryPage() {
             }
             return
           }
+
+          const { data: srRows } = await supabase
+            .from("season_ratings")
+            .select("season_number, rating, dnf")
+            .eq("user_id", user.id)
+            .eq("media_id", mediaRow.id)
+
+          existingSeasonRatings = (srRows ?? [])
+            .filter((r: any) => r.rating != null || r.dnf)
+            .map((r: any) => ({
+              season_number: r.season_number as number,
+              rating: (r.rating ?? null) as number | null,
+              dnf: !!r.dnf,
+            }))
         }
       }
 
@@ -111,6 +129,7 @@ export default function NewEntryPage() {
         poster_path: posterPathParam || null,
       }
       setAlreadyRated(null)
+      setSeasonRatings(existingSeasonRatings)
       setSelected({ ...item, runtime: null })
       fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
         .then((res) => (res.ok ? res.json() : null))
@@ -134,14 +153,68 @@ export default function NewEntryPage() {
     setAlreadyRated(null)
     setSelected({ ...item, runtime: null })
     setSeasonRatings([])
+
+    const selectedKey = `${item.tmdb_id}:${item.media_type}`
     try {
-      const res = await fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
-      if (res.ok) {
-        const details = await res.json()
-        setSelected(details)
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      const detailsPromise = fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null)
+
+      let existingSeasonRatings: SeasonRatingValue[] = []
+      if (user) {
+        const { data: mediaRow } = await supabase
+          .from("media")
+          .select("id")
+          .eq("tmdb_id", item.tmdb_id)
+          .eq("media_type", item.media_type)
+          .maybeSingle()
+
+        if (mediaRow) {
+          const { data: srRows } = await supabase
+            .from("season_ratings")
+            .select("season_number, rating, dnf")
+            .eq("user_id", user.id)
+            .eq("media_id", mediaRow.id)
+
+          existingSeasonRatings = (srRows ?? [])
+            .filter((r: any) => r.rating != null || r.dnf)
+            .map((r: any) => ({
+              season_number: r.season_number as number,
+              rating: (r.rating ?? null) as number | null,
+              dnf: !!r.dnf,
+            }))
+        }
       }
+
+      const details = await detailsPromise
+
+      // Avoid overwriting if user selected a different item while loading
+      setSelected((current) => {
+        if (!current) return current
+        if (`${current.tmdb_id}:${current.media_type}` !== selectedKey) return current
+        return details ?? current
+      })
+      setSeasonRatings((prev) => {
+        // only apply if still on same selection context; safe to set when selection matches
+        return existingSeasonRatings.length > 0 || prev.length === 0 ? existingSeasonRatings : prev
+      })
     } catch {
-      // fall through with null runtime
+      try {
+        const res = await fetch(`/api/tmdb/details?id=${item.tmdb_id}&type=${item.media_type}`)
+        if (res.ok) {
+          const details = await res.json()
+          setSelected((current) => {
+            if (!current) return current
+            if (`${current.tmdb_id}:${current.media_type}` !== selectedKey) return current
+            return details
+          })
+        }
+      } catch {
+        // fall through with null runtime
+      }
     }
   }
 
@@ -188,16 +261,22 @@ export default function NewEntryPage() {
   if (alreadyRated) {
     return (
       <div className="max-w-lg mx-auto space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => setAlreadyRated(null)}>
-          <ArrowLeft className="h-4 w-4 mr-1" />Back to search
-        </Button>
+        {returnTo ? (
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={returnTo}><ArrowLeft className="h-4 w-4 mr-1" />Back</Link>
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => setAlreadyRated(null)}>
+            <ArrowLeft className="h-4 w-4 mr-1" />Back to search
+          </Button>
+        )}
 
         <Card>
           <CardHeader>
             <CardTitle>{alreadyRated.title || "Already rated"}</CardTitle>
             <CardDescription>You&apos;ve already rated this title.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex gap-2 flex-wrap">
             {alreadyRated.entry_id ? (
               <Button asChild>
                 <Link href={`/entries/${alreadyRated.entry_id}`}>View rating</Link>
@@ -206,6 +285,9 @@ export default function NewEntryPage() {
               <Button asChild>
                 <Link href="/entries">Back to my ratings</Link>
               </Button>
+            )}
+            {returnTo && (
+              <Button variant="outline" onClick={() => setAlreadyRated(null)}>Search again</Button>
             )}
           </CardContent>
         </Card>
@@ -216,9 +298,15 @@ export default function NewEntryPage() {
   if (selected) {
     return (
       <div className="max-w-lg mx-auto space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setSeasonRatings([]) }}>
-          <ArrowLeft className="h-4 w-4 mr-1" />Back to search
-        </Button>
+        {returnTo ? (
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={returnTo}><ArrowLeft className="h-4 w-4 mr-1" />Back</Link>
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setSeasonRatings([]) }}>
+            <ArrowLeft className="h-4 w-4 mr-1" />Back to search
+          </Button>
+        )}
 
         <Card>
           <CardHeader>
@@ -270,7 +358,7 @@ export default function NewEntryPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Add New Rating</h1>
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/entries"><ArrowLeft className="h-4 w-4 mr-1" />Back</Link>
+            <Link href={returnTo ?? "/entries"}><ArrowLeft className="h-4 w-4 mr-1" />Back</Link>
           </Button>
         </div>
         <p className="text-muted-foreground">Hey whatcha got there? Something new?</p>

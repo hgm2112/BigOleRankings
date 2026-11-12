@@ -10,7 +10,7 @@ import { StatusBadge } from "@/components/status-badge"
 import { ScoreChip } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { useCustomization } from "@/components/customization-provider"
-import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks } from "lucide-react"
+import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks, PlayCircle } from "lucide-react"
 
 interface Entry {
   id: string
@@ -34,12 +34,28 @@ interface Entry {
   created_at?: string
 }
 
+interface PinnedWatchItem {
+  id: string
+  media_type: "movie" | "tv"
+  season_number: number | null
+  started_at: string
+  media: {
+    id: string
+    tmdb_id: number
+    media_type: "movie" | "tv"
+    title: string
+    poster_path: string | null
+    year: number | null
+  }
+}
+
 interface DashboardClientProps {
   entries: Entry[]
   profile: { username: string | null; display_name: string | null } | null
   pinnedUsers?: { username: string | null; display_name: string | null }[]
   pinnedEntries?: (Entry | null)[]
   myComparisonEntries?: (Entry | null)[]
+  pinnedWatching?: PinnedWatchItem[][]
   pendingDetailedEntries?: { id: string; title: string; media_type: string }[]
   headerTitle?: string
   headerDescription?: string
@@ -66,13 +82,15 @@ function computeRankings(entries: Entry[], useDetailed: boolean, ascending: bool
     .slice(0, 10)
 }
 
-function PinnedFriendCard({ pinnedUser, pinnedEntry, myComparisonEntry, idx }: {
+function PinnedLastRated({ pinnedUser, pinnedEntry, myComparisonEntry }: {
   pinnedUser: { username: string | null; display_name: string | null }
-  pinnedEntry: Entry
+  pinnedEntry: Entry | null
   myComparisonEntry: Entry | null
-  idx: number
 }) {
   const { prefs } = useCustomization()
+  if (!pinnedEntry) {
+    return <p className="text-sm text-muted-foreground">No ratings yet.</p>
+  }
 
   const pinTotal = (pinnedEntry.detailed_enjoyment ?? 0) + (pinnedEntry.detailed_impact ?? 0) + (pinnedEntry.detailed_recommend ?? 0) + (pinnedEntry.detailed_watch_again ?? 0)
   const hasMyDetailed = myComparisonEntry?.detailed_enjoyment != null
@@ -82,113 +100,201 @@ function PinnedFriendCard({ pinnedUser, pinnedEntry, myComparisonEntry, idx }: {
   const diff = hasMyDetailed ? myTotal - pinTotal : 0
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-          <Pin className="h-4 w-4" />
-          Pinned ({idx + 1}): <Link href={`/users/${pinnedUser.username}`} className="font-semibold text-foreground hover:underline">{pinnedUser.display_name || pinnedUser.username}</Link>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex gap-3">
-          {pinnedEntry.poster_path ? (
-            <div className="relative w-20 h-30 rounded overflow-hidden bg-muted flex-shrink-0">
+    <div className="flex gap-3">
+      {pinnedEntry.poster_path ? (
+        <div className="relative w-20 h-30 rounded overflow-hidden bg-muted flex-shrink-0">
+          <Image
+            src={`https://image.tmdb.org/t/p/w185${pinnedEntry.poster_path}`}
+            alt={pinnedEntry.title}
+            fill
+            sizes="80px"
+            quality={90}
+            className="object-cover"
+          />
+        </div>
+      ) : (
+        <div className="w-20 h-30 rounded bg-muted flex items-center justify-center flex-shrink-0">
+          {pinnedEntry.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
+        </div>
+      )}
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex items-center gap-2">
+          <Link href={`/entries/${pinnedEntry.id}`} className="font-semibold hover:underline line-clamp-1">
+            {pinnedEntry.title}
+          </Link>
+          <StatusBadge status={pinnedEntry.status ?? null} mediaType={pinnedEntry.media_type} />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {pinnedEntry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={pinnedEntry.media_type} /> : pinnedEntry.media_type === "tv" ? "TV Show" : "Movie"}
+        </p>
+        <div className="flex items-center gap-4 text-sm flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-foreground">{pinnedUser.display_name || pinnedUser.username}: </span>
+            {prefs.score_chips ? (
+              <ScoreChip value={pinnedEntry.gut_rating} />
+            ) : (
+              <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
+            )}
+            <span className="text-xs text-muted-foreground">/100</span>
+          </div>
+          {myComparisonEntry ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">Your rating: </span>
+                {prefs.score_chips ? (
+                  <ScoreChip value={myComparisonEntry.gut_rating} />
+                ) : (
+                  <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
+                )}
+                <span className="text-xs text-muted-foreground">/100</span>
+              </div>
+              {pinnedEntry.gut_rating != null && myComparisonEntry.gut_rating != null && (
+                <div>
+                  <span className="text-muted-foreground">Δ </span>
+                  <span className={`font-medium ${myComparisonEntry.gut_rating > pinnedEntry.gut_rating ? "text-green-600" : myComparisonEntry.gut_rating < pinnedEntry.gut_rating ? "text-destructive" : ""}`}>
+                    {myComparisonEntry.gut_rating - pinnedEntry.gut_rating > 0 ? "+" : ""}{myComparisonEntry.gut_rating - pinnedEntry.gut_rating}
+                  </span>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">You haven&apos;t rated this yet.</p>
+          )}
+        </div>
+
+        {pinnedEntry.detailed_enjoyment != null && (
+          <div className="border-t border-border/50 pt-1.5 space-y-0.5">
+            <div className="flex gap-x-1 items-baseline text-sm flex-wrap">
+              <span className="font-medium text-foreground shrink-0 w-24">{pinnedUser.display_name || pinnedUser.username}:</span>
+              {prefs.score_chips ? <ScoreChip value={pinTotal} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{pinTotal}</span>}
+              <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {pinnedEntry.detailed_enjoyment}/60</span>
+              <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {pinnedEntry.detailed_impact ?? 0}/20</span>
+              <span className="text-xs text-muted-foreground tabular-nums shrink-0">R {pinnedEntry.detailed_recommend ?? 0}/10</span>
+              <span className="text-xs text-muted-foreground tabular-nums shrink-0">W {pinnedEntry.detailed_watch_again ?? 0}/10</span>
+            </div>
+            <div className="flex gap-x-1 items-baseline text-sm flex-wrap">
+              <span className="text-muted-foreground shrink-0 w-24">Your rating:</span>
+              {prefs.score_chips ? <ScoreChip value={hasMyDetailed ? myTotal : null} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{hasMyDetailed ? myTotal : "—"}</span>}
+              {hasMyDetailed ? (
+                <>
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {myComparisonEntry.detailed_enjoyment}/60</span>
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {myComparisonEntry.detailed_impact ?? 0}/20</span>
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">R {myComparisonEntry.detailed_recommend ?? 0}/10</span>
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">W {myComparisonEntry.detailed_watch_again ?? 0}/10</span>
+                  <span className={`font-medium tabular-nums shrink-0 ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
+                    {diff > 0 ? "+" : ""}{diff}
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">No detailed rating yet</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PinnedCurrentlyWatching({ items }: { items: PinnedWatchItem[] }) {
+  const { prefs } = useCustomization()
+  if (!items || items.length === 0) {
+    return <p className="text-sm text-muted-foreground">Not currently watching anything.</p>
+  }
+  return (
+    <div className="space-y-3">
+      {items.map((w) => (
+        <div key={w.id} className="flex gap-3">
+          {w.media.poster_path ? (
+            <div className="relative w-16 h-24 rounded overflow-hidden bg-muted flex-shrink-0">
               <Image
-                src={`https://image.tmdb.org/t/p/w185${pinnedEntry.poster_path}`}
-                alt={pinnedEntry.title}
+                src={`https://image.tmdb.org/t/p/w185${w.media.poster_path}`}
+                alt={w.media.title}
                 fill
-                sizes="80px"
+                sizes="64px"
                 quality={90}
                 className="object-cover"
               />
             </div>
           ) : (
-            <div className="w-20 h-30 rounded bg-muted flex items-center justify-center flex-shrink-0">
-              {pinnedEntry.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
+            <div className="w-16 h-24 rounded bg-muted flex items-center justify-center flex-shrink-0">
+              {w.media.media_type === "tv" ? <Tv className="h-4 w-4 text-muted-foreground" /> : <Film className="h-4 w-4 text-muted-foreground" />}
             </div>
           )}
-          <div className="flex-1 min-w-0 space-y-1">
-            <div className="flex items-center gap-2">
-              <Link href={`/entries/${pinnedEntry.id}`} className="font-semibold hover:underline line-clamp-1">
-                {pinnedEntry.title}
-              </Link>
-              <StatusBadge status={pinnedEntry.status ?? null} mediaType={pinnedEntry.media_type} />
+          <div className="min-w-0 space-y-1">
+            <p className="font-semibold line-clamp-1">{w.media.title}</p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              {prefs.media_badges ? <MediaTypeBadge type={w.media.media_type} /> : <span>{w.media.media_type === "tv" ? "TV Show" : "Movie"}</span>}
+              {w.media.media_type === "tv" && w.season_number != null && <span>Season {w.season_number}</span>}
+              {w.media.year && <span>{w.media.year}</span>}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {pinnedEntry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={pinnedEntry.media_type} /> : pinnedEntry.media_type === "tv" ? "TV Show" : "Movie"}
-            </p>
-            <div className="flex items-center gap-4 text-sm flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <span className="font-medium text-foreground">{pinnedUser.display_name || pinnedUser.username}: </span>
-                {prefs.score_chips ? (
-                  <ScoreChip value={pinnedEntry.gut_rating} />
-                ) : (
-                  <span className="font-medium">{pinnedEntry.gut_rating ?? "—"}</span>
-                )}
-                <span className="text-xs text-muted-foreground">/100</span>
-              </div>
-              {myComparisonEntry ? (
-                <>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-muted-foreground">Your rating: </span>
-                    {prefs.score_chips ? (
-                      <ScoreChip value={myComparisonEntry.gut_rating} />
-                    ) : (
-                      <span className="font-medium">{myComparisonEntry.gut_rating ?? "—"}</span>
-                    )}
-                    <span className="text-xs text-muted-foreground">/100</span>
-                  </div>
-                  {pinnedEntry.gut_rating != null && myComparisonEntry.gut_rating != null && (
-                    <div>
-                      <span className="text-muted-foreground">Δ </span>
-                      <span className={`font-medium ${myComparisonEntry.gut_rating > pinnedEntry.gut_rating ? "text-green-600" : myComparisonEntry.gut_rating < pinnedEntry.gut_rating ? "text-destructive" : ""}`}>
-                        {myComparisonEntry.gut_rating - pinnedEntry.gut_rating > 0 ? "+" : ""}{myComparisonEntry.gut_rating - pinnedEntry.gut_rating}
-                      </span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">You haven't rated this yet.</p>
-              )}
-            </div>
-
-            {pinnedEntry.detailed_enjoyment != null && (
-              <div className="border-t border-border/50 pt-1.5 space-y-0.5">
-                <div className="flex gap-x-1 items-baseline text-sm flex-wrap">
-                  <span className="font-medium text-foreground shrink-0 w-24">{pinnedUser.display_name || pinnedUser.username}:</span>
-                  {prefs.score_chips ? <ScoreChip value={pinTotal} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{pinTotal}</span>}
-                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {pinnedEntry.detailed_enjoyment}/60</span>
-                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {pinnedEntry.detailed_impact ?? 0}/20</span>
-                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">R {pinnedEntry.detailed_recommend ?? 0}/10</span>
-                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">W {pinnedEntry.detailed_watch_again ?? 0}/10</span>
-                </div>
-                <div className="flex gap-x-1 items-baseline text-sm flex-wrap">
-                  <span className="text-muted-foreground shrink-0 w-24">Your rating:</span>
-                  {prefs.score_chips ? <ScoreChip value={hasMyDetailed ? myTotal : null} /> : <span className="font-medium tabular-nums shrink-0 mr-2">{hasMyDetailed ? myTotal : "—"}</span>}
-                  {hasMyDetailed ? (
-                    <>
-                      <span className="text-xs text-muted-foreground tabular-nums shrink-0">E {myComparisonEntry.detailed_enjoyment}/60</span>
-                      <span className="text-xs text-muted-foreground tabular-nums shrink-0">I {myComparisonEntry.detailed_impact ?? 0}/20</span>
-                      <span className="text-xs text-muted-foreground tabular-nums shrink-0">R {myComparisonEntry.detailed_recommend ?? 0}/10</span>
-                      <span className="text-xs text-muted-foreground tabular-nums shrink-0">W {myComparisonEntry.detailed_watch_again ?? 0}/10</span>
-                      <span className={`font-medium tabular-nums shrink-0 ${diff > 0 ? "text-green-600" : diff < 0 ? "text-destructive" : ""}`}>
-                        {diff > 0 ? "+" : ""}{diff}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">No detailed rating yet</span>
-                  )}
-                </div>
-              </div>
-            )}
+            <p className="text-xs text-muted-foreground">Started {w.started_at}</p>
           </div>
         </div>
+      ))}
+    </div>
+  )
+}
+
+function toTime(value: string | null | undefined): number {
+  if (!value) return 0
+  const t = new Date(value).getTime()
+  return Number.isNaN(t) ? 0 : t
+}
+
+function PinnedFriendCard({ pinnedUser, pinnedEntry, myComparisonEntry, watchingItems, idx }: {
+  pinnedUser: { username: string | null; display_name: string | null }
+  pinnedEntry: Entry | null
+  myComparisonEntry: Entry | null
+  watchingItems: PinnedWatchItem[]
+  idx: number
+}) {
+  const ratedAt = pinnedEntry
+    ? Math.max(
+        toTime(pinnedEntry.detailed_rated_at),
+        toTime(pinnedEntry.gut_rated_at),
+        toTime((pinnedEntry as any).updated_at),
+        toTime(pinnedEntry.created_at)
+      )
+    : 0
+
+  const watchingAt = (watchingItems ?? []).reduce((max, w) => {
+    const started = w.started_at ? toTime(`${w.started_at}T23:59:59`) : 0
+    const t = Math.max(toTime((w as any).updated_at), toTime((w as any).created_at), started)
+    return t > max ? t : max
+  }, 0)
+
+  const defaultTab =
+    watchingAt === 0 && ratedAt === 0 ? "watching" :
+    watchingAt >= ratedAt ? "watching" : "last_rated"
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+          <Pin className="h-4 w-4" />
+          Pinned ({idx + 1}): <Link href={`/users/${pinnedUser.username}`} className="font-semibold text-foreground hover:underline">{pinnedUser.display_name || pinnedUser.username}</Link>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue={defaultTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 h-8">
+            <TabsTrigger value="watching" className="text-xs"><PlayCircle className="h-3.5 w-3.5 mr-1" />Currently Watching</TabsTrigger>
+            <TabsTrigger value="last_rated" className="text-xs">Last Rated</TabsTrigger>
+          </TabsList>
+          <TabsContent value="watching" className="mt-3">
+            <PinnedCurrentlyWatching items={watchingItems} />
+          </TabsContent>
+          <TabsContent value="last_rated" className="mt-3">
+            <PinnedLastRated pinnedUser={pinnedUser} pinnedEntry={pinnedEntry} myComparisonEntry={myComparisonEntry} />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   )
 }
 
-export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true, fullRankingsHref }: DashboardClientProps) {
+export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pinnedWatching = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true, fullRankingsHref }: DashboardClientProps) {
   const { prefs } = useCustomization()
   const displayName = profile?.display_name || profile?.username || "User"
 
@@ -314,28 +420,23 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
       {showPinSection && (
         pinnedUsers.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {pinnedUsers.map((pinnedUser, idx) => {
-              const pinnedEntry = pinnedEntries[idx]
-              const myComparisonEntry = myComparisonEntries[idx]
-              if (!pinnedEntry) return null
-
-              return (
-                <PinnedFriendCard
-                  key={idx}
-                  pinnedUser={pinnedUser}
-                  pinnedEntry={pinnedEntry}
-                  myComparisonEntry={myComparisonEntry}
-                  idx={idx}
-                />
-              )
-            })}
+            {pinnedUsers.map((pinnedUser, idx) => (
+              <PinnedFriendCard
+                key={idx}
+                pinnedUser={pinnedUser}
+                pinnedEntry={pinnedEntries[idx] ?? null}
+                myComparisonEntry={myComparisonEntries[idx] ?? null}
+                watchingItems={pinnedWatching[idx] ?? []}
+                idx={idx}
+              />
+            ))}
           </div>
         ) : (
           <Card>
             <CardContent className="py-4">
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <Pin className="h-4 w-4" />
-                Pin a user from the <Link href="/social" className="underline hover:text-foreground">Social</Link> page to see their latest rating here.
+                Pin a user from the <Link href="/social" className="underline hover:text-foreground">Social</Link> page to see their latest rating and currently watching activity here.
               </p>
             </CardContent>
           </Card>

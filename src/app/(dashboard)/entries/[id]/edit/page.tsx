@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { GutRatingForm } from "@/components/gut-rating-form"
 import { DetailedRatingForm } from "@/components/detailed-rating-form"
@@ -29,7 +29,10 @@ import {
 export default function EditEntryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+  const returnToParam = searchParams.get("returnTo")
+  const returnTo = returnToParam && returnToParam.startsWith("/") && !returnToParam.startsWith("//") ? returnToParam : null
   const [entry, setEntry] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -238,7 +241,7 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <Button variant="ghost" size="sm" asChild>
-        <Link href={`/entries/${id}`}><ArrowLeft className="h-4 w-4 mr-1" />Back</Link>
+        <Link href={returnTo ?? `/entries/${id}`}><ArrowLeft className="h-4 w-4 mr-1" />Back</Link>
       </Button>
 
       <Card>

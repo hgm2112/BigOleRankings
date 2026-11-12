@@ -41,6 +41,7 @@ function EventScore({ event }: { event: FeedEvent }) {
       </span>
     )
   }
+  if (event.type === "watch") return null
   if (event.dnf) return null
   return (
     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -53,8 +54,35 @@ function EventScore({ event }: { event: FeedEvent }) {
 function eventVerb(event: FeedEvent): string {
   if (event.type === "gut") return "rated"
   if (event.type === "detailed") return "detailed-rated"
-  if (event.dnf) return `DNF'd S${event.season_number} of`
-  return `rated S${event.season_number} of`
+  if (event.type === "season") {
+    if (event.dnf) return `DNF'd S${event.season_number} of`
+    return `rated S${event.season_number} of`
+  }
+  // watch
+  const season =
+    event.media.media_type === "tv" && event.season_number != null
+      ? ` — Season ${event.season_number}`
+      : ""
+  switch (event.watch_event_type) {
+    case "started":
+      return event.media.media_type === "tv" && event.season_number != null
+        ? `started watching${season} of`
+        : "started watching"
+    case "finished":
+      return event.media.media_type === "tv" && event.season_number != null
+        ? `finished${season} of`
+        : "finished watching"
+    case "stopped":
+      return event.media.media_type === "tv" && event.season_number != null
+        ? `paused watching${season} of`
+        : "paused watching"
+    case "dnf":
+      return event.media.media_type === "tv" && event.season_number != null
+        ? `DNF'd${season} of`
+        : "DNF'd"
+    default:
+      return "is watching"
+  }
 }
 
 function FeedRow({
@@ -275,7 +303,7 @@ export function SocialFeed({ initialEvents, initialCursor }: SocialFeedProps) {
           <Activity className="h-4 w-4" />
           Recent Activity
         </CardTitle>
-        <CardDescription>What you and your friends have been watching</CardDescription>
+        <CardDescription>Ratings and watching activity from you and your friends</CardDescription>
       </CardHeader>
       <CardContent>
         {events.length === 0 ? (

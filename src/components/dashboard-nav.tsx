@@ -12,7 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { LogOut, LayoutDashboard, ListVideo, Plus, Users, Settings, UserPlus, Palette, BarChart3 } from "lucide-react"
+import { LogOut, LayoutDashboard, ListVideo, Plus, Users, Settings, UserPlus, Palette, BarChart3, PlayCircle } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 interface Profile {
@@ -37,6 +37,7 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/watching", label: "Watching", icon: PlayCircle },
     { href: "/entries", label: "My Ratings", icon: ListVideo },
     { href: "/entries/new", label: "Add Rating", icon: Plus },
     { href: "/stats", label: "Stats", icon: BarChart3 },

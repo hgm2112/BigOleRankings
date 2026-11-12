@@ -24,9 +24,10 @@ interface TMDBResult {
 
 interface TMDBSearchProps {
   onSelect: (item: TMDBResult) => void
+  selectionMode?: "rating" | "watching"
 }
 
-export function TMDSearch({ onSelect }: TMDBSearchProps) {
+export function TMDSearch({ onSelect, selectionMode = "rating" }: TMDBSearchProps) {
   const [query, setQuery] = useState("")
   const [type, setType] = useState("movie")
   const [results, setResults] = useState<TMDBResult[]>([])
@@ -91,14 +92,15 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {results.map((item) => {
             const poster = posterUrl(item.poster_path)
+            const canSelect = !item.already_rated || selectionMode === "watching"
             return (
               <Card
                 key={item.tmdb_id}
                 className={`flex items-center gap-3 p-3 transition-colors ${
-                  item.already_rated ? "cursor-default opacity-80" : "cursor-pointer hover:bg-accent"
+                  canSelect ? "cursor-pointer hover:bg-accent" : "cursor-default opacity-80"
                 }`}
                 onClick={() => {
-                  if (!item.already_rated) onSelect(item)
+                  if (canSelect) onSelect(item)
                 }}
               >
                 {poster ? (
@@ -110,12 +112,12 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
                 )}
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{item.title}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                     <span>{item.year}</span>
                     <span>{item.media_type === "tv" ? "TV Show" : "Movie"}</span>
                     {item.already_rated && (
                       <span className="rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-medium">
-                        Already rated
+                        {selectionMode === "watching" ? "Rated" : "Already rated"}
                       </span>
                     )}
                   </div>
@@ -123,23 +125,38 @@ export function TMDSearch({ onSelect }: TMDBSearchProps) {
                     <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.overview}</p>
                   )}
                 </div>
-                {item.already_rated ? (
-                  item.entry_id ? (
-                    <Button asChild size="sm" variant="outline" className="ml-auto flex-shrink-0">
-                      <Link href={`/entries/${item.entry_id}`} onClick={(e) => e.stopPropagation()}>
-                        View rating
-                      </Link>
-                    </Button>
+                <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+                  {item.already_rated ? (
+                    selectionMode === "watching" ? (
+                      <>
+                        {item.entry_id && (
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/entries/${item.entry_id}`} onClick={(e) => e.stopPropagation()}>
+                              View rating
+                            </Link>
+                          </Button>
+                        )}
+                        <Button size="sm" onClick={(e) => { e.stopPropagation(); onSelect(item) }}>
+                          Select
+                        </Button>
+                      </>
+                    ) : item.entry_id ? (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/entries/${item.entry_id}`} onClick={(e) => e.stopPropagation()}>
+                          View rating
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" disabled>
+                        Already rated
+                      </Button>
+                    )
                   ) : (
-                    <Button size="sm" variant="outline" disabled className="ml-auto flex-shrink-0">
-                      Already rated
+                    <Button size="sm" onClick={(e) => { e.stopPropagation(); onSelect(item) }}>
+                      Select
                     </Button>
-                  )
-                ) : (
-                  <Button size="sm" className="ml-auto flex-shrink-0" onClick={(e) => { e.stopPropagation(); onSelect(item) }}>
-                    Select
-                  </Button>
-                )}
+                  )}
+                </div>
               </Card>
             )
           })}
