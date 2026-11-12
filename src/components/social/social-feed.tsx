@@ -179,9 +179,9 @@ function MobileEventMeta({ event }: { event: FeedEvent }) {
     event.media.media_type === "tv" && event.season_number != null ? `Season ${event.season_number}` : null
 
   let score: { value: number; max: number; suffix: string } | null = null
-  if (event.type === "gut") {
+  if (event.type === "gut" && event.gut_rating != null) {
     score = { value: event.gut_rating, max: 100, suffix: "/100" }
-  } else if (event.type === "detailed") {
+  } else if (event.type === "detailed" && event.detailed_total != null) {
     score = { value: event.detailed_total, max: 100, suffix: "/100" }
   } else if (event.type === "watch") {
     if (
