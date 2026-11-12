@@ -636,7 +636,7 @@ export function WatchingClient({
                       ) : (
                         <div className="w-20 h-30 rounded bg-muted flex items-center justify-center flex-shrink-0">{p.media.media_type === "tv" ? <Tv className="h-5 w-5" /> : <Film className="h-5 w-5" />}</div>
                       )}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-3 sm:pr-0">
                         <p className="font-semibold truncate leading-tight">{p.media.title}</p>
                         <div className="mt-0.5"><MediaTypeBadge type={p.media.media_type} /></div>
                         <div className="flex items-center justify-between gap-2 mt-0.5">
@@ -667,8 +667,11 @@ export function WatchingClient({
                             <Button size="sm" variant="ghost" onClick={() => setEditDatesId(null)}>Cancel</Button>
                           </div>
                         )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <Label className="text-xs whitespace-nowrap text-muted-foreground">End/stop date</Label>
+                        <div className="flex items-center gap-2 mt-1 pr-2 sm:pr-0">
+                          <Label className="text-xs whitespace-nowrap text-muted-foreground">
+                            <span className="sm:hidden">Stop date</span>
+                            <span className="hidden sm:inline">End/stop date</span>
+                          </Label>
                           <Input type="date" value={endVal} onChange={(e) => setEndDateInputs((s) => ({ ...s, [p.id]: e.target.value }))} className="h-7 w-full max-w-[9.5rem] text-xs py-0" />
                         </div>
                       </div>

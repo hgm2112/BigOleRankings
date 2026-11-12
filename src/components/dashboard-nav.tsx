@@ -12,7 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { LogOut, LayoutDashboard, ListVideo, Plus, Users, Settings, UserPlus, Palette, BarChart3, PlayCircle } from "lucide-react"
+import { LogOut, LayoutDashboard, ListVideo, Plus, Users, Settings, UserPlus, Palette, BarChart3, PlayCircle, Activity } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 interface Profile {
@@ -44,7 +44,7 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
     { href: "/compare", label: "Compare", icon: Users },
     { href: "/social", label: "Social", icon: UserPlus },
   ]
-  const mobileNavLinks = navLinks.filter((link) => link.href !== "/stats" && link.href !== "/compare")
+  const mobileNavLinks = navLinks.filter((link) => link.href !== "/compare")
 
   return (
     <header className="border-b">
@@ -115,9 +115,9 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
         </div>
       </div>
 
-      <nav className="md:hidden flex items-center gap-0 px-2 pb-2 overflow-x-auto">
+      <nav className="md:hidden flex items-center justify-center gap-0 px-2 pb-2 overflow-x-auto">
         {mobileNavLinks.map((link) => {
-          const Icon = link.icon
+          const Icon = link.href === "/social" ? Activity : link.icon
           const isActive = pathname === link.href || pathname?.startsWith(link.href + "/")
           return (
             <Button key={link.href} variant={isActive ? "secondary" : "ghost"} size="sm" asChild className="flex-shrink-0" aria-label={link.label} title={link.label}>

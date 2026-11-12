@@ -424,7 +424,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
     },
     {
       label: "Hours Watched (30d)",
-      value: watched30d > 0 ? formatMinutes(watched30d) : "—",
+      value: watched30d > 0 ? (Math.round(watched30d / 60) === 0 ? "<1h" : `${Math.round(watched30d / 60)}h`) : "—",
       icon: Clock,
       iconClass: "text-cyan-500",
       chipClass: "bg-cyan-500/10",
@@ -475,12 +475,12 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
         )
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.label}>
-              <CardContent className="flex items-center gap-3 pt-6">
+              <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-6">
                 {prefs.stat_chips ? (
                   <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${stat.chipClass}`}>
                     <Icon className={`h-5 w-5 ${stat.iconClass}`} />
@@ -510,7 +510,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
       )}
 
       <Tabs defaultValue="gut">
-        <TabsList>
+        <TabsList className="mx-auto flex w-max max-w-full sm:mx-0">
           <TabsTrigger value="gut">Gut Rating</TabsTrigger>
           <TabsTrigger value="detailed">Detailed Rating</TabsTrigger>
           <TabsTrigger value="last10">Last 10 Rated</TabsTrigger>
@@ -528,7 +528,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
               {sections.map((section) => (
                 <Card key={section.label}>
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-1">
+                    <CardTitle className="text-sm flex items-center justify-center gap-1 text-center sm:justify-start sm:text-left">
                       {section.type === "worst" ? <TrendingDown className="h-4 w-4 text-destructive" /> : <TrendingUp className="h-4 w-4 text-green-600" />}
                       {section.label}
                     </CardTitle>
@@ -558,7 +558,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
               {sectionsDetailed.map((section) => (
                 <Card key={section.label}>
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-1">
+                    <CardTitle className="text-sm flex items-center justify-center gap-1 text-center sm:justify-start sm:text-left">
                       {section.type === "worst" ? <TrendingDown className="h-4 w-4 text-destructive" /> : <TrendingUp className="h-4 w-4 text-green-600" />}
                       {section.label}
                     </CardTitle>
