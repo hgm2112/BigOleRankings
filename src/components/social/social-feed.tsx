@@ -52,7 +52,7 @@ function EventScore({ event }: { event: FeedEvent }) {
 }
 
 function eventVerb(event: FeedEvent): string {
-  if (event.type === "gut") return "rated"
+  if (event.type === "gut") return "gut-rated"
   if (event.type === "detailed") return "detailed-rated"
   if (event.type === "season") {
     if (event.dnf) return `DNF'd S${event.season_number} of`
@@ -130,7 +130,15 @@ function FeedRow({
           >
             {displayName}
           </Link>
-          <span className="text-muted-foreground">{eventVerb(event)}</span>
+          <span
+            className={cn(
+              "text-muted-foreground",
+              event.type === "gut" && "rounded px-1.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400",
+              event.type === "detailed" && "rounded px-1.5 py-0.5 text-xs font-medium bg-violet-500/10 text-violet-700 dark:text-violet-400"
+            )}
+          >
+            {eventVerb(event)}
+          </span>
           <Link href={titleHref} className="font-medium hover:underline line-clamp-1">
             {event.media.title}
           </Link>
