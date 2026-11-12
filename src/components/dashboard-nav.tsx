@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
@@ -25,8 +26,14 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
 
   const handleSignOut = async () => {
+    setMenuOpen(false)
     await supabase.auth.signOut()
     router.push("/login")
     router.refresh()
@@ -77,7 +84,7 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <Popover>
+          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
@@ -94,16 +101,16 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
               <Separator className="my-2" />
               <div className="flex flex-col gap-1">
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
-                  <Link href="/customization"><Palette className="h-4 w-4 mr-2" />Customization</Link>
+                  <Link href="/customization" onClick={() => setMenuOpen(false)}><Palette className="h-4 w-4 mr-2" />Customization</Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
-                  <Link href="/settings"><Settings className="h-4 w-4 mr-2" />Settings</Link>
+                  <Link href="/settings" onClick={() => setMenuOpen(false)}><Settings className="h-4 w-4 mr-2" />Settings</Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
-                  <Link href="/stats"><BarChart3 className="h-4 w-4 mr-2" />Stats</Link>
+                  <Link href="/stats" onClick={() => setMenuOpen(false)}><BarChart3 className="h-4 w-4 mr-2" />Stats</Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
-                  <Link href="/compare"><Users className="h-4 w-4 mr-2" />Compare</Link>
+                  <Link href="/compare" onClick={() => setMenuOpen(false)}><Users className="h-4 w-4 mr-2" />Compare</Link>
                 </Button>
               </div>
               <Separator className="my-2" />
