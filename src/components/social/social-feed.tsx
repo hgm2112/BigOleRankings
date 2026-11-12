@@ -24,6 +24,29 @@ interface Me {
   display_name: string | null
 }
 
+function formatRelativeTime(iso: string): string {
+  const date = new Date(iso)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHr = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHr / 24)
+
+  if (diffSec < 60) return "Just now"
+  if (diffMin < 60) return `${diffMin}m ago`
+  if (diffHr < 24) return `${diffHr}h ago`
+  if (diffDay === 1) return "Yesterday"
+  if (diffDay < 7) return `${diffDay}d ago`
+
+  const sameYear = date.getFullYear() === now.getFullYear()
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  })
+}
+
 function EventScore({ event }: { event: FeedEvent }) {
   if (event.type === "gut") {
     return (
@@ -104,19 +127,107 @@ function eventVerb(event: FeedEvent): string {
   return `${action}${suffix}`
 }
 
-function eventActionClass(event: FeedEvent): string | undefined {
-  const chip = "rounded px-1.5 py-0.5 text-xs font-medium"
-  if (event.type === "gut") return `${chip} bg-teal-500/10 text-teal-700 dark:text-teal-400`
-  if (event.type === "detailed") return `${chip} bg-violet-500/10 text-violet-700 dark:text-violet-400`
+function eventMobileAction(event: FeedEvent): string {
+  if (event.type === "gut") return "gut-rated"
+  if (event.type === "detailed") return "detailed-rated"
+  if (event.type === "season") return event.dnf ? "DNF'd" : "rated"
+  switch (event.watch_event_type) {
+    case "started":
+      return "started watching"
+    case "finished":
+      return "finished"
+    case "stopped":
+      return "paused watching"
+    case "dnf":
+      return "DNF'd"
+    default:
+      return "is watching"
+  }
+}
+
+function eventMobileMeta(event: FeedEvent): string | null {
+  const parts: string[] = []
+  if (event.media.media_type === "tv" && event.season_number != null) {
+    parts.push(`Season ${event.season_number}`)
+  }
+
+  let score: string | null = null
+  if (event.type === "gut") {
+    score = `${event.gut_rating}/100`
+  } else if (event.type === "detailed") {
+    score = `${event.detailed_total}/100`
+  } else if (event.type === "watch") {
+    if (
+      (event.watch_event_type === "finished" || event.watch_event_type === "dnf") &&
+      event.season_number != null &&
+      event.season_rating != null
+    ) {
+      score = `${event.season_rating}/10`
+    }
+  } else if (event.type === "season") {
+    if (!event.dnf && event.season_rating != null) {
+      score = `${event.season_rating}/10`
+    }
+  }
+
+  if (score) parts.push(score)
+  return parts.length > 0 ? parts.join(" · ") : null
+}
+
+function MobileEventMeta({ event }: { event: FeedEvent }) {
+  const seasonLabel =
+    event.media.media_type === "tv" && event.season_number != null ? `Season ${event.season_number}` : null
+
+  let score: { value: number; max: number; suffix: string } | null = null
+  if (event.type === "gut") {
+    score = { value: event.gut_rating, max: 100, suffix: "/100" }
+  } else if (event.type === "detailed") {
+    score = { value: event.detailed_total, max: 100, suffix: "/100" }
+  } else if (event.type === "watch") {
+    if (
+      (event.watch_event_type === "finished" || event.watch_event_type === "dnf") &&
+      event.season_number != null &&
+      event.season_rating != null
+    ) {
+      score = { value: event.season_rating, max: 10, suffix: "/10" }
+    }
+  } else if (event.type === "season") {
+    if (!event.dnf && event.season_rating != null) {
+      score = { value: event.season_rating, max: 10, suffix: "/10" }
+    }
+  }
+
+  if (!seasonLabel && !score) return null
+
+  return (
+    <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+      {seasonLabel && <span>{seasonLabel}</span>}
+      {seasonLabel && score && <span>·</span>}
+      {score && (
+        <span className="inline-flex items-center gap-1">
+          <ScoreChip value={score.value} max={score.max} />
+          <span className="tabular-nums">{score.suffix}</span>
+        </span>
+      )}
+    </p>
+  )
+}
+
+function eventActionClass(event: FeedEvent, compact = false): string | undefined {
+  const chip = compact
+    ? "inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset"
+    : "inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[12px] font-medium ring-1 ring-inset"
+  if (event.type === "gut") return `${chip} bg-teal-600 text-teal-50 ring-teal-300/30`
+  if (event.type === "detailed") return `${chip} bg-violet-600 text-violet-50 ring-violet-300/30`
   if (event.type === "watch") {
-    if (event.watch_event_type === "started") return `${chip} bg-sky-500/10 text-sky-700 dark:text-sky-400`
-    if (event.watch_event_type === "finished") return `${chip} bg-[#8a5b00]/20 text-[#ffc94d]`
-    if (event.watch_event_type === "stopped") return `${chip} bg-[#7a2e00]/20 text-[#ff9a3d]`
-    if (event.watch_event_type === "dnf") return `${chip} bg-[#6b0000]/20 text-[#ff6b6b]`
+    if (event.watch_event_type === "started") return `${chip} bg-sky-600 text-sky-50 ring-sky-300/30`
+    if (event.watch_event_type === "finished") return `${chip} bg-[#8a5b00] text-[#ffc94d] ring-[#ffd27a]/40`
+    if (event.watch_event_type === "stopped") return `${chip} bg-[#7a2e00] text-[#ff9a3d] ring-[#ffb066]/40`
+    if (event.watch_event_type === "dnf") return `${chip} bg-[#6b0000] text-[#ff6b6b] ring-[#ff8a8a]/35`
   }
   if (event.type === "season") {
-    if (event.dnf) return `${chip} bg-[#6b0000]/20 text-[#ff6b6b]`
-    return `${chip} bg-indigo-500/10 text-indigo-700 dark:text-indigo-400`
+    if (event.dnf) return `${chip} bg-[#6b0000] text-[#ff6b6b] ring-[#ff8a8a]/35`
+    return `${chip} bg-indigo-600 text-indigo-50 ring-indigo-300/30`
   }
   return undefined
 }
@@ -134,113 +245,210 @@ function FeedRow({
   const displayName = event.user.display_name || event.user.username
   const { action, suffix } = eventVerbParts(event)
   const actionClass = eventActionClass(event)
+  const mobileAction = eventMobileAction(event)
+  const mobileActionClass = eventActionClass(event, true)
+  const mobileMeta = eventMobileMeta(event)
+  const relativeTime = formatRelativeTime(event.at)
+  const absoluteTime = new Date(event.at).toLocaleString()
+
+  const poster = event.media.poster_path ? (
+    <Image
+      src={`https://image.tmdb.org/t/p/w154${event.media.poster_path}`}
+      alt={event.media.title}
+      fill
+      sizes="(max-width: 640px) 64px, 40px"
+      quality={90}
+      className="object-cover"
+    />
+  ) : event.media.media_type === "tv" ? (
+    <Tv className="h-4 w-4 text-muted-foreground" />
+  ) : (
+    <Film className="h-4 w-4 text-muted-foreground" />
+  )
 
   return (
-    <div className="flex gap-3 p-2 rounded hover:bg-accent">
-      {event.media.poster_path ? (
-        <div className="relative w-10 h-[60px] rounded overflow-hidden bg-muted flex-shrink-0">
-          <Image
-            src={`https://image.tmdb.org/t/p/w154${event.media.poster_path}`}
-            alt={event.media.title}
-            fill
-            sizes="40px"
-            quality={90}
-            className="object-cover"
-          />
+    <div className="relative rounded-md sm:rounded sm:p-2 sm:hover:bg-accent">
+      {/* Mobile layout */}
+      <div className="sm:hidden relative flex gap-3 p-3">
+        <Link
+          href={titleHref}
+          aria-label={`${displayName} ${mobileAction} ${event.media.title}`}
+          className="absolute inset-0 z-0 rounded-md"
+        />
+        <div className="relative w-16 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 z-0">
+          {event.media.poster_path ? poster : <div className="w-full h-full flex items-center justify-center">{poster}</div>}
         </div>
-      ) : (
-        <div className="w-10 h-[60px] rounded bg-muted flex items-center justify-center flex-shrink-0">
-          {event.media.media_type === "tv" ? (
-            <Tv className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <Film className="h-4 w-4 text-muted-foreground" />
-          )}
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 text-sm flex-wrap">
-          <Avatar className="h-5 w-5">
-            <AvatarFallback className="text-[10px]">{displayName.charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <Link
-            href={`/users/${event.user.username}`}
-            className="font-medium hover:underline"
-          >
-            {displayName}
-          </Link>
-          {actionClass ? (
-            <>
-              <span className={cn("text-muted-foreground", actionClass)}>{action}</span>
-              {suffix && <span className="text-muted-foreground">{suffix}</span>}
-            </>
-          ) : (
-            <span className="text-muted-foreground">{action}{suffix}</span>
-          )}
-          <Link href={titleHref} className="font-medium hover:underline line-clamp-1">
-            {event.media.title}
-          </Link>
-          <EventScore event={event} />
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-          {event.media.media_type === "tv" ? (
-            <Tv className="h-3 w-3" aria-label="TV show" />
-          ) : (
-            <Film className="h-3 w-3" aria-label="Movie" />
-          )}
-          <span>
-            {event.media.year ? `${event.media.year} · ` : ""}
-            {new Date(event.at).toLocaleString()}
-          </span>
-        </p>
-      </div>
-      <div className="flex items-center gap-1 self-center flex-shrink-0">
-        <button
-          type="button"
-          aria-label={event.liked_by_me ? "Unlike this update" : "Like this update"}
-          aria-pressed={event.liked_by_me}
-          disabled={!me}
-          onClick={() => onToggleLike(event)}
-          className="p-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <Heart
-            className={cn(
-              "h-4 w-4 transition-colors",
-              event.liked_by_me && "fill-current text-red-500"
+        <div className="flex-1 min-w-0 flex flex-col gap-1 relative z-0 min-h-24">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm font-medium truncate">{displayName}</span>
+            {mobileActionClass && (
+              <span className={cn("shrink-0 max-w-full truncate", mobileActionClass)}>{mobileAction}</span>
             )}
-          />
-        </button>
-        {event.like_count > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-label={`${event.like_count} likes`}
-                className="text-xs text-muted-foreground tabular-nums hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded px-1"
-              >
-                {event.like_count}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-60 p-2">
-              <p className="text-xs font-medium text-muted-foreground px-1 pb-1">Liked by</p>
-              <div className="max-h-48 overflow-y-auto space-y-0.5">
-                {event.likers.map((liker) => (
-                  <Link
-                    key={liker.username}
-                    href={`/users/${liker.username}`}
-                    className="flex items-center gap-2 rounded p-1 text-sm hover:bg-accent"
+          </div>
+          <p className="text-sm font-semibold leading-snug line-clamp-2">{event.media.title}</p>
+          <MobileEventMeta event={event} />
+          <p className="text-xs text-muted-foreground" title={absoluteTime}>{relativeTime}</p>
+        </div>
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-10 h-24">
+          <div className="pointer-events-auto absolute bottom-0 right-0 flex items-end gap-0.5">
+            <button
+              type="button"
+              aria-label={event.liked_by_me ? "Unlike this update" : "Like this update"}
+              aria-pressed={event.liked_by_me}
+              disabled={!me}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onToggleLike(event)
+              }}
+              className="h-11 w-11 inline-flex items-end justify-center pb-0 rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <Heart
+                className={cn(
+                  "h-5 w-5 transition-colors",
+                  event.liked_by_me && "fill-current text-red-500"
+                )}
+              />
+            </button>
+            {event.like_count > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`${event.like_count} likes`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                    }}
+                    className="relative z-10 min-h-[44px] px-1 pb-0 inline-flex items-end text-xs text-muted-foreground tabular-nums hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded"
                   >
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs">
-                        {(liker.display_name || liker.username).charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="truncate">{liker.display_name || liker.username}</span>
-                  </Link>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+                    {event.like_count}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-60 p-2 z-20">
+                  <p className="text-xs font-medium text-muted-foreground px-1 pb-1">Liked by</p>
+                  <div className="max-h-48 overflow-y-auto space-y-0.5">
+                    {event.likers.map((liker) => (
+                      <Link
+                        key={liker.username}
+                        href={`/users/${liker.username}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2 rounded p-1 text-sm hover:bg-accent"
+                      >
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs">
+                            {(liker.display_name || liker.username).charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{liker.display_name || liker.username}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop layout */}
+      <div className="hidden sm:flex gap-3">
+        {event.media.poster_path ? (
+          <div className="relative w-10 h-[60px] rounded overflow-hidden bg-muted flex-shrink-0">
+            <Image
+              src={`https://image.tmdb.org/t/p/w154${event.media.poster_path}`}
+              alt={event.media.title}
+              fill
+              sizes="40px"
+              quality={90}
+              className="object-cover"
+            />
+          </div>
+        ) : (
+          <div className="w-10 h-[60px] rounded bg-muted flex items-center justify-center flex-shrink-0">
+            {event.media.media_type === "tv" ? (
+              <Tv className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Film className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
         )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-sm flex-wrap">
+            <Link href={`/users/${event.user.username}`} className="font-medium hover:underline">
+              {displayName}
+            </Link>
+            {actionClass ? (
+              <>
+                <span className={cn(actionClass)}>{action}</span>
+                {suffix && <span className="text-muted-foreground">{suffix}</span>}
+              </>
+            ) : (
+              <span className="text-muted-foreground">{action}{suffix}</span>
+            )}
+            <Link href={titleHref} className="font-medium hover:underline line-clamp-1">
+              {event.media.title}
+            </Link>
+            <EventScore event={event} />
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+            {event.media.media_type === "tv" ? (
+              <Tv className="h-3 w-3" aria-label="TV show" />
+            ) : (
+              <Film className="h-3 w-3" aria-label="Movie" />
+            )}
+            <span>
+              {event.media.year ? `${event.media.year} · ` : ""}
+              {new Date(event.at).toLocaleString()}
+            </span>
+          </p>
+        </div>
+        <div className="flex items-center gap-1 self-center flex-shrink-0">
+          <button
+            type="button"
+            aria-label={event.liked_by_me ? "Unlike this update" : "Like this update"}
+            aria-pressed={event.liked_by_me}
+            disabled={!me}
+            onClick={() => onToggleLike(event)}
+            className="p-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <Heart
+              className={cn("h-4 w-4 transition-colors", event.liked_by_me && "fill-current text-red-500")}
+            />
+          </button>
+          {event.like_count > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${event.like_count} likes`}
+                  className="text-xs text-muted-foreground tabular-nums hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded px-1"
+                >
+                  {event.like_count}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-60 p-2">
+                <p className="text-xs font-medium text-muted-foreground px-1 pb-1">Liked by</p>
+                <div className="max-h-48 overflow-y-auto space-y-0.5">
+                  {event.likers.map((liker) => (
+                    <Link
+                      key={liker.username}
+                      href={`/users/${liker.username}`}
+                      className="flex items-center gap-2 rounded p-1 text-sm hover:bg-accent"
+                    >
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-xs">
+                          {(liker.display_name || liker.username).charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="truncate">{liker.display_name || liker.username}</span>
+                    </Link>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -343,38 +551,38 @@ export function SocialFeed({ initialEvents, initialCursor }: SocialFeedProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-sm flex items-center gap-2">
+      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
+        <CardTitle className="text-base sm:text-sm flex items-center gap-2 font-bold sm:font-semibold">
           <Activity className="h-4 w-4" />
           Recent Activity
         </CardTitle>
-        <CardDescription>Ratings and watching activity from you and your friends</CardDescription>
+        <CardDescription className="text-sm">Ratings and watching activity from you and your friends</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
         {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No activity yet — rate something or follow some friends.
+          <p className="text-sm text-muted-foreground px-2 py-4 sm:px-0 sm:py-0">
+            No recent activity yet.
           </p>
         ) : (
-          <div className="space-y-1">
+          <div className="flex flex-col sm:space-y-1 sm:block divide-y divide-border/60 sm:divide-y-0">
             {events.map((event) => (
               <FeedRow key={event.key} event={event} me={me} onToggleLike={toggleLike} />
             ))}
           </div>
         )}
-        {error && (
-          <p className="text-sm text-destructive mt-2">{error}</p>
-        )}
+        {error && <p className="text-sm text-destructive mt-2 px-2 sm:px-0">{error}</p>}
         {cursor && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full mt-3"
-            onClick={loadMore}
-            disabled={loading}
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load more"}
-          </Button>
+          <div className="px-2 pb-2 sm:px-0 sm:pb-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-3"
+              onClick={loadMore}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load more"}
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
