@@ -39,6 +39,7 @@ export function StatsCharts({ entries }: { entries: FlatEntry[] }) {
       const raw = e.gut_rated_at ?? e.created_at
       if (!raw) continue
       const key = raw.slice(0, 7)
+      if (key === "2026-06") continue
       const bucket = monthMap.get(key) ?? { count: 0, sum: 0, gutted: 0 }
       bucket.count++
       if (e.gut_rating !== null) {
