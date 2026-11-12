@@ -622,7 +622,7 @@ export function WatchingClient({
               const endVal = endDateInputs[p.id] || todayLocalDate()
               const finishing = busy === p.id + "finished" || (finishBusy === "loading")
               const line3 = p.media.media_type === "tv"
-                ? `${p.media.year ? `${p.media.year} - ` : ""}Season ${p.season_number}`
+                ? `Season ${p.season_number}${p.media.year ? ` • ${p.media.year}` : ""}`
                 : (p.media.year ? `${p.media.year}` : "")
               return (
                 <Card key={p.id}>

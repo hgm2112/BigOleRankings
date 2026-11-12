@@ -319,8 +319,11 @@ function PinnedCurrentlyWatching({ items, username }: { items: PinnedWatchItem[]
         <p className="font-semibold line-clamp-1">{w.media.title}</p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
           {prefs.media_badges ? <MediaTypeBadge type={w.media.media_type} /> : <span>{w.media.media_type === "tv" ? "TV Show" : "Movie"}</span>}
-          {w.media.media_type === "tv" && w.season_number != null && <span>Season {w.season_number}</span>}
-          {w.media.year && <span>{w.media.year}</span>}
+          <span>
+            {w.media.media_type === "tv" && w.season_number != null
+              ? `Season ${w.season_number}${w.media.year ? ` • ${w.media.year}` : ""}`
+              : (w.media.year ? `${w.media.year}` : "")}
+          </span>
         </div>
         <p className="text-xs text-muted-foreground">Started {formatDate(w.started_at)}</p>
         <div className="flex items-center justify-between gap-2">

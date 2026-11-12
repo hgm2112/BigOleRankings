@@ -105,7 +105,7 @@ export function UserWatchingView({
             {active.map((p) => {
               const url = posterUrl(p.media.poster_path)
               const line3 = p.media.media_type === "tv"
-                ? `${p.media.year ? `${p.media.year} - ` : ""}Season ${p.season_number}`
+                ? `Season ${p.season_number}${p.media.year ? ` • ${p.media.year}` : ""}`
                 : (p.media.year ? `${p.media.year}` : "")
               const rating = getSeasonRating(p)
               return (
