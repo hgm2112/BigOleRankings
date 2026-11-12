@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { TMDSearch } from "@/components/tmdb-search"
 import { MediaTypeBadge } from "@/components/media-type-badge"
-import { Film, Tv, PlayCircle, CheckCircle2, XCircle, PauseCircle, RotateCcw, Plus, Pencil, Calendar, Trash2, Star } from "lucide-react"
+import { Film, Tv, PlayCircle, Play, CheckCircle2, XCircle, PauseCircle, RotateCcw, Plus, Pencil, Calendar, Trash2, Star, MoreVertical } from "lucide-react"
 import { formatDuration, todayLocalDate, type WatchPeriodWithMedia } from "@/lib/watching"
 
 interface TMDBResult {
@@ -44,6 +45,7 @@ interface TMDBDetails {
 interface FinishDialogState {
   period: WatchPeriodWithMedia
   endedAt: string
+  actionType: "finished" | "dnf"
   nextSeasonAvailable: boolean
   nextSeasonNumber: number | null
   details: TMDBDetails | null
@@ -64,11 +66,41 @@ function statusLabel(status: WatchPeriodWithMedia["status"]) {
 
 function StatusPill({ status }: { status: WatchPeriodWithMedia["status"] }) {
   const cls =
-    status === "currently_watching" ? "bg-emerald-500/10 text-emerald-600" :
-    status === "finished" ? "bg-sky-500/10 text-sky-600" :
-    status === "dnf" ? "bg-destructive/10 text-destructive" :
-    "bg-amber-500/10 text-amber-600"
-  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>{statusLabel(status)}</span>
+    status === "currently_watching" ? "bg-emerald-600 text-emerald-50 ring-1 ring-inset ring-emerald-300/30" :
+    status === "finished" ? "bg-[#8a5b00] text-[#ffc94d] ring-1 ring-inset ring-[#ffd27a]/40" :
+    status === "dnf" ? "bg-[#6b0000] text-[#ff6b6b] ring-1 ring-inset ring-[#ff8a8a]/35" :
+    "bg-[#7a2e00] text-[#ff9a3d] ring-1 ring-inset ring-[#ffb066]/40"
+  return <span className={`inline-flex items-center justify-center min-w-[92px] text-[12px] px-2.5 py-0.5 rounded-full font-medium ${cls}`}>{statusLabel(status)}</span>
+}
+
+function historyDateLine(startedAt: string, endedAt: string | null) {
+  if (!endedAt) return formatHistoryDate(startedAt)
+  const start = new Date(`${startedAt}T00:00:00`)
+  const end = new Date(`${endedAt}T00:00:00`)
+  if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start.getTime() === end.getTime()) {
+    return formatHistoryDate(startedAt)
+  }
+  return `${formatHistoryDate(startedAt)} to ${formatHistoryDate(endedAt)}`
+}
+
+function historyDurationLine(startedAt: string, endedAt: string | null) {
+  if (endedAt) {
+    const start = new Date(`${startedAt}T00:00:00`)
+    const end = new Date(`${endedAt}T00:00:00`)
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start.getTime() === end.getTime()) {
+      return "same day"
+    }
+  }
+  return formatDuration(startedAt, endedAt)
+}
+
+function formatHistoryDate(dateStr: string) {
+  const d = new Date(`${dateStr}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return dateStr
+  const currentYear = new Date().getFullYear()
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
+  if (d.getFullYear() !== currentYear) opts.year = "numeric"
+  return d.toLocaleDateString("en-US", opts)
 }
 
 async function apiAction(payload: any) {
@@ -85,9 +117,11 @@ async function apiAction(payload: any) {
 export function WatchingClient({
   initialActive,
   initialHistory,
+  seasonRatings = {},
 }: {
   initialActive: WatchPeriodWithMedia[]
   initialHistory: WatchPeriodWithMedia[]
+  seasonRatings?: Record<string, { rating: number | null; dnf: boolean }>
 }) {
   const router = useRouter()
   const supabase = createClient()
@@ -110,6 +144,9 @@ export function WatchingClient({
   const [finishSeasonRating, setFinishSeasonRating] = useState<string>("none")
   const [nextSeasonStartDate, setNextSeasonStartDate] = useState(todayLocalDate())
   const [finishBusy, setFinishBusy] = useState<string | null>(null)
+  const [ratingEditTarget, setRatingEditTarget] = useState<WatchPeriodWithMedia | null>(null)
+  const [ratingEditValue, setRatingEditValue] = useState<string>("none")
+  const [ratingEditBusy, setRatingEditBusy] = useState(false)
 
   useEffect(() => { setActive(initialActive) }, [initialActive])
   useEffect(() => { setHistory(initialHistory) }, [initialHistory])
@@ -174,14 +211,14 @@ export function WatchingClient({
     }
   }
 
-  const saveSeasonRatingIfAny = async (mediaId: string, seasonNum: number) => {
+  const saveSeasonRatingIfAny = async (mediaId: string, seasonNum: number, markDnf = false) => {
     if (finishSeasonRating === "none") return
     const rating = Number(finishSeasonRating)
     if (!Number.isInteger(rating) || rating < 1 || rating > 10) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Not authenticated")
     const { error: srErr } = await supabase.from("season_ratings").upsert(
-      { user_id: user.id, media_id: mediaId, season_number: seasonNum, rating, dnf: false },
+      { user_id: user.id, media_id: mediaId, season_number: seasonNum, rating, dnf: markDnf },
       { onConflict: "user_id,media_id,season_number" }
     )
     if (srErr) throw new Error(srErr.message)
@@ -209,7 +246,7 @@ export function WatchingClient({
     return `/entries/new?${params.toString()}`
   }
 
-  const openFinishDialogForTv = async (p: WatchPeriodWithMedia, endedAt: string) => {
+  const openFinishDialogForTv = async (p: WatchPeriodWithMedia, endedAt: string, actionType: "finished" | "dnf" = "finished") => {
     setFinishBusy("loading")
     setError(null)
     try {
@@ -231,24 +268,43 @@ export function WatchingClient({
       setFinishDialog({
         period: p,
         endedAt,
+        actionType,
         nextSeasonAvailable,
         nextSeasonNumber: nextSeasonAvailable ? nextSeasonNumber : null,
         details: tmdbDetails,
       })
     } catch (e: any) {
-      setError(e.message || "Failed to prepare finish options")
+      setError(e.message || "Failed to prepare options")
     } finally {
       setFinishBusy(null)
     }
+  }
+
+  const openFinishDialogForMovie = (p: WatchPeriodWithMedia, endedAt: string, actionType: "finished" | "dnf" = "dnf") => {
+    setFinishSeasonRating("none")
+    setNextSeasonStartDate(todayLocalDate())
+    setFinishDialog({
+      period: p,
+      endedAt,
+      actionType,
+      nextSeasonAvailable: false,
+      nextSeasonNumber: null,
+      details: null,
+    })
   }
 
   const transition = async (p: WatchPeriodWithMedia, status: "finished" | "dnf" | "stopped") => {
     const ended_at = endDateInputs[p.id] || todayLocalDate()
     setError(null)
 
-    // Defer committing TV season finish until dialog is confirmed/cancelled.
-    if (status === "finished" && p.media_type === "tv" && p.season_number != null) {
-      await openFinishDialogForTv(p, ended_at)
+    // Defer committing TV season finish/DNF until dialog is confirmed/cancelled.
+    if ((status === "finished" || status === "dnf") && p.media_type === "tv" && p.season_number != null) {
+      await openFinishDialogForTv(p, ended_at, status)
+      return
+    }
+    // Allow optional rating flow for DNF on movies.
+    if (status === "dnf" && p.media_type === "movie") {
+      openFinishDialogForMovie(p, ended_at, "dnf")
       return
     }
 
@@ -263,8 +319,8 @@ export function WatchingClient({
     }
   }
 
-  const commitFinishTransition = async (periodId: string, endedAt: string) => {
-    await apiAction({ action: "transition", period_id: periodId, status: "finished", ended_at: endedAt })
+  const commitTransition = async (periodId: string, endedAt: string, status: "finished" | "dnf") => {
+    await apiAction({ action: "transition", period_id: periodId, status, ended_at: endedAt })
   }
 
   const closeFinishDialog = (shouldRefresh = true) => {
@@ -279,13 +335,13 @@ export function WatchingClient({
     setFinishBusy("save")
     setError(null)
     try {
-      await commitFinishTransition(finishDialog.period.id, finishDialog.endedAt)
+      await commitTransition(finishDialog.period.id, finishDialog.endedAt, finishDialog.actionType)
       if (finishDialog.period.season_number != null) {
-        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number)
+        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number, finishDialog.actionType === "dnf")
       }
       closeFinishDialog(true)
     } catch (e: any) {
-      setError(e.message || "Failed to finish season")
+      setError(e.message || (finishDialog.actionType === "dnf" ? "Failed to mark DNF" : "Failed to finish season"))
     } finally {
       setFinishBusy(null)
     }
@@ -296,9 +352,9 @@ export function WatchingClient({
     setFinishBusy("rate")
     setError(null)
     try {
-      await commitFinishTransition(finishDialog.period.id, finishDialog.endedAt)
+      await commitTransition(finishDialog.period.id, finishDialog.endedAt, finishDialog.actionType)
       if (finishDialog.period.season_number != null) {
-        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number)
+        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number, finishDialog.actionType === "dnf")
       }
       const href = await resolveShowRatingHref(
         finishDialog.period.media_id,
@@ -312,7 +368,7 @@ export function WatchingClient({
       if (href) router.push(href)
       else refresh()
     } catch (e: any) {
-      setError(e.message || "Failed to continue to show rating")
+      setError(e.message || "Failed to continue to rating")
     } finally {
       setFinishBusy(null)
     }
@@ -323,9 +379,9 @@ export function WatchingClient({
     setFinishBusy("next")
     setError(null)
     try {
-      await commitFinishTransition(finishDialog.period.id, finishDialog.endedAt)
+      await commitTransition(finishDialog.period.id, finishDialog.endedAt, finishDialog.actionType)
       if (finishDialog.period.season_number != null) {
-        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number)
+        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number, finishDialog.actionType === "dnf")
       }
       const d = finishDialog.details
       await apiAction({
@@ -394,6 +450,75 @@ export function WatchingClient({
       refresh()
     } catch (e: any) {
       setError(e.message || "Failed to delete")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const openRatingEdit = (p: WatchPeriodWithMedia) => {
+    if (p.media_type === "tv" && p.season_number != null) {
+      const sr = seasonRatings[`${p.media_id}:${p.season_number}`]
+      setRatingEditValue(sr?.rating != null ? String(sr.rating) : "none")
+    } else {
+      setRatingEditValue("none")
+    }
+    setRatingEditTarget(p)
+  }
+
+  const saveRatingEdit = async () => {
+    if (!ratingEditTarget) return
+    setRatingEditBusy(true)
+    setError(null)
+    try {
+      const p = ratingEditTarget
+      if (p.media_type === "tv" && p.season_number != null) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error("Not authenticated")
+        const key = `${p.media_id}:${p.season_number}`
+        const existing = seasonRatings[key]
+        const dnfFlag = existing?.dnf ?? (p.status === "dnf")
+        if (ratingEditValue === "none") {
+          const { error: delErr } = await supabase
+            .from("season_ratings")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("media_id", p.media_id)
+            .eq("season_number", p.season_number)
+          if (delErr) throw new Error(delErr.message)
+        } else {
+          const rating = Number(ratingEditValue)
+          if (!Number.isInteger(rating) || rating < 1 || rating > 10) throw new Error("Invalid rating")
+          const { error: upErr } = await supabase.from("season_ratings").upsert(
+            { user_id: user.id, media_id: p.media_id, season_number: p.season_number, rating, dnf: dnfFlag },
+            { onConflict: "user_id,media_id,season_number" }
+          )
+          if (upErr) throw new Error(upErr.message)
+        }
+        setRatingEditTarget(null)
+        refresh()
+      }
+    } catch (e: any) {
+      setError(e.message || "Failed to save rating")
+    } finally {
+      setRatingEditBusy(false)
+    }
+  }
+
+  const editMovieRating = async (p: WatchPeriodWithMedia) => {
+    setBusy(p.id + "rate")
+    setError(null)
+    try {
+      const href = await resolveShowRatingHref(
+        p.media_id,
+        p.media.tmdb_id,
+        p.media_type,
+        p.media.title,
+        p.media.year,
+        p.media.poster_path
+      )
+      if (href) router.push(href)
+    } catch (e: any) {
+      setError(e.message || "Failed to open rating")
     } finally {
       setBusy(null)
     }
@@ -503,11 +628,13 @@ export function WatchingClient({
               return (
                 <Card key={p.id}>
                   <CardContent className="pt-4 space-y-3">
-                    <div className="flex gap-3">
+                    <div className="flex items-stretch gap-3">
                       {url ? (
-                        <Image src={url} alt={p.media.title} width={72} height={108} className="rounded object-cover flex-shrink-0" />
+                        <div className="relative w-20 h-30 rounded overflow-hidden bg-muted flex-shrink-0">
+                          <Image src={url} alt={p.media.title} fill sizes="80px" className="object-cover" />
+                        </div>
                       ) : (
-                        <div className="w-[72px] h-[108px] rounded bg-muted flex items-center justify-center flex-shrink-0">{p.media.media_type === "tv" ? <Tv className="h-5 w-5" /> : <Film className="h-5 w-5" />}</div>
+                        <div className="w-20 h-30 rounded bg-muted flex items-center justify-center flex-shrink-0">{p.media.media_type === "tv" ? <Tv className="h-5 w-5" /> : <Film className="h-5 w-5" />}</div>
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold truncate leading-tight">{p.media.title}</p>
@@ -542,7 +669,7 @@ export function WatchingClient({
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           <Label className="text-xs whitespace-nowrap text-muted-foreground">End/stop date</Label>
-                          <Input type="date" value={endVal} onChange={(e) => setEndDateInputs((s) => ({ ...s, [p.id]: e.target.value }))} className="h-7 w-full max-w-[9.5rem] text-xs" />
+                          <Input type="date" value={endVal} onChange={(e) => setEndDateInputs((s) => ({ ...s, [p.id]: e.target.value }))} className="h-7 w-full max-w-[9.5rem] text-xs py-0" />
                         </div>
                       </div>
                     </div>
@@ -566,88 +693,186 @@ export function WatchingClient({
         {history.length === 0 ? (
           <Card><CardContent className="py-6 text-center text-muted-foreground">No watch history yet.</CardContent></Card>
         ) : (
-          <div className="space-y-2">
-            {history.map((p) => {
-              const url = posterUrl(p.media.poster_path, "w92")
-              const canResume = p.status === "stopped"
-              const canUndoFinish = p.status === "finished"
-              return (
-                <Card key={p.id}>
-                  <CardContent className="py-3">
-                    <div className="flex gap-3 items-start">
-                      {url ? (
-                        <Image src={url} alt={p.media.title} width={46} height={69} className="rounded object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-[46px] h-[69px] rounded bg-muted flex items-center justify-center flex-shrink-0">{p.media.media_type === "tv" ? <Tv className="h-4 w-4" /> : <Film className="h-4 w-4" />}</div>
-                      )}
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{p.media.title}</span>
-                          <span className="text-xs text-muted-foreground">{p.media.media_type === "tv" ? `Season ${p.season_number}` : "Movie"}</span>
-                          <StatusPill status={p.status} />
-                        </div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
-                          <span>Started {p.started_at}</span>
-                          {editDatesId !== p.id && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-5 w-5 shrink-0"
-                              aria-label="Edit dates"
-                              title="Edit dates"
-                              onClick={() => { setEditDatesId(p.id); setEditStart(p.started_at); setEditEnd(p.ended_at || "") }}
+          <>
+            {(() => {
+              const renderKebab = (p: WatchPeriodWithMedia) => {
+                const canResume = p.status === "stopped"
+                const canUndoFinish = p.status === "finished"
+                const canEditMovieRating = p.status === "finished" && p.media.media_type === "movie"
+                const canEditSeasonRating = p.media.media_type === "tv" && p.season_number != null && (p.status === "finished" || p.status === "dnf")
+                return (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 sm:h-8 sm:w-8 shrink-0 -mr-1 -mt-1"
+                        aria-label="More actions"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-48 p-1">
+                      <div className="flex flex-col">
+                        {canUndoFinish && (
+                          <PopoverClose asChild>
+                            <button
+                              type="button"
+                              className="w-full text-left rounded-sm px-2 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+                              onClick={() => {
+                                if (confirm("Move this finished period back to Currently Watching? This will remove its finished activity from the social feed.")) {
+                                  undoFinish(p.id)
+                                }
+                              }}
+                              disabled={!!busy}
                             >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          )}
-                          <span>· {p.status === "finished" ? "Finished" : p.status === "dnf" ? "DNF" : "Paused"} {p.ended_at} · <span className="font-medium text-foreground">{formatDuration(p.started_at, p.ended_at)}</span></span>
-                        </div>
-                        {editDatesId === p.id ? (
-                          <div className="flex items-end gap-2 flex-wrap pt-1">
-                            <div><Label className="text-xs">Start</Label><Input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="h-8" /></div>
-                            <div><Label className="text-xs">End</Label><Input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-8" /></div>
-                            <Button size="sm" onClick={() => saveDates(p)} disabled={busy === p.id + "dates"}>Save</Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditDatesId(null)}>Cancel</Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {canResume && (
-                              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => resumeNew(p.id)} disabled={!!busy}>
-                                <RotateCcw className="h-3 w-3 mr-1" />Resume (new period)
-                              </Button>
-                            )}
-                            {canUndoFinish && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => {
-                                  if (confirm("Move this finished period back to Currently Watching? This will remove its finished activity from the social feed.")) {
-                                    undoFinish(p.id)
-                                  }
-                                }}
-                                disabled={!!busy}
-                              >
-                                <RotateCcw className="h-3 w-3 mr-1" />Move back to Active
-                              </Button>
-                            )}
-                            {p.status === "finished" && p.media.media_type === "movie" && (
-                              <Button variant="link" size="sm" className="h-7 px-2 text-xs" asChild>
-                                <Link href={`/entries/new?tmdb_id=${p.media.tmdb_id}&media_type=movie&title=${encodeURIComponent(p.media.title)}&year=${p.media.year ?? ""}&poster_path=${encodeURIComponent(p.media.poster_path ?? "")}`}>Rate movie</Link>
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => setDeleteTarget(p)} disabled={!!busy}>
-                              <Trash2 className="h-3 w-3 mr-1" />Delete
-                            </Button>
-                          </div>
+                              Move back to Active
+                            </button>
+                          </PopoverClose>
                         )}
+                        {canResume && (
+                          <PopoverClose asChild>
+                            <button
+                              type="button"
+                              className="w-full text-left rounded-sm px-2 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+                              onClick={() => resumeNew(p.id)}
+                              disabled={!!busy}
+                            >
+                              Resume (new period)
+                            </button>
+                          </PopoverClose>
+                        )}
+                        {canEditSeasonRating && (
+                          <PopoverClose asChild>
+                            <button
+                              type="button"
+                              className="w-full text-left rounded-sm px-2 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+                              onClick={() => openRatingEdit(p)}
+                              disabled={!!busy}
+                            >
+                              Edit rating
+                            </button>
+                          </PopoverClose>
+                        )}
+                        {canEditMovieRating && (
+                          <PopoverClose asChild>
+                            <button
+                              type="button"
+                              className="w-full text-left rounded-sm px-2 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+                              onClick={() => editMovieRating(p)}
+                              disabled={!!busy}
+                            >
+                              Edit rating
+                            </button>
+                          </PopoverClose>
+                        )}
+                        <PopoverClose asChild>
+                          <button
+                            type="button"
+                            className="w-full text-left rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                            onClick={() => { setEditDatesId(p.id); setEditStart(p.started_at); setEditEnd(p.ended_at || "") }}
+                          >
+                            Edit dates
+                          </button>
+                        </PopoverClose>
+                        <PopoverClose asChild>
+                          <button
+                            type="button"
+                            className="w-full text-left rounded-sm px-2 py-1.5 text-sm hover:bg-accent text-destructive"
+                            onClick={() => setDeleteTarget(p)}
+                            disabled={!!busy}
+                          >
+                            Delete
+                          </button>
+                        </PopoverClose>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </PopoverContent>
+                  </Popover>
+                )
+              }
+
+              const renderEdit = (p: WatchPeriodWithMedia) => (
+                editDatesId === p.id ? (
+                  <div className="flex items-end gap-2 flex-wrap pt-2">
+                    <div><Label className="text-xs">Start</Label><Input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="h-8" /></div>
+                    <div><Label className="text-xs">End</Label><Input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-8" /></div>
+                    <Button size="sm" onClick={() => saveDates(p)} disabled={busy === p.id + "dates"}>Save</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditDatesId(null)}>Cancel</Button>
+                  </div>
+                ) : null
               )
-            })}
-          </div>
+
+              const getSeasonRating = (p: WatchPeriodWithMedia) => {
+                if (p.media_type !== "tv" || p.season_number == null) return null
+                const sr = seasonRatings[`${p.media_id}:${p.season_number}`]
+                if (!sr || sr.rating == null) return null
+                return sr.rating
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {history.map((p) => {
+                    const url = posterUrl(p.media.poster_path, "w185")
+                    const seasonLabel = p.media.media_type === "tv" ? `Season ${p.season_number}` : "Movie"
+                    const rating = getSeasonRating(p)
+                    const rightColor =
+                      p.status === "finished" ? "text-[#ffc94d]" :
+                      p.status === "dnf" ? "text-[#b91c1c]" :
+                      "text-[#ff9a3d]"
+                    return (
+                      <Card key={p.id} className={`rounded-[10px] border-2 border-[#3f3a5d] ${editDatesId === p.id ? "min-h-[141px]" : "h-[141px]"}`}>
+                        <CardContent className="p-[10px] h-full">
+                          <div className="flex gap-3 h-full">
+                            {url ? (
+                              <div className="relative w-20 h-30 rounded overflow-hidden bg-muted flex-shrink-0">
+                                <Image src={url} alt={p.media.title} fill sizes="80px" className="object-cover" />
+                              </div>
+                            ) : (
+                              <div className="w-20 h-30 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                {p.media.media_type === "tv" ? <Tv className="h-4 w-4" /> : <Film className="h-4 w-4" />}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 flex flex-col h-30">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="font-semibold text-base leading-tight truncate flex-1 min-w-0 text-foreground">{p.media.title}</p>
+                                {renderKebab(p)}
+                              </div>
+                              <p className="text-[13px] font-semibold text-foreground leading-tight -mt-1">{seasonLabel}</p>
+                              <p className="text-[13px] text-[#7f7f7f] mt-2 leading-tight">{historyDateLine(p.started_at, p.ended_at)}</p>
+                              <p className="text-[13px] text-[#7f7f7f] leading-tight">{historyDurationLine(p.started_at, p.ended_at)}</p>
+                              <div className="flex items-center justify-between gap-2 mt-auto">
+                                <StatusPill status={p.status} />
+                                {p.status === "stopped" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => resumeNew(p.id)}
+                                    disabled={!!busy}
+                                    aria-label="Resume watching"
+                                    title="Resume watching"
+                                    className="inline-flex items-center justify-center h-8 w-8 text-[#ff9a3d] hover:opacity-80 disabled:opacity-50"
+                                  >
+                                    <Play className="h-[18px] w-[18px] fill-current" />
+                                  </button>
+                                ) : rating != null ? (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <Star className={`h-[18px] w-[18px] fill-current ${rightColor}`} />
+                                    <span className="text-[16px] leading-none font-medium text-foreground">{rating}/10</span>
+                                  </span>
+                                ) : (
+                                  <span />
+                                )}
+                              </div>
+                              {editDatesId === p.id && renderEdit(p)}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+          </>
         )}
       </section>
 
@@ -670,29 +895,70 @@ export function WatchingClient({
         </DialogContent>
       </Dialog>
 
-      {/* Post-finish season dialog */}
+      {/* Edit rating dialog */}
+      <Dialog open={!!ratingEditTarget} onOpenChange={(o) => { if (!o && !ratingEditBusy) setRatingEditTarget(null) }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit rating</DialogTitle>
+            <DialogDescription>
+              {ratingEditTarget
+                ? ratingEditTarget.media_type === "tv"
+                  ? `${ratingEditTarget.media.title} — Season ${ratingEditTarget.season_number}`
+                  : ratingEditTarget.media.title
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Rating (optional)</Label>
+              <Select value={ratingEditValue} onValueChange={setRatingEditValue}>
+                <SelectTrigger><SelectValue placeholder="No rating" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No rating</SelectItem>
+                  {Array.from({ length: 10 }, (_, i) => 10 - i).map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n} / 10</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {error && ratingEditTarget && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setRatingEditTarget(null)} disabled={ratingEditBusy}>Cancel</Button>
+            <Button onClick={saveRatingEdit} disabled={ratingEditBusy}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Finish/DNF dialog */}
       <Dialog open={!!finishDialog} onOpenChange={(o) => { if (!o && !finishBusy) closeFinishDialog(false) }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Star className="h-4 w-4" />Season finished</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Star className="h-4 w-4" />{finishDialog?.actionType === "dnf" ? "Mark as DNF" : "Season finished"}</DialogTitle>
             <DialogDescription>
-              {finishDialog ? `${finishDialog.period.media.title} — Season ${finishDialog.period.season_number}` : ""}. You can optionally rate this season now. Overall show rating stays independent.
+              {finishDialog
+                ? finishDialog.period.media_type === "tv"
+                  ? `${finishDialog.period.media.title} — Season ${finishDialog.period.season_number}. You can optionally rate this season now.`
+                  : `${finishDialog.period.media.title}. You can optionally rate this movie now.`
+                : ""}
             </DialogDescription>
           </DialogHeader>
           {finishDialog && (
             <div className="space-y-4">
-              <div className="space-y-1">
-                <Label>Rate this season (optional)</Label>
-                <Select value={finishSeasonRating} onValueChange={setFinishSeasonRating}>
-                  <SelectTrigger><SelectValue placeholder="No rating" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No rating</SelectItem>
-                    {Array.from({ length: 10 }, (_, i) => 10 - i).map((n) => (
-                      <SelectItem key={n} value={String(n)}>{n} / 10</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {finishDialog.period.media_type === "tv" && finishDialog.period.season_number != null && (
+                <div className="space-y-1">
+                  <Label>Rate this season (optional)</Label>
+                  <Select value={finishSeasonRating} onValueChange={setFinishSeasonRating}>
+                    <SelectTrigger><SelectValue placeholder="No rating" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No rating</SelectItem>
+                      {Array.from({ length: 10 }, (_, i) => 10 - i).map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n} / 10</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               {finishDialog.nextSeasonAvailable && (
                 <div className="space-y-1">
                   <Label htmlFor="next-start">Next season start date (Season {finishDialog.nextSeasonNumber})</Label>
@@ -704,7 +970,17 @@ export function WatchingClient({
             </div>
           )}
           <div className="flex flex-col gap-2 mt-2">
-            {finishDialog?.nextSeasonAvailable ? (
+            {finishDialog?.period.media_type === "movie" ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button className="w-full" onClick={handleFinishSave} disabled={!!finishBusy}>Save</Button>
+                  <Button variant="secondary" className="w-full" onClick={handleFinishRateShow} disabled={!!finishBusy}>Rate movie</Button>
+                </div>
+                <Button variant="ghost" size="sm" className="w-full sm:w-auto sm:self-center" onClick={() => closeFinishDialog(false)} disabled={!!finishBusy}>
+                  Cancel
+                </Button>
+              </>
+            ) : finishDialog?.nextSeasonAvailable ? (
               <>
                 <Button className="w-full" onClick={handleFinishSaveAndWatchNext} disabled={!!finishBusy}>
                   Save &amp; Watch Next Season
