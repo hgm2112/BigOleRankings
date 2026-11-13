@@ -25,7 +25,7 @@ export interface FeedLiker {
 
 export interface FeedEvent {
   key: string
-  type: "gut" | "detailed" | "season" | "watch"
+  type: "gut" | "detailed" | "season" | "watch" | "full_series_rewatch"
   at: string
   user: FeedUser
   media: FeedMedia
@@ -36,6 +36,7 @@ export interface FeedEvent {
   season_rating?: number
   dnf?: boolean
   watch_event_type?: "started" | "finished" | "stopped" | "dnf"
+  rewatch_number?: number
   like_count: number
   liked_by_me: boolean
   likers: FeedLiker[]
@@ -107,6 +108,21 @@ interface WatchEventRow {
   } | null
 }
 
+interface FullSeriesRewatchRow {
+  id: string
+  user_id: string
+  media_id: string
+  rewatch_number: number
+  recognized_at: string
+  media: {
+    title: string
+    media_type: string
+    year: number | null
+    poster_path: string | null
+    tmdb_id: number
+  } | null
+}
+
 interface LikeRow {
   event_key: string
   user_id: string
@@ -124,6 +140,9 @@ const SEASON_SELECT = `user_id, media_id, season_number, rating, dnf, updated_at
   media:media_id (title, media_type, year, poster_path, tmdb_id)`
 
 const WATCH_SELECT = `id, user_id, media_id, event_type, season_number, occurred_at,
+  media:media_id (title, media_type, year, poster_path, tmdb_id)`
+
+const FULL_SERIES_REWATCH_SELECT = `id, user_id, media_id, rewatch_number, recognized_at,
   media:media_id (title, media_type, year, poster_path, tmdb_id)`
 
 function normalizeMedia(raw: RatingEventRow["media"] | SeasonEventRow["media"]): FeedMedia | null {
@@ -238,19 +257,32 @@ export async function fetchSocialFeed(
     .order("occurred_at", { ascending: false })
     .limit(limit)
 
+  const fullSeriesQuery = supabase
+    .from("tv_full_series_rewatches")
+    .select(FULL_SERIES_REWATCH_SELECT)
+    .in("user_id", ids)
+    .order("recognized_at", { ascending: false })
+    .limit(limit)
+
   if (before) {
     gutQuery.lt("gut_rated_at", before)
     detailedQuery.lt("detailed_rated_at", before)
     seasonQuery.lt("updated_at", before)
     watchQuery.lt("occurred_at", before)
+    fullSeriesQuery.lt("recognized_at", before)
   }
 
-  const [gutRes, detailedRes, seasonRes, watchRes] = await Promise.all([
+  const [gutRes, detailedRes, seasonRes, watchRes, fullSeriesRes] = await Promise.all([
     gutQuery,
     detailedQuery,
     seasonQuery,
     watchQuery,
+    fullSeriesQuery,
   ])
+
+  // If migration isn't applied yet, treat full-series results as empty.
+  const fullSeriesResult = fullSeriesRes as { data?: FullSeriesRewatchRow[] | null; error?: unknown }
+  const safeFullSeriesRows = (fullSeriesResult.error ? [] : (fullSeriesResult.data ?? [])) as FullSeriesRewatchRow[]
 
   const events: DraftEvent[] = []
 
@@ -301,9 +333,9 @@ export async function fetchSocialFeed(
   )
 
   let entryIdByKey = new Map<string, string>()
-  if (seasonRows.length > 0) {
-    const mediaIds = [...new Set(seasonRows.map((r) => r.media_id))]
-    const userIds = [...new Set(seasonRows.map((r) => r.user_id))]
+  if (seasonRows.length > 0 || safeFullSeriesRows.length > 0) {
+    const mediaIds = [...new Set([...seasonRows.map((r) => r.media_id), ...safeFullSeriesRows.map((r) => r.media_id)])]
+    const userIds = [...new Set([...seasonRows.map((r) => r.user_id), ...safeFullSeriesRows.map((r) => r.user_id)])]
     const { data: ratingLinks } = await supabase
       .from("ratings")
       .select("id, user_id, media_id")
@@ -319,6 +351,7 @@ export async function fetchSocialFeed(
   }
 
   const watchRows = ((watchRes.data ?? []) as unknown as WatchEventRow[])
+  const fullSeriesRows = safeFullSeriesRows
 
   const completionKeys = new Set(
     watchRows
@@ -399,6 +432,22 @@ export async function fetchSocialFeed(
       season_rating: sr?.rating ?? undefined,
       watch_event_type: raw.event_type,
       dnf: raw.event_type === "dnf" || sr?.dnf === true,
+    })
+  }
+
+  for (const raw of fullSeriesRows) {
+    const media = normalizeMedia(asMedia(raw.media))
+    if (!media) continue
+    const user = profileById.get(raw.user_id)
+    if (!user) continue
+    events.push({
+      key: `full_series_rewatch:${raw.id}`,
+      type: "full_series_rewatch",
+      at: raw.recognized_at,
+      user,
+      media,
+      entryId: entryIdByKey.get(`${raw.user_id}:${raw.media_id}`) ?? null,
+      rewatch_number: raw.rewatch_number,
     })
   }
 

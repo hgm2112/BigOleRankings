@@ -225,6 +225,19 @@ export async function POST(request: NextRequest) {
       })
       if (actErr) console.error("Failed to insert watch activity", actErr)
 
+      // After a TV season is finished, attempt full-series rewatch recognition
+      // (idempotent; no-op if migration/metadata/eligibility not ready).
+      if (toStatus === "finished" && existing.season_number != null) {
+        try {
+          await supabase.rpc("recognize_tv_full_series_rewatches", {
+            p_user_id: user.id,
+            p_media_id: existing.media_id,
+          })
+        } catch (e) {
+          console.error("Failed to recognize full-series rewatches", e)
+        }
+      }
+
       return Response.json({ success: true })
     }
 
@@ -347,12 +360,33 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const { data: periodRow } = await supabase
+        .from("watch_periods")
+        .select("media_id, season_number")
+        .eq("id", periodId)
+        .eq("user_id", user.id)
+        .maybeSingle()
+
       const { error } = await supabase
         .from("watch_periods")
         .delete()
         .eq("id", periodId)
         .eq("user_id", user.id)
       if (error) return Response.json({ error: error.message }, { status: 500 })
+
+      // Deleting a grouped finished period dissolves its group via trigger; reconcile
+      // so remaining eligible viewings can form valid groups if applicable.
+      if (periodRow?.media_id && periodRow.season_number != null) {
+        try {
+          await supabase.rpc("reconcile_tv_full_series_rewatches", {
+            p_user_id: user.id,
+            p_media_id: periodRow.media_id,
+          })
+        } catch (e) {
+          console.error("Failed to reconcile full-series rewatches after delete", e)
+        }
+      }
+
       return Response.json({ success: true })
     }
 
@@ -412,6 +446,18 @@ export async function POST(request: NextRequest) {
           return Response.json({ error: "Already currently watching this title/season." }, { status: 409 })
         }
         return Response.json({ error: updateErr.message }, { status: 500 })
+      }
+
+      // Undoing finish can invalidate/dissolve grouping; reconcile for consistency.
+      if (existing.season_number != null) {
+        try {
+          await supabase.rpc("reconcile_tv_full_series_rewatches", {
+            p_user_id: user.id,
+            p_media_id: existing.media_id,
+          })
+        } catch (e) {
+          console.error("Failed to reconcile full-series rewatches after undo", e)
+        }
       }
 
       return Response.json({ success: true })

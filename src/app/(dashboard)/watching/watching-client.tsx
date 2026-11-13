@@ -51,6 +51,8 @@ interface FinishDialogState {
   nextSeasonAvailable: boolean
   nextSeasonNumber: number | null
   details: TMDBDetails | null
+  existingSeasonRating: number | null
+  existingSeasonDnf: boolean
 }
 
 function posterUrl(path: string | null, size = "w185") {
@@ -208,17 +210,49 @@ export function WatchingClient({
     }
   }
 
-  const saveSeasonRatingIfAny = async (mediaId: string, seasonNum: number, markDnf = false) => {
-    if (finishSeasonRating === "none") return
+  const saveSeasonRatingIfAny = async (
+    mediaId: string,
+    seasonNum: number,
+    markDnf = false,
+    opts?: { watchPeriodId?: string; prevRating?: number | null; prevDnf?: boolean }
+  ) => {
+    if (finishSeasonRating === "keep" || finishSeasonRating === "none") return
     const rating = Number(finishSeasonRating)
     if (!Number.isInteger(rating) || rating < 1 || rating > 10) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Not authenticated")
+
+    const prevRating = opts?.prevRating ?? null
+    const prevDnf = opts?.prevDnf ?? false
+    const newRating = rating
+    const newDnf = markDnf
+    const changed = prevRating !== newRating || prevDnf !== newDnf
+
     const { error: srErr } = await supabase.from("season_ratings").upsert(
-      { user_id: user.id, media_id: mediaId, season_number: seasonNum, rating, dnf: markDnf },
+      { user_id: user.id, media_id: mediaId, season_number: seasonNum, rating: newRating, dnf: newDnf },
       { onConflict: "user_id,media_id,season_number" }
     )
     if (srErr) throw new Error(srErr.message)
+
+    if (changed) {
+      try {
+        await supabase.from("rating_history").insert({
+          user_id: user.id,
+          media_id: mediaId,
+          season_number: seasonNum,
+          rating_scope: "tv_season",
+          rating_kind: "season",
+          prev_season_rating: prevRating,
+          prev_season_dnf: prevDnf,
+          new_season_rating: newRating,
+          new_season_dnf: newDnf,
+          watch_period_id: opts?.watchPeriodId ?? null,
+          source: "watch_finish",
+        })
+      } catch (e) {
+        console.error("Failed to record season rating history", e)
+      }
+    }
   }
 
   const resolveShowRatingHref = async (mediaId: string, tmdbId: number, mediaType: "movie" | "tv", title: string, year: number | null, posterPath: string | null) => {
@@ -260,7 +294,9 @@ export function WatchingClient({
       }
       const nextSeasonNumber = currentSeason + 1
       const nextSeasonAvailable = seasonNums.has(nextSeasonNumber)
-      setFinishSeasonRating("none")
+      const sr = seasonRatings[`${p.media_id}:${currentSeason}`]
+      const hasExistingSeasonRating = sr != null && (sr.rating != null || sr.dnf)
+      setFinishSeasonRating(hasExistingSeasonRating ? "keep" : "none")
       setNextSeasonStartDate(todayLocalDate())
       setFinishDialog({
         period: p,
@@ -269,6 +305,8 @@ export function WatchingClient({
         nextSeasonAvailable,
         nextSeasonNumber: nextSeasonAvailable ? nextSeasonNumber : null,
         details: tmdbDetails,
+        existingSeasonRating: sr?.rating ?? null,
+        existingSeasonDnf: sr?.dnf ?? false,
       })
     } catch (e: any) {
       setError(e.message || "Failed to prepare options")
@@ -287,6 +325,8 @@ export function WatchingClient({
       nextSeasonAvailable: false,
       nextSeasonNumber: null,
       details: null,
+      existingSeasonRating: null,
+      existingSeasonDnf: false,
     })
   }
 
@@ -299,9 +339,9 @@ export function WatchingClient({
       await openFinishDialogForTv(p, ended_at, status)
       return
     }
-    // Allow optional rating flow for DNF on movies.
-    if (status === "dnf" && p.media_type === "movie") {
-      openFinishDialogForMovie(p, ended_at, "dnf")
+    // Allow optional rating flow for movies on finish/DNF.
+    if ((status === "finished" || status === "dnf") && p.media_type === "movie") {
+      openFinishDialogForMovie(p, ended_at, status)
       return
     }
 
@@ -334,7 +374,16 @@ export function WatchingClient({
     try {
       await commitTransition(finishDialog.period.id, finishDialog.endedAt, finishDialog.actionType)
       if (finishDialog.period.season_number != null) {
-        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number, finishDialog.actionType === "dnf")
+        await saveSeasonRatingIfAny(
+          finishDialog.period.media_id,
+          finishDialog.period.season_number,
+          finishDialog.actionType === "dnf",
+          {
+            watchPeriodId: finishDialog.period.id,
+            prevRating: finishDialog.existingSeasonRating,
+            prevDnf: finishDialog.existingSeasonDnf,
+          }
+        )
       }
       closeFinishDialog(true)
     } catch (e: any) {
@@ -351,7 +400,16 @@ export function WatchingClient({
     try {
       await commitTransition(finishDialog.period.id, finishDialog.endedAt, finishDialog.actionType)
       if (finishDialog.period.season_number != null) {
-        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number, finishDialog.actionType === "dnf")
+        await saveSeasonRatingIfAny(
+          finishDialog.period.media_id,
+          finishDialog.period.season_number,
+          finishDialog.actionType === "dnf",
+          {
+            watchPeriodId: finishDialog.period.id,
+            prevRating: finishDialog.existingSeasonRating,
+            prevDnf: finishDialog.existingSeasonDnf,
+          }
+        )
       }
       const href = await resolveShowRatingHref(
         finishDialog.period.media_id,
@@ -378,7 +436,16 @@ export function WatchingClient({
     try {
       await commitTransition(finishDialog.period.id, finishDialog.endedAt, finishDialog.actionType)
       if (finishDialog.period.season_number != null) {
-        await saveSeasonRatingIfAny(finishDialog.period.media_id, finishDialog.period.season_number, finishDialog.actionType === "dnf")
+        await saveSeasonRatingIfAny(
+          finishDialog.period.media_id,
+          finishDialog.period.season_number,
+          finishDialog.actionType === "dnf",
+          {
+            watchPeriodId: finishDialog.period.id,
+            prevRating: finishDialog.existingSeasonRating,
+            prevDnf: finishDialog.existingSeasonDnf,
+          }
+        )
       }
       const d = finishDialog.details
       await apiAction({
@@ -473,23 +540,65 @@ export function WatchingClient({
         if (!user) throw new Error("Not authenticated")
         const key = `${p.media_id}:${p.season_number}`
         const existing = seasonRatings[key]
+        const prevRating = existing?.rating ?? null
+        const prevDnf = existing?.dnf ?? false
         const dnfFlag = existing?.dnf ?? (p.status === "dnf")
+
         if (ratingEditValue === "none") {
-          const { error: delErr } = await supabase
-            .from("season_ratings")
-            .delete()
-            .eq("user_id", user.id)
-            .eq("media_id", p.media_id)
-            .eq("season_number", p.season_number)
-          if (delErr) throw new Error(delErr.message)
+          if (existing && (existing.rating != null || existing.dnf)) {
+            const { error: delErr } = await supabase
+              .from("season_ratings")
+              .delete()
+              .eq("user_id", user.id)
+              .eq("media_id", p.media_id)
+              .eq("season_number", p.season_number)
+            if (delErr) throw new Error(delErr.message)
+            try {
+              await supabase.from("rating_history").insert({
+                user_id: user.id,
+                media_id: p.media_id,
+                season_number: p.season_number,
+                rating_scope: "tv_season",
+                rating_kind: "season",
+                prev_season_rating: prevRating,
+                prev_season_dnf: prevDnf,
+                new_season_rating: null,
+                new_season_dnf: false,
+                source: "watching_history_edit",
+              })
+            } catch (e) {
+              console.error("Failed to record season rating history", e)
+            }
+          }
         } else {
           const rating = Number(ratingEditValue)
           if (!Number.isInteger(rating) || rating < 1 || rating > 10) throw new Error("Invalid rating")
+          const newRating = rating
+          const newDnf = dnfFlag
+          const changed = !existing || prevRating !== newRating || prevDnf !== newDnf
           const { error: upErr } = await supabase.from("season_ratings").upsert(
-            { user_id: user.id, media_id: p.media_id, season_number: p.season_number, rating, dnf: dnfFlag },
+            { user_id: user.id, media_id: p.media_id, season_number: p.season_number, rating: newRating, dnf: newDnf },
             { onConflict: "user_id,media_id,season_number" }
           )
           if (upErr) throw new Error(upErr.message)
+          if (changed) {
+            try {
+              await supabase.from("rating_history").insert({
+                user_id: user.id,
+                media_id: p.media_id,
+                season_number: p.season_number,
+                rating_scope: "tv_season",
+                rating_kind: "season",
+                prev_season_rating: prevRating,
+                prev_season_dnf: prevDnf,
+                new_season_rating: newRating,
+                new_season_dnf: newDnf,
+                source: "watching_history_edit",
+              })
+            } catch (e) {
+              console.error("Failed to record season rating history", e)
+            }
+          }
         }
         setRatingEditTarget(null)
         refresh()
@@ -940,12 +1049,12 @@ export function WatchingClient({
       <Dialog open={!!finishDialog} onOpenChange={(o) => { if (!o && !finishBusy) closeFinishDialog(false) }}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Star className="h-4 w-4" />{finishDialog?.actionType === "dnf" ? "Mark as DNF" : "Season finished"}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Star className="h-4 w-4" />{finishDialog?.period.media_type === "movie" ? (finishDialog.actionType === "dnf" ? "Mark movie as DNF" : "Movie finished") : (finishDialog?.actionType === "dnf" ? "Mark as DNF" : "Season finished")}</DialogTitle>
             <DialogDescription>
               {finishDialog
                 ? finishDialog.period.media_type === "tv"
-                  ? `${finishDialog.period.media.title} — Season ${finishDialog.period.season_number}. You can optionally rate this season now.`
-                  : `${finishDialog.period.media.title}. You can optionally rate this movie now.`
+                  ? `${finishDialog.period.media.title} — Season ${finishDialog.period.season_number}. Choose how to handle the season rating for this completed viewing.`
+                  : `${finishDialog.period.media.title}. Choose how to handle your rating for this completed viewing.`
                 : ""}
             </DialogDescription>
           </DialogHeader>
@@ -953,16 +1062,24 @@ export function WatchingClient({
             <div className="space-y-4">
               {finishDialog.period.media_type === "tv" && finishDialog.period.season_number != null && (
                 <div className="space-y-1">
-                  <Label>Rate this season (optional)</Label>
+                  <Label>Season rating</Label>
                   <Select value={finishSeasonRating} onValueChange={setFinishSeasonRating}>
-                    <SelectTrigger><SelectValue placeholder="No rating" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Choose..." /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No rating</SelectItem>
+                      {(finishDialog.existingSeasonRating != null || finishDialog.existingSeasonDnf) && (
+                        <SelectItem value="keep">
+                          Keep previous rating{finishDialog.existingSeasonRating != null ? ` (${finishDialog.existingSeasonRating}/10)` : finishDialog.existingSeasonDnf ? " (DNF)" : ""}
+                        </SelectItem>
+                      )}
+                      <SelectItem value="none">Skip rating</SelectItem>
                       {Array.from({ length: 10 }, (_, i) => 10 - i).map((n) => (
                         <SelectItem key={n} value={String(n)}>{n} / 10</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Keep previous leaves your current season rating unchanged. Skip doesn&apos;t change it. Picking a score submits/updates it.
+                  </p>
                 </div>
               )}
               {finishDialog.nextSeasonAvailable && (
@@ -979,9 +1096,11 @@ export function WatchingClient({
             {finishDialog?.period.media_type === "movie" ? (
               <>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button className="w-full" onClick={handleFinishSave} disabled={!!finishBusy}>Save</Button>
-                  <Button variant="secondary" className="w-full" onClick={handleFinishRateShow} disabled={!!finishBusy}>Rate movie</Button>
+                  <Button className="w-full" onClick={handleFinishSave} disabled={!!finishBusy}>Keep previous rating</Button>
+                  <Button variant="outline" className="w-full" onClick={handleFinishSave} disabled={!!finishBusy}>Skip rating</Button>
                 </div>
+                <Button variant="secondary" className="w-full" onClick={handleFinishRateShow} disabled={!!finishBusy}>Submit new rating</Button>
+                <p className="text-xs text-muted-foreground text-center">“Keep previous” and “Skip” won’t change your rating. “Submit new rating” opens the rating flow.</p>
                 <Button variant="ghost" size="sm" className="w-full sm:w-auto sm:self-center" onClick={() => closeFinishDialog(false)} disabled={!!finishBusy}>
                   Cancel
                 </Button>

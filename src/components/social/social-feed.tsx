@@ -80,6 +80,9 @@ function EventScore({ event }: { event: FeedEvent }) {
       </span>
     )
   }
+  if (event.type === "full_series_rewatch") {
+    return null
+  }
   if (event.dnf) return null
   return (
     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -95,6 +98,10 @@ function eventVerbParts(event: FeedEvent): { action: string; suffix: string } {
   if (event.type === "season") {
     if (event.dnf) return { action: `DNF'd S${event.season_number} of`, suffix: "" }
     return { action: `rated S${event.season_number} of`, suffix: "" }
+  }
+  if (event.type === "full_series_rewatch") {
+    const n = event.rewatch_number ?? 1
+    return { action: `completed Full-Series Rewatch #${n} of`, suffix: "" }
   }
   // watch
   const seasonSuffix =
@@ -132,6 +139,7 @@ function eventMobileAction(event: FeedEvent): string {
   if (event.type === "gut") return "gut-rated"
   if (event.type === "detailed") return "detailed-rated"
   if (event.type === "season") return event.dnf ? "DNF'd" : "rated"
+  if (event.type === "full_series_rewatch") return `Full-Series Rewatch #${event.rewatch_number ?? 1}`
   switch (event.watch_event_type) {
     case "started":
       return "started watching"
@@ -148,6 +156,9 @@ function eventMobileAction(event: FeedEvent): string {
 
 function eventMobileMeta(event: FeedEvent): string | null {
   const parts: string[] = []
+  if (event.type === "full_series_rewatch") {
+    return "Full series"
+  }
   if (event.media.media_type === "tv" && event.season_number != null) {
     parts.push(`Season ${event.season_number}`)
   }
@@ -176,6 +187,10 @@ function eventMobileMeta(event: FeedEvent): string | null {
 }
 
 function MobileEventMeta({ event }: { event: FeedEvent }) {
+  if (event.type === "full_series_rewatch") {
+    return <p className="text-xs text-muted-foreground">Full series</p>
+  }
+
   const seasonLabel =
     event.media.media_type === "tv" && event.season_number != null ? `Season ${event.season_number}` : null
 
@@ -230,6 +245,9 @@ function eventActionClass(event: FeedEvent, compact = false): string | undefined
     if (event.dnf) return `${chip} bg-[#6b0000] text-[#ff6b6b] ring-[#ff8a8a]/35`
     return `${chip} bg-[#312e81] text-[#a5b4fc] ring-[#a5b4fc]/35`
   }
+  if (event.type === "full_series_rewatch") {
+    return `${chip} bg-[#14532d] text-[#86efac] ring-[#86efac]/35`
+  }
   return undefined
 }
 
@@ -249,7 +267,6 @@ function FeedRow({
   const actionClass = eventActionClass(event)
   const mobileAction = eventMobileAction(event)
   const mobileActionClass = eventActionClass(event, true)
-  const mobileMeta = eventMobileMeta(event)
   const relativeTime = formatRelativeTime(event.at)
   const absoluteTime = new Date(event.at).toLocaleString()
 

@@ -39,6 +39,7 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
   const [error, setError] = useState<string | null>(null)
 
   const [gutRating, setGutRating] = useState(50)
+  const [initialGutRating, setInitialGutRating] = useState<number | null>(null)
   const [notes, setNotes] = useState("")
   const [weight, setWeight] = useState(0)
   const [enjoyment, setEnjoyment] = useState(30)
@@ -48,6 +49,7 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
   const [seasonRatings, setSeasonRatings] = useState<SeasonRatingValue[]>([])
   const [initialSeasonRatings, setInitialSeasonRatings] = useState<SeasonRatingValue[]>([])
   const [initialDetailed, setInitialDetailed] = useState({ enjoyment: 30, impact: 10, recommend: 5, watchAgain: 5 })
+  const [hadDetailed, setHadDetailed] = useState(false)
 
   const handleSeasonChange = (seasonNumber: number, rating: number | null, dnf: boolean) => {
     setSeasonRatings((prev) => {
@@ -72,12 +74,15 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
       const entry = flattenEntry(data)
       setEntry(entry)
       setGutRating(entry.gut_rating ?? 50)
+      setInitialGutRating(entry.gut_rating ?? null)
       setNotes(entry.notes ?? "")
       setWeight(entry.weight ?? 0)
       setEnjoyment(entry.detailed_enjoyment ?? 30)
       setImpact(entry.detailed_impact ?? 10)
       setRecommend(entry.detailed_recommend ?? 5)
       setWatchAgain(entry.detailed_watch_again ?? 5)
+      const hasDet = entry.detailed_enjoyment != null
+      setHadDetailed(hasDet)
       setInitialDetailed({
         enjoyment: entry.detailed_enjoyment ?? 30,
         impact: entry.detailed_impact ?? 10,
@@ -141,6 +146,54 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
       return
     }
 
+    // Record rating history for actual changes (best-effort, non-blocking for save).
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const scope = entry.media_type === "movie" ? "movie_overall" : "tv_overall"
+        const historyRows: Record<string, unknown>[] = []
+        if (initialGutRating != null && gutRating !== initialGutRating) {
+          historyRows.push({
+            user_id: user.id,
+            media_id: entry.media_id,
+            season_number: null,
+            rating_scope: scope,
+            rating_kind: "gut",
+            prev_gut: initialGutRating,
+            new_gut: gutRating,
+            source: "entry_edit",
+          })
+        }
+        if (
+          hadDetailed &&
+          detailedChanged &&
+          (entry.detailed_enjoyment != null && entry.detailed_impact != null && entry.detailed_recommend != null && entry.detailed_watch_again != null)
+        ) {
+          historyRows.push({
+            user_id: user.id,
+            media_id: entry.media_id,
+            season_number: null,
+            rating_scope: scope,
+            rating_kind: "detailed",
+            prev_detailed_enjoyment: entry.detailed_enjoyment,
+            prev_detailed_impact: entry.detailed_impact,
+            prev_detailed_recommend: entry.detailed_recommend,
+            prev_detailed_watch_again: entry.detailed_watch_again,
+            new_detailed_enjoyment: enjoyment,
+            new_detailed_impact: impact,
+            new_detailed_recommend: recommend,
+            new_detailed_watch_again: watchAgain,
+            source: "entry_edit",
+          })
+        }
+        if (historyRows.length > 0) {
+          await supabase.from("rating_history").insert(historyRows)
+        }
+      }
+    } catch (e) {
+      console.error("Failed to record rating history", e)
+    }
+
     if (entry.media_type === "tv" && (seasonRatings.length > 0 || initialSeasonRatings.length > 0)) {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
@@ -164,6 +217,52 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
             setSaving(false)
             return
           }
+        }
+
+        // Log season rating changes (including removals) as actual state changes.
+        try {
+          const seasonHistory: Record<string, unknown>[] = []
+          for (const sn of toDelete) {
+            const prev = initialBySeason.get(sn)
+            if (!prev) continue
+            seasonHistory.push({
+              user_id: user.id,
+              media_id: entry.media_id,
+              season_number: sn,
+              rating_scope: "tv_season",
+              rating_kind: "season",
+              prev_season_rating: prev.rating ?? null,
+              prev_season_dnf: !!prev.dnf,
+              new_season_rating: null,
+              new_season_dnf: false,
+              source: "entry_edit",
+            })
+          }
+          for (const r of toUpsert) {
+            const prev = initialBySeason.get(r.season_number)
+            const prevRating = prev?.rating ?? null
+            const prevDnf = prev ? !!prev.dnf : false
+            const newRating = r.rating ?? null
+            const newDnf = !!r.dnf
+            if (prev && prevRating === newRating && prevDnf === newDnf) continue
+            seasonHistory.push({
+              user_id: user.id,
+              media_id: entry.media_id,
+              season_number: r.season_number,
+              rating_scope: "tv_season",
+              rating_kind: "season",
+              prev_season_rating: prevRating,
+              prev_season_dnf: prevDnf,
+              new_season_rating: newRating,
+              new_season_dnf: newDnf,
+              source: "entry_edit",
+            })
+          }
+          if (seasonHistory.length > 0) {
+            await supabase.from("rating_history").insert(seasonHistory)
+          }
+        } catch (e) {
+          console.error("Failed to record season rating history", e)
         }
 
         if (toUpsert.length > 0) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -13,8 +13,31 @@ import { useCustomization } from "@/components/customization-provider"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { formatDate } from "@/lib/format-date"
 import { usePosterTheme } from "@/hooks/use-poster-theme"
-import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye } from "lucide-react"
+import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye, Repeat } from "lucide-react"
 import { Film, Tv } from "lucide-react"
+
+type SeasonRewatchStat = { completed: number; ungroupedAdditional: number }
+type RatingHistoryRow = {
+  id: string
+  season_number: number | null
+  rating_scope: "movie_overall" | "tv_overall" | "tv_season"
+  rating_kind: "gut" | "detailed" | "season"
+  prev_gut: number | null
+  new_gut: number | null
+  prev_detailed_enjoyment: number | null
+  prev_detailed_impact: number | null
+  prev_detailed_recommend: number | null
+  prev_detailed_watch_again: number | null
+  new_detailed_enjoyment: number | null
+  new_detailed_impact: number | null
+  new_detailed_recommend: number | null
+  new_detailed_watch_again: number | null
+  prev_season_rating: number | null
+  prev_season_dnf: boolean | null
+  new_season_rating: number | null
+  new_season_dnf: boolean | null
+  changed_at: string
+}
 
 interface Entry {
   id: string
@@ -75,6 +98,10 @@ export function EntryDetailClient({
   seasonRatings,
   mySeasonRatings,
   viewerCount,
+  movieCompletedCount = 0,
+  fullSeriesRewatchCount = 0,
+  seasonRewatchStats = {},
+  ratingHistory = [],
 }: {
   entry: Entry
   ownerProfile: { username: string; display_name: string | null } | null
@@ -86,6 +113,10 @@ export function EntryDetailClient({
   seasonRatings: SeasonRating[]
   mySeasonRatings: SeasonRating[]
   viewerCount: number
+  movieCompletedCount?: number
+  fullSeriesRewatchCount?: number
+  seasonRewatchStats?: Record<number, SeasonRewatchStat>
+  ratingHistory?: RatingHistoryRow[]
 }) {
   const { prefs } = useCustomization()
   const posterUrl = entry.poster_path
@@ -105,6 +136,32 @@ export function EntryDetailClient({
   const [liveStatus, setLiveStatus] = useState<string | null>(null)
   const [liveNextAirDate, setLiveNextAirDate] = useState<string | null>(null)
   const [expandedFollowers, setExpandedFollowers] = useState<Set<string>>(new Set())
+  const [showOverallHistory, setShowOverallHistory] = useState(false)
+  const [expandedSeasonHistory, setExpandedSeasonHistory] = useState<Set<number>>(new Set())
+
+  const overallHistory = ratingHistory.filter((h) => h.rating_scope === "movie_overall" || h.rating_scope === "tv_overall")
+  const seasonHistoryBySeason = new Map<number, RatingHistoryRow[]>()
+  for (const h of ratingHistory) {
+    if (h.rating_scope !== "tv_season" || h.season_number == null) continue
+    const list = seasonHistoryBySeason.get(h.season_number) ?? []
+    list.push(h)
+    seasonHistoryBySeason.set(h.season_number, list)
+  }
+
+  const detailedTotalValue = (h: RatingHistoryRow, which: "prev" | "new") => {
+    const e = which === "prev" ? h.prev_detailed_enjoyment : h.new_detailed_enjoyment
+    const i = which === "prev" ? h.prev_detailed_impact : h.new_detailed_impact
+    const r = which === "prev" ? h.prev_detailed_recommend : h.new_detailed_recommend
+    const w = which === "prev" ? h.prev_detailed_watch_again : h.new_detailed_watch_again
+    if (e == null || i == null || r == null || w == null) return null
+    return e + i + r + w
+  }
+
+  const formatSeasonRatingState = (rating: number | null, dnf: boolean | null | undefined) => {
+    if (dnf) return rating != null ? `${rating}/10 (DNF)` : "DNF"
+    if (rating != null) return `${rating}/10`
+    return "—"
+  }
 
   const toggleFollowerSeasons = (username: string) => {
     setExpandedFollowers((prev) => {
@@ -200,6 +257,15 @@ export function EntryDetailClient({
             <p className="text-muted-foreground flex items-center gap-2">
               {entry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={entry.media_type} /> : entry.media_type === "tv" ? "TV Show" : "Movie"}
             </p>
+            {entry.media_type === "tv" && fullSeriesRewatchCount > 0 && (
+              <div className="mt-1">
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`Full-series rewatches: ${fullSeriesRewatchCount}`}>
+                  <span>Full-Series Rewatches:</span>
+                  <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="tabular-nums">{fullSeriesRewatchCount}</span>
+                </span>
+              </div>
+            )}
             {!isOwner && ownerProfile && (
               <p className="text-sm text-muted-foreground mt-1">
                 Entry by <span className="font-medium">{ownerProfile.display_name || ownerProfile.username}</span>
@@ -223,7 +289,15 @@ export function EntryDetailClient({
           <Separator />
 
           <div>
-            <h2 className="font-semibold mb-2">Gut Rating</h2>
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="font-semibold">Gut Rating</h2>
+              {entry.media_type === "movie" && movieCompletedCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`${movieCompletedCount} completed viewing${movieCompletedCount === 1 ? "" : "s"}`}>
+                  <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="tabular-nums">{movieCompletedCount}</span>
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <span className={`text-3xl font-bold ${prefs.score_chips ? scoreTextClass(entry.gut_rating, 100) : ""}`}>{entry.gut_rating ?? "—"}</span>
               <span className="text-sm text-muted-foreground">/100</span>
@@ -291,6 +365,39 @@ export function EntryDetailClient({
         )}
       </div>
 
+      {overallHistory.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <h2 className="font-semibold mb-1">Rating History</h2>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setShowOverallHistory((v) => !v)}
+            >
+              {showOverallHistory ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
+              {showOverallHistory ? "Hide" : "Show"} ({overallHistory.length})
+            </Button>
+            {showOverallHistory && (
+              <div className="mt-2 space-y-1.5 text-xs text-muted-foreground border-l pl-3">
+                {overallHistory.map((h) => (
+                  <div key={h.id}>
+                    <span className="font-medium text-foreground">{formatDate(h.changed_at)}:</span>{" "}
+                    {h.rating_kind === "gut" ? (
+                      <>Gut changed {h.prev_gut}/100 → {h.new_gut}/100</>
+                    ) : h.rating_kind === "detailed" ? (
+                      <>Detailed changed {detailedTotalValue(h, "prev") ?? "—"}/100 → {detailedTotalValue(h, "new") ?? "—"}/100</>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {entry.weight > 0 && (
         <>
           <Separator />
@@ -323,29 +430,122 @@ export function EntryDetailClient({
               <div className="space-y-3">
                 {seasons.map((s) => {
                   const sr = seasonRatingMap.get(s.season_number)
+                  const sHist = seasonHistoryBySeason.get(s.season_number) ?? []
+                  const sStat = seasonRewatchStats[s.season_number]
+                  const expanded = expandedSeasonHistory.has(s.season_number)
+
+                  const ratingNode = sr?.dnf ? (
+                    <span className="font-medium text-destructive">DNF</span>
+                  ) : sr?.rating != null ? (
+                    prefs.score_chips ? (
+                      <ScoreChip value={sr.rating} max={10} tint={palette?.chip} />
+                    ) : (
+                      <span className="font-medium">{sr.rating}/10</span>
+                    )
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )
+
+                  const rewatchNode = sStat ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`${sStat.ungroupedAdditional} additional completed viewing${sStat.ungroupedAdditional === 1 ? "" : "s"} not grouped into a full-series rewatch`}>
+                      <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span className="tabular-nums">{sStat.ungroupedAdditional}</span>
+                    </span>
+                  ) : null
+
+                  const mobileHistoryButton = sHist.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-1.5 text-xs"
+                      onClick={() => {
+                        setExpandedSeasonHistory((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(s.season_number)) next.delete(s.season_number)
+                          else next.add(s.season_number)
+                          return next
+                        })
+                      }}
+                    >
+                      {expanded ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
+                      History ({sHist.length})
+                    </Button>
+                  ) : null
+
+                  const mobileLine2Left: ReactNode[] = []
+                  if (s.air_year != null) {
+                    mobileLine2Left.push(<span key="year" className="text-xs text-muted-foreground">{s.air_year}</span>)
+                  }
+                  if (s.episode_count != null) {
+                    if (mobileLine2Left.length > 0) mobileLine2Left.push(<span key="sep-e" className="text-muted-foreground">•</span>)
+                    mobileLine2Left.push(<span key="eps" className="text-xs text-muted-foreground">{s.episode_count} eps</span>)
+                  }
+
                   return (
-                    <div key={s.season_number} className="flex items-center justify-between gap-3 flex-wrap border-b border-border/50 pb-2 last:border-0 last:pb-0">
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-medium">Season {s.season_number}</span>
-                        {s.name && s.name !== `Season ${s.season_number}` && (
-                          <span className="text-sm text-muted-foreground">({s.name})</span>
-                        )}
-                        {s.air_year != null && <span className="text-xs text-muted-foreground">{s.air_year}</span>}
-                        {s.episode_count != null && <span className="text-xs text-muted-foreground">· {s.episode_count} episodes</span>}
-                      </div>
-                      <div className="flex items-center gap-3 text-sm">
-                        {sr?.dnf && <span className="font-medium text-destructive">DNF</span>}
-                        {sr?.rating != null && (
-                          prefs.score_chips ? (
-                            <ScoreChip value={sr.rating} max={10} tint={palette?.chip} />
-                          ) : (
-                            <span className="font-medium">{sr.rating}/10</span>
-                          )
-                        )}
-                        {!sr?.dnf && sr?.rating == null && (
-                          <span className="text-muted-foreground">—</span>
+                    <div key={s.season_number} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
+                      {/* Mobile */}
+                      <div className="sm:hidden space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Season {s.season_number}</span>
+                          <div className="flex-1 flex justify-center">{mobileHistoryButton}</div>
+                          <div className="inline-flex items-center text-sm justify-end">{ratingNode}</div>
+                        </div>
+                        {(mobileLine2Left.length > 0 || rewatchNode) && (
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">{mobileLine2Left}</div>
+                            {rewatchNode ? <div className="ml-auto">{rewatchNode}</div> : null}
+                          </div>
                         )}
                       </div>
+
+                      {/* Desktop */}
+                      <div className="hidden sm:flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className="font-medium">Season {s.season_number}</span>
+                          {s.name && s.name !== `Season ${s.season_number}` && (
+                            <span className="text-sm text-muted-foreground">({s.name})</span>
+                          )}
+                          {s.air_year != null && <span className="text-xs text-muted-foreground">{s.air_year}</span>}
+                          {s.episode_count != null && (
+                            <span className="text-xs text-muted-foreground">· {s.episode_count} episodes</span>
+                          )}
+                          {sHist.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setExpandedSeasonHistory((prev) => {
+                                  const next = new Set(prev)
+                                  if (next.has(s.season_number)) next.delete(s.season_number)
+                                  else next.add(s.season_number)
+                                  return next
+                                })
+                              }}
+                            >
+                              {expanded ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
+                              Rating History ({sHist.length})
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                          {sStat && rewatchNode}
+                          {ratingNode}
+                        </div>
+                      </div>
+
+                      {sHist.length > 0 && expanded && (
+                        <div className="mt-1 space-y-1.5 text-xs text-muted-foreground border-l pl-3">
+                          {sHist.map((h) => (
+                            <div key={h.id}>
+                              <span className="font-medium text-foreground">{formatDate(h.changed_at)}:</span>{" "}
+                              Changed {formatSeasonRatingState(h.prev_season_rating, h.prev_season_dnf)} → {formatSeasonRatingState(h.new_season_rating, h.new_season_dnf)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
