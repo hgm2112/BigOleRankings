@@ -55,7 +55,7 @@ export async function fetchRatingHistory(
   return (data ?? []) as unknown as RatingHistoryRow[]
 }
 
-export async function fetchMovieCompletedCount(
+export async function fetchMovieRewatchCount(
   supabase: SupabaseClient,
   userId: string,
   mediaId: string
@@ -70,7 +70,7 @@ export async function fetchMovieCompletedCount(
     .not("ended_at", "is", null)
 
   if (error) return 0
-  return count ?? 0
+  return Math.max(0, (count ?? 0) - 1)
 }
 
 export async function fetchTvWatchStats(

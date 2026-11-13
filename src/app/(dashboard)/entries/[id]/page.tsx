@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { notFound } from "next/navigation"
 import { EntryDetailClient } from "./entry-detail-client"
 import { ENTRY_SELECT, flattenEntry } from "@/lib/entry-queries"
-import { fetchMovieCompletedCount, fetchRatingHistory, fetchTvWatchStats } from "@/lib/rewatch"
+import { fetchMovieRewatchCount, fetchRatingHistory, fetchTvWatchStats } from "@/lib/rewatch"
 
 export default async function EntryDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sort?: string; dir?: string; back?: string }> }) {
   const { id } = await params
@@ -144,7 +144,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
     dnf: boolean
   }[] = []
 
-  let movieCompletedCount = 0
+  let movieRewatchCount = 0
   let fullSeriesRewatchCount = 0
   let seasonRewatchStats: Record<number, { completed: number; ungroupedAdditional: number }> = {}
   let ratingHistory: Awaited<ReturnType<typeof fetchRatingHistory>> = []
@@ -154,14 +154,14 @@ export default async function EntryDetailPage({ params, searchParams }: { params
   const [historyRes, movieCountRes, tvStatsRes] = await Promise.all([
     isOwner ? fetchRatingHistory(supabase, entry.user_id, entry.media_id) : Promise.resolve([]),
     entry.media_type === "movie"
-      ? fetchMovieCompletedCount(supabase, entry.user_id, entry.media_id)
+      ? fetchMovieRewatchCount(supabase, entry.user_id, entry.media_id)
       : Promise.resolve(0),
     entry.media_type === "tv"
       ? fetchTvWatchStats(supabase, entry.user_id, entry.media_id)
       : Promise.resolve({ fullSeriesRewatchCount: 0, seasonStats: {} as Record<number, { completed: number; ungroupedAdditional: number }> }),
   ])
   ratingHistory = historyRes
-  movieCompletedCount = movieCountRes
+  movieRewatchCount = movieCountRes
   fullSeriesRewatchCount = tvStatsRes.fullSeriesRewatchCount
   seasonRewatchStats = tvStatsRes.seasonStats
 
@@ -206,7 +206,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
       seasonRatings={seasonRatings}
       mySeasonRatings={mySeasonRatings}
       viewerCount={viewerCount ?? 0}
-      movieCompletedCount={movieCompletedCount}
+      movieRewatchCount={movieRewatchCount}
       fullSeriesRewatchCount={fullSeriesRewatchCount}
       seasonRewatchStats={seasonRewatchStats}
       ratingHistory={ratingHistory}

@@ -98,7 +98,7 @@ export function EntryDetailClient({
   seasonRatings,
   mySeasonRatings,
   viewerCount,
-  movieCompletedCount = 0,
+  movieRewatchCount = 0,
   fullSeriesRewatchCount = 0,
   seasonRewatchStats = {},
   ratingHistory = [],
@@ -113,7 +113,7 @@ export function EntryDetailClient({
   seasonRatings: SeasonRating[]
   mySeasonRatings: SeasonRating[]
   viewerCount: number
-  movieCompletedCount?: number
+  movieRewatchCount?: number
   fullSeriesRewatchCount?: number
   seasonRewatchStats?: Record<number, SeasonRewatchStat>
   ratingHistory?: RatingHistoryRow[]
@@ -291,10 +291,10 @@ export function EntryDetailClient({
           <div>
             <div className="flex items-center gap-2 mb-2">
               <h2 className="font-semibold">Gut Rating</h2>
-              {entry.media_type === "movie" && movieCompletedCount > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`${movieCompletedCount} completed viewing${movieCompletedCount === 1 ? "" : "s"}`}>
+              {entry.media_type === "movie" && movieRewatchCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`${movieRewatchCount} rewatch${movieRewatchCount === 1 ? "" : "es"}`}>
                   <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className="tabular-nums">{movieCompletedCount}</span>
+                  <span className="tabular-nums">{movieRewatchCount}</span>
                 </span>
               )}
             </div>
