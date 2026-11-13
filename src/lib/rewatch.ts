@@ -1,11 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 export interface WatchCountResult {
-  movieCompletedCount: number
+  movieRewatchCount: number
   // TV: per season stats and full-series count
   fullSeriesRewatchCount: number
-  // season_number -> { completed, ungroupedAdditional }
-  seasonStats: Record<number, { completed: number; ungroupedAdditional: number }>
+  // season_number -> { completed, additional }
+  seasonStats: Record<number, { completed: number; additional: number }>
 }
 
 export interface RatingHistoryRow {
@@ -77,7 +77,7 @@ export async function fetchTvWatchStats(
   supabase: SupabaseClient,
   userId: string,
   mediaId: string
-): Promise<{ fullSeriesRewatchCount: number; seasonStats: Record<number, { completed: number; ungroupedAdditional: number }> }> {
+): Promise<{ fullSeriesRewatchCount: number; seasonStats: Record<number, { completed: number; additional: number }> }> {
   const [{ data: periods, error: pErr }, { count: fsCount, error: fsErr }] = await Promise.all([
     supabase
       .from("watch_periods")
@@ -117,7 +117,7 @@ export async function fetchTvWatchStats(
     bySeason.set(sn, list)
   }
 
-  const seasonStats: Record<number, { completed: number; ungroupedAdditional: number }> = {}
+  const seasonStats: Record<number, { completed: number; additional: number }> = {}
 
   const orderCmp = (a: FinishedPeriodRow, b: FinishedPeriodRow) => {
     const ea = String(a.ended_at ?? "")
@@ -135,11 +135,7 @@ export async function fetchTvWatchStats(
   for (const [sn, list] of bySeason.entries()) {
     const sorted = [...list].sort(orderCmp)
     const completed = sorted.length
-    let ungroupedAdditional = 0
-    for (let i = 1; i < sorted.length; i++) {
-      if (!sorted[i].full_series_rewatch_id) ungroupedAdditional++
-    }
-    seasonStats[sn] = { completed, ungroupedAdditional }
+    seasonStats[sn] = { completed, additional: Math.max(0, completed - 1) }
   }
 
   return {

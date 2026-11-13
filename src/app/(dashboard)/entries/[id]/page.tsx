@@ -146,7 +146,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
 
   let movieRewatchCount = 0
   let fullSeriesRewatchCount = 0
-  let seasonRewatchStats: Record<number, { completed: number; ungroupedAdditional: number }> = {}
+  let seasonRewatchStats: Record<number, { completed: number; additional: number }> = {}
   let ratingHistory: Awaited<ReturnType<typeof fetchRatingHistory>> = []
 
   // Rewatch counts are derived from watch_periods (visible to authenticated users).
@@ -158,7 +158,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
       : Promise.resolve(0),
     entry.media_type === "tv"
       ? fetchTvWatchStats(supabase, entry.user_id, entry.media_id)
-      : Promise.resolve({ fullSeriesRewatchCount: 0, seasonStats: {} as Record<number, { completed: number; ungroupedAdditional: number }> }),
+      : Promise.resolve({ fullSeriesRewatchCount: 0, seasonStats: {} as Record<number, { completed: number; additional: number }> }),
   ])
   ratingHistory = historyRes
   movieRewatchCount = movieCountRes

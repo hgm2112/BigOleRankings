@@ -16,7 +16,7 @@ import { usePosterTheme } from "@/hooks/use-poster-theme"
 import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye, Repeat } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
-type SeasonRewatchStat = { completed: number; ungroupedAdditional: number }
+type SeasonRewatchStat = { completed: number; additional: number }
 type RatingHistoryRow = {
   id: string
   season_number: number | null
@@ -446,10 +446,10 @@ export function EntryDetailClient({
                     <span className="text-muted-foreground">—</span>
                   )
 
-                  const rewatchNode = sStat ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`${sStat.ungroupedAdditional} additional completed viewing${sStat.ungroupedAdditional === 1 ? "" : "s"} not grouped into a full-series rewatch`}>
+                  const rewatchNode = sStat && sStat.additional > 0 ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                       <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span className="tabular-nums">{sStat.ungroupedAdditional}</span>
+                      <span className="tabular-nums">{sStat.additional}</span>
                     </span>
                   ) : null
 
