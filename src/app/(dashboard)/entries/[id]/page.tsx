@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { EntryDetailClient } from "./entry-detail-client"
 import { ENTRY_SELECT, flattenEntry } from "@/lib/entry-queries"
 import { fetchMovieRewatchCount, fetchRatingHistory, fetchTvWatchStats } from "@/lib/rewatch"
+import { getWatchlistEligibilityForMediaId } from "@/lib/watchlist"
 
 export default async function EntryDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sort?: string; dir?: string; back?: string }> }) {
   const { id } = await params
@@ -194,6 +195,8 @@ export default async function EntryDetailPage({ params, searchParams }: { params
     }
   }
 
+  const watchlistState = await getWatchlistEligibilityForMediaId(supabase, user.id, entry.media_id)
+
   return (
     <EntryDetailClient
       entry={entry}
@@ -210,6 +213,7 @@ export default async function EntryDetailPage({ params, searchParams }: { params
       fullSeriesRewatchCount={fullSeriesRewatchCount}
       seasonRewatchStats={seasonRewatchStats}
       ratingHistory={ratingHistory}
+      watchlistState={watchlistState}
     />
   )
 }

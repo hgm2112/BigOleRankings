@@ -13,7 +13,7 @@ import { useCustomization } from "@/components/customization-provider"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { formatDate } from "@/lib/format-date"
 import { usePosterTheme } from "@/hooks/use-poster-theme"
-import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye, Repeat } from "lucide-react"
+import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye, Repeat, BookmarkPlus, BookmarkCheck } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
 type SeasonRewatchStat = { completed: number; additional: number }
@@ -37,6 +37,12 @@ type RatingHistoryRow = {
   new_season_rating: number | null
   new_season_dnf: boolean | null
   changed_at: string
+}
+
+type WatchlistState = {
+  eligible: boolean
+  onWatchlist: boolean
+  reason: "already_on_watchlist" | "currently_watching" | "already_watched_or_rated" | null
 }
 
 interface Entry {
@@ -102,6 +108,7 @@ export function EntryDetailClient({
   fullSeriesRewatchCount = 0,
   seasonRewatchStats = {},
   ratingHistory = [],
+  watchlistState,
 }: {
   entry: Entry
   ownerProfile: { username: string; display_name: string | null } | null
@@ -117,6 +124,7 @@ export function EntryDetailClient({
   fullSeriesRewatchCount?: number
   seasonRewatchStats?: Record<number, SeasonRewatchStat>
   ratingHistory?: RatingHistoryRow[]
+  watchlistState?: WatchlistState
 }) {
   const { prefs } = useCustomization()
   const posterUrl = entry.poster_path
@@ -138,6 +146,53 @@ export function EntryDetailClient({
   const [expandedFollowers, setExpandedFollowers] = useState<Set<string>>(new Set())
   const [showOverallHistory, setShowOverallHistory] = useState(false)
   const [expandedSeasonHistory, setExpandedSeasonHistory] = useState<Set<number>>(new Set())
+  const [wlState, setWlState] = useState<WatchlistState | null>(watchlistState ?? null)
+  const [wlBusy, setWlBusy] = useState(false)
+  const [wlError, setWlError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setWlState(watchlistState ?? null)
+  }, [watchlistState, entry.media_id])
+
+  const handleWatchlistAdd = async () => {
+    if (!wlState || !wlState.eligible) return
+    setWlBusy(true)
+    setWlError(null)
+    try {
+      const res = await fetch("/api/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_id: entry.media_id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to add to watchlist")
+      setWlState({ eligible: false, onWatchlist: true, reason: "already_on_watchlist" })
+    } catch (e: any) {
+      setWlError(e?.message || "Failed to add to watchlist")
+    } finally {
+      setWlBusy(false)
+    }
+  }
+
+  const handleWatchlistRemove = async () => {
+    if (!wlState || !wlState.onWatchlist) return
+    setWlBusy(true)
+    setWlError(null)
+    try {
+      const res = await fetch("/api/watchlist", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_id: entry.media_id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to remove from watchlist")
+      setWlState({ eligible: true, onWatchlist: false, reason: null })
+    } catch (e: any) {
+      setWlError(e?.message || "Failed to remove from watchlist")
+    } finally {
+      setWlBusy(false)
+    }
+  }
 
   const overallHistory = ratingHistory.filter((h) => h.rating_scope === "movie_overall" || h.rating_scope === "tv_overall")
   const seasonHistoryBySeason = new Map<number, RatingHistoryRow[]>()
@@ -273,18 +328,31 @@ export function EntryDetailClient({
             )}
           </div>
 
-          {isOwner && (
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/entries/${entry.id}/edit`}><Edit3 className="h-4 w-4 mr-1" />Edit</Link>
-              </Button>
-              {!hasDetailed && (
-                <Button size="sm" asChild>
-                  <Link href={`/entries/${entry.id}/detailed`}><ClipboardList className="h-4 w-4 mr-1" />Add Detailed Rating</Link>
+          <div className="flex items-center gap-3 flex-wrap">
+            {isOwner && (
+              <>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/entries/${entry.id}/edit`}><Edit3 className="h-4 w-4 mr-1" />Edit</Link>
                 </Button>
-              )}
-            </div>
-          )}
+                {!hasDetailed && (
+                  <Button size="sm" asChild>
+                    <Link href={`/entries/${entry.id}/detailed`}><ClipboardList className="h-4 w-4 mr-1" />Add Detailed Rating</Link>
+                  </Button>
+                )}
+              </>
+            )}
+            {wlState?.eligible && (
+              <Button variant="outline" size="sm" onClick={handleWatchlistAdd} disabled={wlBusy}>
+                <BookmarkPlus className="h-4 w-4 mr-1" />{wlBusy ? "Adding..." : "Add to Watchlist"}
+              </Button>
+            )}
+            {wlState?.onWatchlist && (
+              <Button variant="outline" size="sm" onClick={handleWatchlistRemove} disabled={wlBusy}>
+                <BookmarkCheck className="h-4 w-4 mr-1" />{wlBusy ? "Saving..." : "On Watchlist"}
+              </Button>
+            )}
+          </div>
+          {wlError && <p className="text-sm text-destructive">{wlError}</p>}
 
           <Separator />
 

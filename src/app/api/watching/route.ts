@@ -177,6 +177,14 @@ export async function POST(request: NextRequest) {
         console.error("Failed to insert watch activity", actErr)
       }
 
+      // Defense-in-depth: remove from watchlist once watching has started successfully
+      // (DB trigger on watch_periods insert also handles this).
+      try {
+        await supabase.from("watchlist").delete().eq("user_id", user.id).eq("media_id", mediaId)
+      } catch (e) {
+        console.error("Failed to remove from watchlist after start", e)
+      }
+
       return Response.json({ success: true, period_id: period.id, media_id: mediaId })
     }
 
@@ -292,6 +300,14 @@ export async function POST(request: NextRequest) {
         season_number: existing.season_number ?? null,
       })
       if (actErr) console.error("Failed to insert watch activity", actErr)
+
+      // Defense-in-depth: remove from watchlist once watching has started successfully
+      // (DB trigger on watch_periods insert also handles this).
+      try {
+        await supabase.from("watchlist").delete().eq("user_id", user.id).eq("media_id", existing.media_id)
+      } catch (e) {
+        console.error("Failed to remove from watchlist after resume", e)
+      }
 
       return Response.json({ success: true, period_id: period.id })
     }

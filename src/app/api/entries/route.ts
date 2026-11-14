@@ -197,5 +197,13 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Defense-in-depth: recording a rating makes the title ineligible for watchlist
+  // (DB triggers on ratings/season_ratings insert also handle this).
+  try {
+    await supabase.from("watchlist").delete().eq("user_id", user.id).eq("media_id", mediaId)
+  } catch (e) {
+    console.error("Failed to remove from watchlist after rating", e)
+  }
+
   return Response.json({ success: true })
 }
