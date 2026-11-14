@@ -2,7 +2,7 @@
 // existing rating timestamps — no activity table. Used by the server page
 // (initial render) and /api/social/feed (Load more), so both stay in sync.
 
-import type { SupabaseClient } from "@supabase/supabase-js"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
 export interface FeedUser {
   id: string
@@ -25,7 +25,7 @@ export interface FeedLiker {
 
 export interface FeedEvent {
   key: string
-  type: "gut" | "detailed" | "season" | "watch" | "full_series_rewatch"
+  type: "gut" | "detailed" | "season" | "watch" | "full_series_rewatch" | "watchlist"
   at: string
   user: FeedUser
   media: FeedMedia
@@ -123,6 +123,20 @@ interface FullSeriesRewatchRow {
   } | null
 }
 
+interface WatchlistRow {
+  id: string
+  user_id: string
+  media_id: string
+  created_at: string
+  media: {
+    title: string
+    media_type: string
+    year: number | null
+    poster_path: string | null
+    tmdb_id: number
+  } | null
+}
+
 interface LikeRow {
   event_key: string
   user_id: string
@@ -143,6 +157,9 @@ const WATCH_SELECT = `id, user_id, media_id, event_type, season_number, occurred
   media:media_id (title, media_type, year, poster_path, tmdb_id)`
 
 const FULL_SERIES_REWATCH_SELECT = `id, user_id, media_id, rewatch_number, recognized_at,
+  media:media_id (title, media_type, year, poster_path, tmdb_id)`
+
+const WATCHLIST_SELECT = `id, user_id, media_id, created_at,
   media:media_id (title, media_type, year, poster_path, tmdb_id)`
 
 function normalizeMedia(raw: RatingEventRow["media"] | SeasonEventRow["media"]): FeedMedia | null {
@@ -284,6 +301,28 @@ export async function fetchSocialFeed(
   const fullSeriesResult = fullSeriesRes as { data?: FullSeriesRewatchRow[] | null; error?: unknown }
   const safeFullSeriesRows = (fullSeriesResult.error ? [] : (fullSeriesResult.data ?? [])) as FullSeriesRewatchRow[]
 
+  // Watchlist rows are private (owner-only RLS). To show "added to Watchlist"
+  // in Recent Activity like ratings/watched, read them via service role scoped
+  // to the feed audience (viewer + followed users). Derived from current rows,
+  // so events disappear when items leave the watchlist.
+  let watchlistRows: WatchlistRow[] = []
+  const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (serviceUrl && serviceKey) {
+    const service = createClient(serviceUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    const watchlistQuery = service
+      .from("watchlist")
+      .select(WATCHLIST_SELECT)
+      .in("user_id", ids)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (before) watchlistQuery.lt("created_at", before)
+    const { data: wlData } = await watchlistQuery
+    watchlistRows = (wlData ?? []) as unknown as WatchlistRow[]
+  }
+
   const events: DraftEvent[] = []
 
   for (const raw of ((gutRes.data ?? []) as unknown as RatingEventRow[])) {
@@ -333,9 +372,9 @@ export async function fetchSocialFeed(
   )
 
   let entryIdByKey = new Map<string, string>()
-  if (seasonRows.length > 0 || safeFullSeriesRows.length > 0) {
-    const mediaIds = [...new Set([...seasonRows.map((r) => r.media_id), ...safeFullSeriesRows.map((r) => r.media_id)])]
-    const userIds = [...new Set([...seasonRows.map((r) => r.user_id), ...safeFullSeriesRows.map((r) => r.user_id)])]
+  if (seasonRows.length > 0 || safeFullSeriesRows.length > 0 || watchlistRows.length > 0) {
+    const mediaIds = [...new Set([...seasonRows.map((r) => r.media_id), ...safeFullSeriesRows.map((r) => r.media_id), ...watchlistRows.map((r) => r.media_id)])]
+    const userIds = [...new Set([...seasonRows.map((r) => r.user_id), ...safeFullSeriesRows.map((r) => r.user_id), ...watchlistRows.map((r) => r.user_id)])]
     const { data: ratingLinks } = await supabase
       .from("ratings")
       .select("id, user_id, media_id")
@@ -448,6 +487,21 @@ export async function fetchSocialFeed(
       media,
       entryId: entryIdByKey.get(`${raw.user_id}:${raw.media_id}`) ?? null,
       rewatch_number: raw.rewatch_number,
+    })
+  }
+
+  for (const raw of watchlistRows) {
+    const media = normalizeMedia(asMedia(raw.media))
+    if (!media) continue
+    const user = profileById.get(raw.user_id)
+    if (!user) continue
+    events.push({
+      key: `watchlist:${raw.id}`,
+      type: "watchlist",
+      at: raw.created_at,
+      user,
+      media,
+      entryId: entryIdByKey.get(`${raw.user_id}:${raw.media_id}`) ?? null,
     })
   }
 

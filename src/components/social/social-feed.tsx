@@ -80,7 +80,7 @@ function EventScore({ event }: { event: FeedEvent }) {
       </span>
     )
   }
-  if (event.type === "full_series_rewatch") {
+  if (event.type === "full_series_rewatch" || event.type === "watchlist") {
     return null
   }
   if (event.dnf) return null
@@ -103,6 +103,7 @@ function eventVerbParts(event: FeedEvent): { action: string; suffix: string } {
     const n = event.rewatch_number ?? 1
     return { action: `completed Full-Series Rewatch #${n} of`, suffix: "" }
   }
+  if (event.type === "watchlist") return { action: "Watchlisted", suffix: "" }
   // watch
   const seasonSuffix =
     event.media.media_type === "tv" && event.season_number != null
@@ -140,6 +141,7 @@ function eventMobileAction(event: FeedEvent): string {
   if (event.type === "detailed") return "detailed-rated"
   if (event.type === "season") return event.dnf ? "DNF'd" : "rated"
   if (event.type === "full_series_rewatch") return `Full-Series Rewatch #${event.rewatch_number ?? 1}`
+  if (event.type === "watchlist") return "Watchlisted"
   switch (event.watch_event_type) {
     case "started":
       return "started watching"
@@ -247,6 +249,9 @@ function eventActionClass(event: FeedEvent, compact = false): string | undefined
   }
   if (event.type === "full_series_rewatch") {
     return `${chip} bg-[#14532d] text-[#86efac] ring-[#86efac]/35`
+  }
+  if (event.type === "watchlist") {
+    return `${chip} bg-[#7a2e4d] text-[#e8c0d0] ring-[#e8c0d0]/30`
   }
   return undefined
 }
