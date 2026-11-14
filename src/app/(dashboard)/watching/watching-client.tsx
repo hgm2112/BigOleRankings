@@ -234,6 +234,22 @@ export function WatchingClient({
     )
     if (srErr) throw new Error(srErr.message)
 
+    if (newDnf === true) {
+      try {
+        const res = await fetch("/api/season-ratings/sync-dnf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ media_id: mediaId, season_numbers: [seasonNum] }),
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          console.error("Failed to sync DNF to watch period", { status: res.status, body })
+        }
+      } catch (e) {
+        console.error("Failed to sync DNF to watch period", e)
+      }
+    }
+
     if (changed) {
       try {
         await supabase.from("rating_history").insert({
@@ -581,6 +597,21 @@ export function WatchingClient({
             { onConflict: "user_id,media_id,season_number" }
           )
           if (upErr) throw new Error(upErr.message)
+          if (newDnf === true) {
+            try {
+              const res = await fetch("/api/season-ratings/sync-dnf", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ media_id: p.media_id, season_numbers: [p.season_number] }),
+              })
+              if (!res.ok) {
+                const body = await res.json().catch(() => ({}))
+                console.error("Failed to sync DNF to watch period", { status: res.status, body })
+              }
+            } catch (e) {
+              console.error("Failed to sync DNF to watch period", e)
+            }
+          }
           if (changed) {
             try {
               await supabase.from("rating_history").insert({

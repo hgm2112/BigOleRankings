@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { localParts, addDaysToLocalDate } from "@/lib/reminder"
+import { syncDnfToPeriod } from "@/lib/season-rating-dnf-sync"
 
 export async function POST(request: NextRequest) {
   const supabase = await createUserClient()
@@ -194,6 +195,13 @@ export async function POST(request: NextRequest) {
         { error: `Rating saved, but season ratings failed: ${seasonRatingsError.message}` },
         { status: 500 }
       )
+    }
+
+    // Sync DNF to most recent finished watch period when resulting dnf=true (server-side).
+    for (const row of seasonRatingRows) {
+      if (row.dnf === true) {
+        await syncDnfToPeriod(supabase, user.id, mediaId, row.season_number)
+      }
     }
   }
 

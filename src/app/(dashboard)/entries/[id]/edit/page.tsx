@@ -284,6 +284,23 @@ export default function EditEntryPage({ params }: { params: Promise<{ id: string
             setSaving(false)
             return
           }
+
+          const dnfSeasons = toUpsert.filter((r) => r.dnf === true).map((r) => r.season_number)
+          if (dnfSeasons.length > 0) {
+            try {
+              const res = await fetch("/api/season-ratings/sync-dnf", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ media_id: entry.media_id, season_numbers: dnfSeasons }),
+              })
+              if (!res.ok) {
+                const body = await res.json().catch(() => ({}))
+                console.error("Failed to sync DNF to watch period", { status: res.status, body })
+              }
+            } catch (e) {
+              console.error("Failed to sync DNF to watch period", e)
+            }
+          }
         }
       }
     }
