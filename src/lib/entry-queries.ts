@@ -10,8 +10,8 @@ export const ENTRY_SELECT = `id, user_id, media_id,
   notes, weight, created_at, updated_at,
   media:media_id (id, tmdb_id, media_type, title, poster_path, year, genres,
     movies:movies (id, runtime),
-    tv_shows:tv_shows (id, status, next_air_date, network),
-    seasons:seasons (id, season_number, name, air_year, episode_count, episode_runtime)
+    tv_shows:tv_shows (id, status, next_air_date, network, upcoming_season_number, upcoming_release_date, release_info_last_checked_at),
+    seasons:seasons (id, season_number, name, air_year, episode_count, episode_runtime, air_date)
   )`
 
 export interface FlatSeason {
@@ -21,6 +21,7 @@ export interface FlatSeason {
   air_year: number | null
   episode_count: number | null
   episode_runtime: number | null
+  air_date: string | null
 }
 
 export interface FlatEntry {
@@ -35,6 +36,9 @@ export interface FlatEntry {
   genres: string[] | null
   status: string | null
   next_air_date: string | null
+  upcoming_season_number: number | null
+  upcoming_release_date: string | null
+  release_info_last_checked_at: string | null
   runtime: number | null
   network: string | null
   total_episodes: number
@@ -77,6 +81,9 @@ export function flattenEntry(row: any, dnfSeasonKeys?: Set<string>): FlatEntry {
     genres: m?.genres ?? null,
     status: isTv ? (tv?.status ?? null) : null,
     next_air_date: isTv ? (tv?.next_air_date ?? null) : null,
+    upcoming_season_number: isTv ? (tv?.upcoming_season_number ?? null) : null,
+    upcoming_release_date: isTv ? (tv?.upcoming_release_date ?? null) : null,
+    release_info_last_checked_at: isTv ? (tv?.release_info_last_checked_at ?? null) : null,
     runtime: isTv ? totalRuntime || null : (movie?.runtime ?? null),
     network: isTv ? (tv?.network ?? null) : null,
     total_episodes: isTv ? totalEpisodes : 0,
@@ -87,6 +94,7 @@ export function flattenEntry(row: any, dnfSeasonKeys?: Set<string>): FlatEntry {
       air_year: s.air_year ?? null,
       episode_count: s.episode_count ?? null,
       episode_runtime: s.episode_runtime ?? null,
+      air_date: s.air_date ?? null,
     })) : [],
     gut_rating: row.gut_rating,
     gut_rated_at: row.gut_rated_at,

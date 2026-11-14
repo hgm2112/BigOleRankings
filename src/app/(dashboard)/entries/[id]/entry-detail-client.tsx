@@ -245,13 +245,31 @@ export function EntryDetailClient({
           setLiveNextAirDate(data.next_air_date ?? null)
         }
         setOverviewLoading(false)
+
+        // Persist refreshed release/season info for this show (same stored data used by
+        // Upcoming Releases). Scoped to the viewed show only; reuses the details response
+        // to avoid a duplicate TMDB request. Failures are non-blocking and leave stored info unchanged.
+        if (entry.media_type === "tv" && data?.tmdb_tv) {
+          void fetch("/api/upcoming-releases/persist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ media_id: entry.media_id, tmdb: data.tmdb_tv }),
+          }).catch(() => {})
+        } else if (entry.media_type === "tv") {
+          // Fallback: scoped refresh if raw payload unavailable.
+          void fetch("/api/upcoming-releases/refresh-one", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ media_id: entry.media_id }),
+          }).catch(() => {})
+        }
       })
       .catch(() => {
         setOverview(null)
         setOverviewError(true)
         setOverviewLoading(false)
       })
-  }, [entry.tmdb_id, entry.media_type, entry.id])
+  }, [entry.tmdb_id, entry.media_type, entry.id, entry.media_id])
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
