@@ -16,6 +16,10 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [resendError, setResendError] = useState<string | null>(null)
   const router = useRouter()
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -24,12 +28,16 @@ export default function RegisterPage() {
     setError(null)
 
     const supabase = createClient()
+    const emailRedirectTo =
+      (process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+        : `${window.location.origin}/auth/callback`)
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { username },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        emailRedirectTo,
       },
     })
 
@@ -41,10 +49,67 @@ export default function RegisterPage() {
 
     if (data.session) {
       router.push("/dashboard")
+      router.refresh()
     } else {
-      router.push("/login?message=Check your email to confirm your account")
+      setPendingEmail(email)
+      setLoading(false)
     }
-    router.refresh()
+  }
+
+  const handleResend = async () => {
+    if (!pendingEmail) return
+    setResendLoading(true)
+    setResendMessage(null)
+    setResendError(null)
+
+    const supabase = createClient()
+    const emailRedirectTo =
+      (process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+        : `${window.location.origin}/auth/callback`)
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: pendingEmail,
+      options: { emailRedirectTo },
+    })
+
+    if (error) {
+      setResendError(error.message)
+    } else {
+      setResendMessage("Confirmation email resent. Please check your inbox (and spam).")
+    }
+    setResendLoading(false)
+  }
+
+  if (pendingEmail) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="grid w-full max-w-4xl items-center gap-10 md:grid-cols-2">
+          <AuthBlurb variant="register" />
+          <div className="flex justify-center">
+            <Card className="w-full max-w-sm">
+              <CardHeader>
+                <CardTitle>Check your email</CardTitle>
+                <CardDescription>Confirm your account to finish signing up</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  We sent a confirmation link to <span className="font-medium text-foreground">{pendingEmail}</span>. Click the link in that email to activate your account.
+                </p>
+                {resendMessage && <p className="text-sm text-green-600">{resendMessage}</p>}
+                {resendError && <p className="text-sm text-destructive">{resendError}</p>}
+                <Button type="button" variant="outline" className="w-full" onClick={handleResend} disabled={resendLoading}>
+                  {resendLoading ? "Sending..." : "Resend confirmation email"}
+                </Button>
+                <p className="text-center text-sm text-muted-foreground">
+                  Already confirmed? <Link href="/login" className="text-primary underline-offset-4 hover:underline">Sign In</Link>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -16,6 +16,7 @@ interface DetailedRatingFormProps {
   onRecommendChange: (value: number) => void
   onWatchAgainChange: (value: number) => void
   gutRating?: number
+  showGutComparison?: boolean
 }
 
 const FIELD_INFO: Record<string, string> = {
@@ -61,9 +62,10 @@ export function DetailedRatingForm({
   onRecommendChange,
   onWatchAgainChange,
   gutRating,
+  showGutComparison = true,
 }: DetailedRatingFormProps) {
   const total = enjoyment + impact + recommend + watchAgain
-  const diff = gutRating !== undefined ? total - gutRating : null
+  const diff = showGutComparison && gutRating !== undefined ? total - gutRating : null
 
   return (
     <div className="space-y-6">

@@ -114,9 +114,6 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
       <Card>
         <CardHeader>
           <CardTitle>Detailed Rating</CardTitle>
-          <CardDescription>
-            Rate {entry.title} in detail. Gut rating: {entry.gut_rating}/100
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -129,7 +126,6 @@ export default function DetailedRatingPage({ params }: { params: Promise<{ id: s
               onImpactChange={setImpact}
               onRecommendChange={setRecommend}
               onWatchAgainChange={setWatchAgain}
-              gutRating={entry.gut_rating}
             />
             <Button type="submit" disabled={saving}>
               {saving ? "Saving..." : "Save Detailed Rating"}

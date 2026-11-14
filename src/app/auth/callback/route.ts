@@ -15,5 +15,8 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_code_error`)
+  const message = encodeURIComponent(
+    "Confirmation link is invalid or has expired. Please request a new confirmation email."
+  )
+  return NextResponse.redirect(`${origin}/login?message=${message}`)
 }

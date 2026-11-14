@@ -15,20 +15,33 @@ function LoginForm() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showResend, setShowResend] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [resendError, setResendError] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const message = searchParams.get("message")
+  const showResendFromMessage = !!message && /confirm|expired|invalid/i.test(message)
+
+  const isUnconfirmedError = (msg: string) => /email not confirmed|not confirmed/i.test(msg)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setResendMessage(null)
+    setResendError(null)
+    setShowResend(false)
 
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
+      if (isUnconfirmedError(error.message)) {
+        setShowResend(true)
+      }
       setLoading(false)
       return
     }
@@ -36,6 +49,37 @@ function LoginForm() {
     router.push("/dashboard")
     router.refresh()
   }
+
+  const handleResend = async (targetEmail: string) => {
+    if (!targetEmail) {
+      setResendError("Enter your email address to resend the confirmation email.")
+      return
+    }
+    setResendLoading(true)
+    setResendMessage(null)
+    setResendError(null)
+
+    const supabase = createClient()
+    const emailRedirectTo =
+      (process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+        : `${window.location.origin}/auth/callback`)
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: targetEmail,
+      options: { emailRedirectTo },
+    })
+
+    if (error) {
+      setResendError(error.message)
+    } else {
+      setResendMessage("Confirmation email resent. Please check your inbox (and spam).")
+      setShowResend(false)
+    }
+    setResendLoading(false)
+  }
+
+  const canShowResend = showResend || showResendFromMessage
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
@@ -66,6 +110,24 @@ function LoginForm() {
               <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
+            {canShowResend && (
+              <div className="space-y-2 rounded-md border p-3">
+                <p className="text-sm text-muted-foreground">
+                  Need a new confirmation email?
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => handleResend(email)}
+                  disabled={resendLoading}
+                >
+                  {resendLoading ? "Sending..." : "Resend confirmation email"}
+                </Button>
+              </div>
+            )}
+            {resendMessage && <p className="text-sm text-green-600">{resendMessage}</p>}
+            {resendError && <p className="text-sm text-destructive">{resendError}</p>}
             <Button type="submit" className="w-full" disabled={loading}>{loading ? "Signing in..." : "Sign In"}</Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
