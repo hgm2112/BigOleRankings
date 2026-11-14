@@ -15,6 +15,7 @@ export interface UpcomingShow {
   lastCheckedAt: string | null
   recentReleaseSeasonNumber: number | null
   recentReleaseDate: string | null
+  expectedSeasonNumber: number | null
 }
 
 export interface ReleaseRefreshResult {
@@ -28,6 +29,7 @@ export interface ReleaseRefreshResult {
   lastCheckedAt?: string | null
   recentReleaseSeasonNumber?: number | null
   recentReleaseDate?: string | null
+  expectedSeasonNumber?: number | null
 }
 
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -74,6 +76,15 @@ function isCompleteEnoughTvDetails(item: any): boolean {
   if (typeof id !== "number" && typeof id !== "string") return false
   if (!Array.isArray(item.seasons)) return false
   return true
+}
+
+function computeExpectedSeasonNumber(seasons: { season_number: number }[]): number | null {
+  let maxSeason: number | null = null
+  for (const s of seasons) {
+    if (typeof s?.season_number !== "number" || s.season_number < 1) continue
+    if (maxSeason == null || s.season_number > maxSeason) maxSeason = s.season_number
+  }
+  return maxSeason == null ? null : maxSeason + 1
 }
 
 function pickRecentRelease(params: {
@@ -197,7 +208,7 @@ export async function persistReleaseInfoFromTmdbItem(
     // and to preserve known info when TMDB data is incomplete/unreliable.
     const { data: prev } = await service
       .from("tv_shows")
-      .select("upcoming_season_number, upcoming_release_date, recent_release_season_number, recent_release_date, release_info_last_checked_at")
+      .select("upcoming_season_number, upcoming_release_date, recent_release_season_number, recent_release_date, expected_season_number, release_info_last_checked_at")
       .eq("id", mediaId)
       .maybeSingle()
 
@@ -212,6 +223,7 @@ export async function persistReleaseInfoFromTmdbItem(
         upcomingReleaseDate: (prev as any)?.upcoming_release_date ?? null,
         recentReleaseSeasonNumber: (prev as any)?.recent_release_season_number ?? null,
         recentReleaseDate: (prev as any)?.recent_release_date ?? null,
+        expectedSeasonNumber: (prev as any)?.expected_season_number ?? null,
         lastCheckedAt: (prev as any)?.release_info_last_checked_at ?? null,
       }
     }
@@ -233,6 +245,9 @@ export async function persistReleaseInfoFromTmdbItem(
       upcomingSeasonNumber = null
       upcomingReleaseDate = null
     }
+
+    // Expected next season for awaiting state: next after highest known regular season seen.
+    const expectedSeasonNumber = computeExpectedSeasonNumber(derived.seasons)
 
     // Upsert seasons first; if this fails, do not mark the show as successfully checked
     // and do not overwrite stored release info/last-checked timestamp.
@@ -264,6 +279,7 @@ export async function persistReleaseInfoFromTmdbItem(
         upcoming_release_date: upcomingReleaseDate,
         recent_release_season_number: recent.recentReleaseSeasonNumber,
         recent_release_date: recent.recentReleaseDate,
+        expected_season_number: expectedSeasonNumber,
         release_info_last_checked_at: checkedAt,
       })
       .eq("id", mediaId)
@@ -280,6 +296,7 @@ export async function persistReleaseInfoFromTmdbItem(
       upcomingReleaseDate,
       recentReleaseSeasonNumber: recent.recentReleaseSeasonNumber,
       recentReleaseDate: recent.recentReleaseDate,
+      expectedSeasonNumber,
       lastCheckedAt: checkedAt,
     }
   } catch (e: any) {
@@ -319,7 +336,7 @@ export async function getEligibleUpcomingShowsForUser(
       `media_id,
        media:media_id!inner (
          id, tmdb_id, media_type, title, poster_path, year,
-         tv_shows:tv_shows!inner (status, upcoming_season_number, upcoming_release_date, release_info_last_checked_at, recent_release_season_number, recent_release_date)
+         tv_shows:tv_shows!inner (status, upcoming_season_number, upcoming_release_date, release_info_last_checked_at, recent_release_season_number, recent_release_date, expected_season_number)
        )`
     )
     .eq("user_id", userId)
@@ -348,6 +365,7 @@ export async function getEligibleUpcomingShowsForUser(
       lastCheckedAt: (tv.release_info_last_checked_at ?? null) as string | null,
       recentReleaseSeasonNumber: (tv.recent_release_season_number ?? null) as number | null,
       recentReleaseDate: (tv.recent_release_date ?? null) as string | null,
+      expectedSeasonNumber: (tv.expected_season_number ?? null) as number | null,
     })
   }
   return Array.from(byMedia.values())

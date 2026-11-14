@@ -115,7 +115,8 @@ create table if not exists tv_shows (
   upcoming_release_date date,
   release_info_last_checked_at timestamptz,
   recent_release_season_number int check (recent_release_season_number is null or recent_release_season_number >= 1),
-  recent_release_date date
+  recent_release_date date,
+  expected_season_number int check (expected_season_number is null or expected_season_number >= 1)
 );
 
 alter table tv_shows enable row level security;

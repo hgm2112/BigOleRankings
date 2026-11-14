@@ -88,9 +88,11 @@ function ShowCard({ show, section }: { show: UpcomingShow; section: "new" | "upc
                 </>
               ) : (
                 <>
-                  {show.upcomingSeasonNumber != null && (
+                  {show.expectedSeasonNumber != null ? (
+                    <p className="text-muted-foreground">Expected Season {show.expectedSeasonNumber}</p>
+                  ) : show.upcomingSeasonNumber != null ? (
                     <p className="text-muted-foreground">Season {show.upcomingSeasonNumber}</p>
-                  )}
+                  ) : null}
                   <p className="text-muted-foreground">Release date not announced</p>
                 </>
               )}
