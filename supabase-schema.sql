@@ -116,7 +116,9 @@ create table if not exists tv_shows (
   release_info_last_checked_at timestamptz,
   recent_release_season_number int check (recent_release_season_number is null or recent_release_season_number >= 1),
   recent_release_date date,
-  expected_season_number int check (expected_season_number is null or expected_season_number >= 1)
+  expected_season_number int check (expected_season_number is null or expected_season_number >= 1),
+  recent_release_kind text check (recent_release_kind is null or recent_release_kind in ('full_season', 'episodes', 'unknown')),
+  recent_release_episode_numbers jsonb
 );
 
 alter table tv_shows enable row level security;
@@ -441,3 +443,40 @@ create policy "Users can insert their own watch activities"
 grant select, insert on watch_activities to authenticated;
 grant all on watch_activities to service_role;
 grant select on watch_activities to anon;
+
+-- Notification settings (per-user preferences/toggles)
+create table if not exists notification_settings (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  detailed_rating_reminders boolean not null default true,
+  upcoming_release_notifications boolean not null default true,
+  timezone text,
+  updated_at timestamptz not null default now()
+);
+
+alter table notification_settings enable row level security;
+
+create policy "own notification settings"
+  on notification_settings for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant all on notification_settings to anon, authenticated, service_role;
+
+-- Release notification delivery claims (cron/service role; dedupe per user/show/season/release/device)
+create table if not exists release_notification_deliveries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  media_id uuid not null references media (id) on delete cascade,
+  season_number int not null,
+  release_date date not null,
+  subscription_id uuid not null references push_subscriptions (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, media_id, season_number, release_date, subscription_id)
+);
+
+create index if not exists release_notification_deliveries_lookup_idx
+  on release_notification_deliveries (user_id, media_id, season_number, release_date);
+
+alter table release_notification_deliveries enable row level security;
+-- intentionally no user policies (cron/service role only)
+
+grant all on release_notification_deliveries to anon, authenticated, service_role;

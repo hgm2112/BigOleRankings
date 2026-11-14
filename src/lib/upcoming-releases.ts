@@ -195,11 +195,68 @@ export function deriveUpcomingRelease(item: any, today = todayIsoDate()): Derive
   return { status, nextAirDate, network, upcomingSeasonNumber, upcomingReleaseDate, seasons }
 }
 
+type RecentReleaseKind = "full_season" | "episodes" | "unknown"
+
+function formatEpisodeNumbersForStorage(numbers: number[]): number[] {
+  return Array.from(new Set(numbers.filter((n) => Number.isInteger(n) && n >= 1))).sort((a, b) => a - b)
+}
+
+async function classifyRecentRelease(
+  tmdbId: number,
+  seasonNumber: number | null,
+  releaseDate: string | null,
+  token?: string
+): Promise<{ kind: RecentReleaseKind | null; episodeNumbers: number[] | null }> {
+  if (seasonNumber == null || releaseDate == null) {
+    return { kind: null, episodeNumbers: null }
+  }
+  if (!token) {
+    // Without ability to fetch episode details, we cannot reliably classify.
+    return { kind: "unknown", episodeNumbers: null }
+  }
+  try {
+    const res = await fetch(`${TMDB_BASE}/tv/${tmdbId}/season/${seasonNumber}?language=en-US`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) {
+      return { kind: "unknown", episodeNumbers: null }
+    }
+    const season = await res.json().catch(() => null)
+    const episodes = Array.isArray(season?.episodes) ? season.episodes : null
+    if (!episodes || episodes.length === 0) {
+      return { kind: "unknown", episodeNumbers: null }
+    }
+
+    const allHaveDates = episodes.every((ep: any) => typeof ep?.air_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(ep.air_date))
+    if (!allHaveDates) {
+      return { kind: "unknown", episodeNumbers: null }
+    }
+
+    const airingToday = formatEpisodeNumbersForStorage(
+      episodes
+        .filter((ep: any) => ep.air_date === releaseDate)
+        .map((ep: any) => ep.episode_number)
+    )
+
+    if (airingToday.length === episodes.length && episodes.length > 0) {
+      return { kind: "full_season", episodeNumbers: airingToday }
+    }
+    if (airingToday.length > 0) {
+      return { kind: "episodes", episodeNumbers: airingToday }
+    }
+    // No episodes match the release date (unexpected) -> unknown, fallback handled at send time.
+    return { kind: "unknown", episodeNumbers: null }
+  } catch {
+    return { kind: "unknown", episodeNumbers: null }
+  }
+}
+
 export async function persistReleaseInfoFromTmdbItem(
   service: SupabaseClient,
   mediaId: string,
   tmdbId: number,
-  item: any
+  item: any,
+  token?: string
 ): Promise<ReleaseRefreshResult> {
   try {
     const today = todayIsoDate()
@@ -208,7 +265,7 @@ export async function persistReleaseInfoFromTmdbItem(
     // and to preserve known info when TMDB data is incomplete/unreliable.
     const { data: prev } = await service
       .from("tv_shows")
-      .select("upcoming_season_number, upcoming_release_date, recent_release_season_number, recent_release_date, expected_season_number, release_info_last_checked_at")
+      .select("upcoming_season_number, upcoming_release_date, recent_release_season_number, recent_release_date, expected_season_number, recent_release_kind, recent_release_episode_numbers, release_info_last_checked_at")
       .eq("id", mediaId)
       .maybeSingle()
 
@@ -249,6 +306,36 @@ export async function persistReleaseInfoFromTmdbItem(
     // Expected next season for awaiting state: next after highest known regular season seen.
     const expectedSeasonNumber = computeExpectedSeasonNumber(derived.seasons)
 
+    // Classify recent release (full season vs specific episodes) for notification messaging.
+    // Only reclassify when we have a recent release; preserve prior classification when not applicable
+    // or when we cannot determine reliably.
+    let recentReleaseKind: RecentReleaseKind | null = null
+    let recentReleaseEpisodeNumbers: number[] | null = null
+    const prevRecentKind = ((prev as any)?.recent_release_kind ?? null) as RecentReleaseKind | null
+    const prevRecentEpisodeNumbersRaw = (prev as any)?.recent_release_episode_numbers
+    const prevRecentEpisodeNumbers = Array.isArray(prevRecentEpisodeNumbersRaw)
+      ? formatEpisodeNumbersForStorage(prevRecentEpisodeNumbersRaw as number[])
+      : null
+
+    if (recent.recentReleaseSeasonNumber != null && recent.recentReleaseDate != null) {
+      const sameAsPrev =
+        recent.recentReleaseSeasonNumber === ((prev as any)?.recent_release_season_number ?? null) &&
+        recent.recentReleaseDate === ((prev as any)?.recent_release_date ?? null) &&
+        prevRecentKind != null
+      if (sameAsPrev) {
+        recentReleaseKind = prevRecentKind
+        recentReleaseEpisodeNumbers = prevRecentEpisodeNumbers
+      } else {
+        const classified = await classifyRecentRelease(tmdbId, recent.recentReleaseSeasonNumber, recent.recentReleaseDate, token)
+        recentReleaseKind = classified.kind
+        recentReleaseEpisodeNumbers = classified.episodeNumbers
+      }
+    } else {
+      // No in-window recent release.
+      recentReleaseKind = null
+      recentReleaseEpisodeNumbers = null
+    }
+
     // Upsert seasons first; if this fails, do not mark the show as successfully checked
     // and do not overwrite stored release info/last-checked timestamp.
     if (derived.seasons.length > 0) {
@@ -280,6 +367,8 @@ export async function persistReleaseInfoFromTmdbItem(
         recent_release_season_number: recent.recentReleaseSeasonNumber,
         recent_release_date: recent.recentReleaseDate,
         expected_season_number: expectedSeasonNumber,
+        recent_release_kind: recentReleaseKind,
+        recent_release_episode_numbers: recentReleaseEpisodeNumbers,
         release_info_last_checked_at: checkedAt,
       })
       .eq("id", mediaId)
@@ -319,7 +408,7 @@ export async function fetchAndPersistShowReleaseInfo(
       return { mediaId, tmdbId, ok: false, error: `TMDB ${res.status}` }
     }
     const item = await res.json()
-    return persistReleaseInfoFromTmdbItem(service, mediaId, tmdbId, item)
+    return persistReleaseInfoFromTmdbItem(service, mediaId, tmdbId, item, token)
   } catch (e: any) {
     // Network/exception: preserve all previously stored release info and last successful check timestamp.
     return { mediaId, tmdbId, ok: false, error: e?.message || "Request failed" }

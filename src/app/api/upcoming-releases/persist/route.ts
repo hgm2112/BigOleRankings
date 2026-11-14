@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Server misconfigured" }, { status: 500 })
   }
 
-  const result = await persistReleaseInfoFromTmdbItem(service, mediaId, m.tmdb_id as number, tmdb)
+  const token = process.env.TMDB_ACCESS_TOKEN
+  const result = await persistReleaseInfoFromTmdbItem(service, mediaId, m.tmdb_id as number, tmdb, token)
   if (!result.ok) {
     // Preserve-previous behavior is handled inside persist; treat as non-fatal for client.
     return Response.json({ ok: false, error: result.error || "Failed to persist release info", result }, { status: 200 })

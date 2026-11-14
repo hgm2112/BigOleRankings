@@ -29,19 +29,33 @@ export default function SettingsPage() {
   const [deviceSubscribed, setDeviceSubscribed] = useState(false)
   const [justSentTest, setJustSentTest] = useState(false)
 
+  const [upcomingReleaseNotifications, setUpcomingReleaseNotifications] = useState(true)
+  const [notifSettingsSaving, setNotifSettingsSaving] = useState(false)
+  const [notifSettingsError, setNotifSettingsError] = useState<string | null>(null)
+  const [notifSettingsSuccess, setNotifSettingsSuccess] = useState(false)
+
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .single()
+      const [{ data: profile }, { data: notifSettings }] = await Promise.all([
+        supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+        supabase
+          .from("notification_settings")
+          .select("detailed_rating_reminders, upcoming_release_notifications, timezone")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ])
 
-      if (data?.display_name) {
-        setDisplayName(data.display_name)
+      if (profile?.display_name) {
+        setDisplayName(profile.display_name)
+      }
+      if (notifSettings) {
+        setUpcomingReleaseNotifications(notifSettings.upcoming_release_notifications !== false)
       }
       setLoading(false)
     }
@@ -132,6 +146,37 @@ export default function SettingsPage() {
     return bytes
   }
 
+  async function upsertNotificationSettings(patch: { upcoming_release_notifications?: boolean; timezone?: string | null }) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: new Error("Not signed in") }
+    const tz = patch.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+    const payload: any = {
+      user_id: user.id,
+      timezone: tz,
+      updated_at: new Date().toISOString(),
+    }
+    if (typeof patch.upcoming_release_notifications === "boolean") {
+      payload.upcoming_release_notifications = patch.upcoming_release_notifications
+    }
+    return await supabase.from("notification_settings").upsert(payload, { onConflict: "user_id" })
+  }
+
+  async function saveUpcomingReleasePreference(next: boolean) {
+    setNotifSettingsSaving(true)
+    setNotifSettingsError(null)
+    setNotifSettingsSuccess(false)
+    const prev = upcomingReleaseNotifications
+    setUpcomingReleaseNotifications(next)
+    const { error } = await upsertNotificationSettings({ upcoming_release_notifications: next })
+    setNotifSettingsSaving(false)
+    if (error) {
+      setUpcomingReleaseNotifications(prev)
+      setNotifSettingsError(error.message)
+      return
+    }
+    setNotifSettingsSuccess(true)
+  }
+
   async function enableOnThisDevice() {
     setDeviceBusy(true)
     setEnableError(null)
@@ -209,6 +254,13 @@ export default function SettingsPage() {
       setEnableSuccess(true)
       setDeviceSubscribed(true)
       setJustSentTest(true)
+
+      // Save notification timezone (for local-noon delivery) when enabling on this device.
+      try {
+        await upsertNotificationSettings({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+      } catch {
+        // best-effort
+      }
 
       // Automatically send a test notification right after enabling
       try {
@@ -344,10 +396,10 @@ export default function SettingsPage() {
 
       <Card>
         <CardContent className="pt-6">
-          <h2 className="font-semibold mb-4">Detailed Rating Reminders</h2>
+          <h2 className="font-semibold mb-4">Push Notifications</h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Get a push notification ~7 days after your gut rating to add a detailed rating.
-            Works best when the app is installed to your home screen.
+            Enable notifications on this device (recommended when the app is installed to your home screen).
+            This is used for detailed rating reminders and upcoming release alerts.
           </p>
 
           <Button
@@ -366,7 +418,7 @@ export default function SettingsPage() {
 
           {enableSuccess && (
             <p className="text-sm text-green-600 mt-2">
-              This device is now subscribed to detailed rating reminders. A test notification has been sent.
+              This device is now subscribed to notifications. A test notification has been sent.
             </p>
           )}
           {enableError && (
@@ -379,6 +431,29 @@ export default function SettingsPage() {
             </p>
           )}
 
+          <div className="mt-6 space-y-3 border-t pt-4">
+            <div>
+              <h3 className="font-medium">Upcoming release alerts</h3>
+              <p className="text-sm text-muted-foreground">
+                Get a notification around 12:00 PM in your time zone on the day a new season releases for a show on your Upcoming list.
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={upcomingReleaseNotifications}
+                disabled={notifSettingsSaving}
+                onChange={(e) => void saveUpcomingReleasePreference(e.target.checked)}
+              />
+              Notify me when an upcoming season is released
+            </label>
+            {notifSettingsSuccess && <p className="text-sm text-green-600">Notification preference saved.</p>}
+            {notifSettingsError && <p className="text-sm text-destructive">{notifSettingsError}</p>}
+            <p className="text-xs text-muted-foreground">
+              If your time zone isn&apos;t known, notifications are sent around 12:00 PM US Eastern.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
