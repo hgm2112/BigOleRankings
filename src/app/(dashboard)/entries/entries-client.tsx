@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, type ReactNode } from "react"
+import { useState, useMemo, useRef, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { EntryCard } from "@/components/entry-card"
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, X } from "lucide-react"
 
 interface SeasonRating {
   media_id: string
@@ -56,6 +56,12 @@ export function EntriesClient({ entries, userId, seasonRatings = [], initialSort
   const [sortField, setSortField] = useState(initialSort || "recent")
   const [sortDir, setSortDir] = useState(initialDir || "desc")
   const [query, setQuery] = useState("")
+  const [searchExpanded, setSearchExpanded] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (searchExpanded) searchInputRef.current?.focus()
+  }, [searchExpanded])
 
   const showOrder = !["recent", "name", "status"].includes(sortField)
 
@@ -187,63 +193,109 @@ export function EntriesClient({ entries, userId, seasonRatings = [], initialSort
 
       <Tabs defaultValue="all">
         <div className="flex flex-wrap items-center gap-3">
-          <TabsList>
-            <TabsTrigger value="all">All ({currentEntries.length})</TabsTrigger>
-            <TabsTrigger value="movies">Movies ({totalMovies})</TabsTrigger>
-            <TabsTrigger value="tv">TV Shows ({totalTvShows})</TabsTrigger>
+          <TabsList className="mx-auto w-fit sm:mx-0 sm:w-auto">
+            <TabsTrigger className="px-1 sm:px-3" value="all">All ({currentEntries.length})</TabsTrigger>
+            <TabsTrigger className="px-1 sm:px-3" value="movies">Movies ({totalMovies})</TabsTrigger>
+            <TabsTrigger className="px-1 sm:px-3" value="tv">TV Shows ({totalTvShows})</TabsTrigger>
           </TabsList>
-          <div className="relative w-64 max-w-full">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              aria-label="Search your ratings"
-              placeholder="Search…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-9 pl-8"
-            />
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Select value={sortField} onValueChange={updateSort}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Most Recent</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-                <SelectItem value="gut">Gut Rating</SelectItem>
-                <SelectItem value="detailed">Detailed Rating</SelectItem>
-                <SelectItem value="diff">Gut vs Detail</SelectItem>
-                <SelectItem value="watch_again">Watch Again</SelectItem>
-                <SelectItem value="year">Year</SelectItem>
-              </SelectContent>
-            </Select>
-            {showOrder && (
-              <Select value={sortDir} onValueChange={updateDir}>
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue />
+          <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+            {/* Mobile: collapsed search icon */}
+            {!searchExpanded && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="relative h-9 w-9 shrink-0 sm:hidden"
+                aria-label="Search your ratings"
+                onClick={() => setSearchExpanded(true)}
+              >
+                <Search className="h-4 w-4" />
+                {query.trim() && (
+                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+                )}
+              </Button>
+            )}
+            {/* Mobile: expanded search bar */}
+            {searchExpanded && (
+              <div className="relative min-w-0 flex-1 sm:hidden">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  type="search"
+                  aria-label="Search your ratings"
+                  placeholder="Search…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onBlur={() => {
+                    if (!query.trim()) setSearchExpanded(false)
+                  }}
+                  className="h-9 pl-8 pr-8"
+                />
+                <button
+                  type="button"
+                  aria-label="Close search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setSearchExpanded(false)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            {/* Desktop: always-visible search bar */}
+            <div className="relative hidden w-64 sm:block">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                aria-label="Search your ratings"
+                placeholder="Search…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="h-9 pl-8"
+              />
+            </div>
+            <div className={`flex items-center gap-1 sm:shrink-0 sm:flex-none sm:gap-2 ${searchExpanded ? "shrink-0" : "min-w-0 flex-1 sm:min-w-0 sm:flex-none"}`}>
+              <Select value={sortField} onValueChange={updateSort}>
+                <SelectTrigger className={`${searchExpanded ? "w-[112px]" : "w-full min-w-0"} sm:w-[140px]`}>
+                  <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
-                  {sortField === "year" ? (
-                    <>
-                      <SelectItem value="desc">Newest</SelectItem>
-                      <SelectItem value="asc">Oldest</SelectItem>
-                    </>
-                  ) : sortField === "diff" ? (
-                    <>
-                      <SelectItem value="desc">Biggest Gap</SelectItem>
-                      <SelectItem value="asc">Smallest Gap</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="desc">High → Low</SelectItem>
-                      <SelectItem value="asc">Low → High</SelectItem>
-                    </>
-                  )}
+                  <SelectItem value="recent">Most Recent</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="gut">Gut Rating</SelectItem>
+                  <SelectItem value="detailed">Detailed Rating</SelectItem>
+                  <SelectItem value="diff">Gut vs Detail</SelectItem>
+                  <SelectItem value="watch_again">Watch Again</SelectItem>
+                  <SelectItem value="year">Year</SelectItem>
                 </SelectContent>
               </Select>
-            )}
+              {showOrder && (
+                <Select value={sortDir} onValueChange={updateDir}>
+                  <SelectTrigger className={`${searchExpanded ? "w-[104px]" : "w-full min-w-0"} sm:w-[130px]`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortField === "year" ? (
+                      <>
+                        <SelectItem value="desc">Newest</SelectItem>
+                        <SelectItem value="asc">Oldest</SelectItem>
+                      </>
+                    ) : sortField === "diff" ? (
+                      <>
+                        <SelectItem value="desc">Biggest Gap</SelectItem>
+                        <SelectItem value="asc">Smallest Gap</SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        <SelectItem value="desc">High → Low</SelectItem>
+                        <SelectItem value="asc">Low → High</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
         </div>
         <TabsContent value="all" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">

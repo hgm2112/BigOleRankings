@@ -242,8 +242,9 @@ export function StatsClient({
     iconClass: string,
     chipClass: string,
     value: React.ReactNode,
-    label: string,
-    subtitle?: string,
+    label: React.ReactNode,
+    subtitle?: React.ReactNode,
+    subtitleHiddenOnMobile?: boolean,
   ) => (
     <Card className="flex flex-col">
       <CardContent className="flex flex-1 items-center gap-3 pt-6">
@@ -257,7 +258,11 @@ export function StatsClient({
         <div>
           <p className="text-2xl font-bold tabular-nums">{value}</p>
           <p className="text-xs text-muted-foreground">{label}</p>
-          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          {subtitle && (
+            <p className={`text-xs text-muted-foreground ${subtitleHiddenOnMobile ? "hidden sm:block" : ""}`}>
+              {subtitle}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -464,10 +469,28 @@ export function StatsClient({
           "text-sky-500",
           "bg-sky-500/10",
           stats.total,
-          "Total rated",
+          <>
+            <span className="sm:hidden">Total Rated</span>
+            <span className="hidden sm:inline">Total rated</span>
+          </>,
           `${stats.movies.length} movie${stats.movies.length === 1 ? "" : "s"} · ${stats.tv.length} TV`,
+          true,
         )}
-        {quickStatCard(Clock, "text-cyan-500", "bg-cyan-500/10", stats.hours, "Time watched", "hours of runtime")}
+        {quickStatCard(
+          Clock,
+          "text-cyan-500",
+          "bg-cyan-500/10",
+          <>
+            <span className="sm:hidden">{Math.round(stats.hours)}</span>
+            <span className="hidden sm:inline">{stats.hours}</span>
+          </>,
+          <>
+            <span className="sm:hidden">Total Time</span>
+            <span className="hidden sm:inline">Time watched</span>
+          </>,
+          "hours of runtime",
+          true,
+        )}
         {quickStatCard(TrendingUp, "text-amber-500", "bg-amber-500/10", avg(stats.gutRatings) ?? "—", "Avg gut rating")}
         {quickStatCard(TrendingUp, "text-emerald-500", "bg-emerald-500/10", avg(stats.detailedTotals) ?? "—", "Avg detailed")}
       </div>
