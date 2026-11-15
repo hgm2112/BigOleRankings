@@ -706,7 +706,7 @@ export function WatchingClient({
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><PlayCircle className="h-6 w-6" />Currently Watching</h1>
-          <p className="text-muted-foreground">Track what you&apos;re watching now and your watch history.</p>
+          <p className="text-muted-foreground">Hey, did you finish that yet?... ohhh nevermind.</p>
         </div>
         <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) { setSelected(null); setDetails(null); setError(null) } }}>
           <DialogTrigger asChild>

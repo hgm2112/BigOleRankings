@@ -192,7 +192,7 @@ export function WatchlistClient({ initialItems }: { initialItems: WatchlistItem[
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Bookmark className="h-6 w-6" />Watchlist</h1>
-        <p className="text-muted-foreground">Movies and shows you want to watch later.</p>
+        <p className="text-muted-foreground">I just wish there was, like a place for remembering what i wanted to see, ya know?</p>
       </div>
 
       <section className="space-y-3">

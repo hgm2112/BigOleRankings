@@ -410,11 +410,14 @@ export function StatsClient({
   if (entries.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
-          <h1 className="text-2xl font-bold">{isSelf ? "Your Stats" : `${possessive(selectedName)} Stats`}</h1>
-        </div>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              <h1 className="text-2xl font-bold">{isSelf ? "Your Stats" : `${possessive(selectedName)} Stats`}</h1>
+            </div>
+            <p className="text-muted-foreground">What&apos;s a place like you doing in a nerd like this?</p>
+          </div>
           <Select value={selectedId} onValueChange={setSelectedId}>
             <SelectTrigger className="w-[180px]">
               <UserCheck className="h-4 w-4 mr-1" />
@@ -444,10 +447,13 @@ export function StatsClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
-          <h1 className="text-2xl font-bold">{isSelf ? "Your Stats" : `${possessive(selectedName)} Stats`}</h1>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            <h1 className="text-2xl font-bold">{isSelf ? "Your Stats" : `${possessive(selectedName)} Stats`}</h1>
+          </div>
+          <p className="text-muted-foreground">What&apos;s a place like you doing in a nerd like this?</p>
         </div>
         <Select value={selectedId} onValueChange={setSelectedId}>
           <SelectTrigger className="w-[180px]">
