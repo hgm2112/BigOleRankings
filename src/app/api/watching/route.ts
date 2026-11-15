@@ -349,6 +349,41 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: true })
     }
 
+    if (action === "update_episode") {
+      const periodId = body.period_id
+      if (typeof periodId !== "string") return Response.json({ error: "period_id required" }, { status: 400 })
+
+      const { data: existing, error: fetchErr } = await supabase
+        .from("watch_periods")
+        .select("id, user_id, media_type")
+        .eq("id", periodId)
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (fetchErr || !existing) return Response.json({ error: "Watch period not found" }, { status: 404 })
+
+      let currentEpisode: number | null = null
+      const raw = body.current_episode
+      if (raw !== null && raw !== undefined && raw !== "") {
+        const n = typeof raw === "number" ? raw : Number(raw)
+        if (!Number.isInteger(n) || n < 1) {
+          return Response.json({ error: "Episode must be a whole number (1 or higher), or cleared" }, { status: 400 })
+        }
+        currentEpisode = n
+      }
+
+      if (existing.media_type !== "tv") currentEpisode = null
+
+      const { error: updateErr } = await supabase
+        .from("watch_periods")
+        .update({ current_episode: currentEpisode })
+        .eq("id", periodId)
+        .eq("user_id", user.id)
+      if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 })
+
+      // No watch_activities emitted (personal progress only).
+      return Response.json({ success: true, current_episode: currentEpisode })
+    }
+
     if (action === "delete") {
       const periodId = body.period_id
       if (typeof periodId !== "string") return Response.json({ error: "period_id required" }, { status: 400 })

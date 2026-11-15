@@ -9,6 +9,7 @@ export interface WatchPeriod {
   media_id: string
   media_type: "movie" | "tv"
   season_number: number | null
+  current_episode: number | null
   status: WatchStatus
   started_at: string // YYYY-MM-DD
   ended_at: string | null
@@ -30,7 +31,7 @@ export interface WatchPeriodWithMedia extends WatchPeriod {
 }
 
 export const WATCH_PERIOD_SELECT = `
-  id, user_id, media_id, media_type, season_number, status, started_at, ended_at, created_at, updated_at,
+  id, user_id, media_id, media_type, season_number, current_episode, status, started_at, ended_at, created_at, updated_at,
   media:media_id (id, tmdb_id, media_type, title, poster_path, year)
 `
 
@@ -48,6 +49,7 @@ export function normalizeWatchPeriod(row: any): WatchPeriodWithMedia | null {
     media_id: row.media_id,
     media_type: row.media_type,
     season_number: row.season_number ?? null,
+    current_episode: typeof row.current_episode === "number" ? row.current_episode : null,
     status: row.status,
     started_at: row.started_at,
     ended_at: row.ended_at ?? null,

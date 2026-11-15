@@ -12,10 +12,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { TMDSearch } from "@/components/tmdb-search"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { PosterLightbox } from "@/components/poster-lightbox"
-import { Film, Tv, PlayCircle, Play, CheckCircle2, XCircle, PauseCircle, RotateCcw, Plus, Pencil, Calendar, Trash2, Star, MoreVertical } from "lucide-react"
+import { Film, Tv, PlayCircle, Play, CheckCircle2, XCircle, PauseCircle, RotateCcw, Plus, Pencil, Calendar, Trash2, Star, MoreVertical, Info } from "lucide-react"
 import { formatDate } from "@/lib/format-date"
 import { formatDuration, todayLocalDate, type WatchPeriodWithMedia } from "@/lib/watching"
 
@@ -138,6 +139,8 @@ export function WatchingClient({
   const [editStart, setEditStart] = useState("")
   const [editEnd, setEditEnd] = useState("")
   const [endDateInputs, setEndDateInputs] = useState<Record<string, string>>({})
+  const [episodeEditId, setEpisodeEditId] = useState<string | null>(null)
+  const [episodeInput, setEpisodeInput] = useState("")
   const [deleteTarget, setDeleteTarget] = useState<WatchPeriodWithMedia | null>(null)
   const [finishDialog, setFinishDialog] = useState<FinishDialogState | null>(null)
   const [finishSeasonRating, setFinishSeasonRating] = useState<string>("none")
@@ -520,6 +523,26 @@ export function WatchingClient({
     }
   }
 
+  const saveEpisode = async (periodId: string, value: string) => {
+    setBusy(periodId + "episode")
+    setError(null)
+    try {
+      const trimmed = value.trim()
+      await apiAction({
+        action: "update_episode",
+        period_id: periodId,
+        current_episode: trimmed === "" ? null : Number(trimmed),
+      })
+      setEpisodeEditId(null)
+      setEpisodeInput("")
+      refresh()
+    } catch (e: any) {
+      setError(e.message || "Failed to save episode")
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const confirmDelete = async () => {
     if (!deleteTarget) return
     setBusy(deleteTarget.id + "delete")
@@ -761,9 +784,7 @@ export function WatchingClient({
               const url = posterUrl(p.media.poster_path)
               const endVal = endDateInputs[p.id] || todayLocalDate()
               const finishing = busy === p.id + "finished" || (finishBusy === "loading")
-              const line3 = p.media.media_type === "tv"
-                ? `Season ${p.season_number}${p.media.year ? ` • ${p.media.year}` : ""}`
-                : (p.media.year ? `${p.media.year}` : "")
+              const line3Movie = p.media.media_type !== "tv" ? (p.media.year ? `${p.media.year}` : "") : ""
               return (
                 <Card key={p.id}>
                   <CardContent className="pt-4 space-y-3">
@@ -781,7 +802,42 @@ export function WatchingClient({
                         <p className="font-semibold truncate leading-tight">{p.media.title}</p>
                         <div className="mt-0.5"><MediaTypeBadge type={p.media.media_type} /></div>
                         <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <p className="text-sm text-muted-foreground truncate">{line3 || "—"}</p>
+                          {p.media.media_type === "tv" ? (
+                            <p className="text-sm text-muted-foreground truncate min-w-0">
+                              <span>Season {p.season_number}</span>
+                              <span> • </span>
+                              <Popover open={episodeEditId === p.id} onOpenChange={(o) => { if (o) { setEpisodeEditId(p.id); setEpisodeInput(p.current_episode != null ? String(p.current_episode) : "") } else setEpisodeEditId(null) }}>
+                                <PopoverTrigger asChild>
+                                  <button type="button" className="text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted" aria-label="Set episode">
+                                    Ep. {p.current_episode ?? "—"}
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="start" className="w-max max-w-[calc(100vw-2rem)] p-2 space-y-2">
+                                  <div className="flex items-center gap-1 w-max">
+                                    <Label className="text-xs" htmlFor={`ep-${p.id}`}>Episode (optional)</Label>
+                                    <TooltipProvider delayDuration={0}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground" aria-label="Episode tracking info">
+                                            <Info className="h-3.5 w-3.5" />
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">Just for your tracking. Not shown on Social.</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+                                  <Input id={`ep-${p.id}`} type="number" min={1} inputMode="numeric" value={episodeInput} onChange={(e) => setEpisodeInput(e.target.value)} className="h-9 w-full" placeholder="e.g. 4" />
+                                  <div className="grid grid-cols-2 gap-2 w-full">
+                                    <Button className="w-full" onClick={() => saveEpisode(p.id, episodeInput)} disabled={busy === p.id + "episode"}>Save</Button>
+                                    <Button variant="outline" className="w-full" onClick={() => saveEpisode(p.id, "")} disabled={busy === p.id + "episode"}>Clear</Button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                              {p.media.year ? <span> • {p.media.year}</span> : null}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground truncate">{line3Movie || "—"}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
                           <p className="text-xs text-muted-foreground">Started {formatDate(p.started_at)}</p>
