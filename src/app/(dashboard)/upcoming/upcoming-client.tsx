@@ -185,7 +185,7 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><CalendarDays className="h-6 w-6" />Upcoming Releases</h1>
-          <p className="text-muted-foreground">Release dates for your renewed TV shows.</p>
+          <p className="text-muted-foreground">So..... this comes out tomorrow, right?</p>
           {overallLastChecked && (
             <p className="text-xs text-muted-foreground mt-1">Last checked (latest): {formatDate(overallLastChecked)}</p>
           )}
