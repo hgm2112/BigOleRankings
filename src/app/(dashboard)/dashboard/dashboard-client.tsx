@@ -40,6 +40,7 @@ interface PinnedWatchItem {
   id: string
   media_type: "movie" | "tv"
   season_number: number | null
+  current_episode?: number | null
   started_at: string
   media: {
     id: string
@@ -321,7 +322,7 @@ function PinnedCurrentlyWatching({ items, username }: { items: PinnedWatchItem[]
           {prefs.media_badges ? <MediaTypeBadge type={w.media.media_type} /> : <span>{w.media.media_type === "tv" ? "TV Show" : "Movie"}</span>}
           <span>
             {w.media.media_type === "tv" && w.season_number != null
-              ? `Season ${w.season_number}${w.media.year ? ` • ${w.media.year}` : ""}`
+              ? `Season ${w.season_number}${w.current_episode != null ? ` • Ep. ${w.current_episode}` : ""}${w.media.year ? ` • ${w.media.year}` : ""}`
               : (w.media.year ? `${w.media.year}` : "")}
           </span>
         </div>
