@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { TMDSearch } from "@/components/tmdb-search"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { PosterLightbox } from "@/components/poster-lightbox"
-import { Film, Tv, PlayCircle, Play, CheckCircle2, XCircle, PauseCircle, RotateCcw, Plus, Pencil, Calendar, Trash2, Star, MoreVertical, Info } from "lucide-react"
+import { Film, Tv, PlayCircle, Play, CheckCircle2, XCircle, PauseCircle, RotateCcw, Plus, Pencil, Calendar, Trash2, Star, MoreVertical, Info, Minus } from "lucide-react"
 import { formatDate } from "@/lib/format-date"
 import { formatDuration, todayLocalDate, type WatchPeriodWithMedia } from "@/lib/watching"
 
@@ -141,6 +142,7 @@ export function WatchingClient({
   const [endDateInputs, setEndDateInputs] = useState<Record<string, string>>({})
   const [episodeEditId, setEpisodeEditId] = useState<string | null>(null)
   const [episodeInput, setEpisodeInput] = useState("")
+  const episodeInputRef = useRef<HTMLInputElement | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<WatchPeriodWithMedia | null>(null)
   const [finishDialog, setFinishDialog] = useState<FinishDialogState | null>(null)
   const [finishSeasonRating, setFinishSeasonRating] = useState<string>("none")
@@ -808,17 +810,35 @@ export function WatchingClient({
                               <span> • </span>
                               <Popover open={episodeEditId === p.id} onOpenChange={(o) => { if (o) { setEpisodeEditId(p.id); setEpisodeInput(p.current_episode != null ? String(p.current_episode) : "") } else setEpisodeEditId(null) }}>
                                 <PopoverTrigger asChild>
-                                  <button type="button" className="text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted" aria-label="Set episode">
+                                  <button
+                                    type="button"
+                                    className={`inline-flex items-center rounded px-1 -mx-0.5 underline underline-offset-2 decoration-dotted transition-colors ${episodeEditId === p.id ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                    aria-label={p.current_episode != null ? `Edit episode ${p.current_episode}` : "Set episode"}
+                                  >
                                     Ep. {p.current_episode ?? "—"}
                                   </button>
                                 </PopoverTrigger>
-                                <PopoverContent align="start" className="w-max max-w-[calc(100vw-2rem)] p-2 space-y-2">
-                                  <div className="flex items-center gap-1 w-max">
-                                    <Label className="text-xs" htmlFor={`ep-${p.id}`}>Episode (optional)</Label>
+                                <PopoverContent
+                                  align="start"
+                                  sideOffset={8}
+                                  onOpenAutoFocus={(e) => {
+                                    e.preventDefault()
+                                    const el = episodeInputRef.current
+                                    if (el) {
+                                      el.focus()
+                                      const len = el.value.length
+                                      el.setSelectionRange(len, len)
+                                    }
+                                  }}
+                                  className="w-[13.5rem] max-w-[calc(100vw-2rem)] p-3 space-y-2 rounded-lg border border-border/80 bg-popover shadow-lg"
+                                >
+                                  <PopoverPrimitive.Arrow className="fill-popover" />
+                                  <div className="flex items-center gap-1.5">
+                                    <Label className="text-xs font-medium" htmlFor={`ep-${p.id}`}>Episode (optional)</Label>
                                     <TooltipProvider delayDuration={0}>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground" aria-label="Episode tracking info">
+                                          <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded text-muted-foreground hover:text-foreground" aria-label="More info">
                                             <Info className="h-3.5 w-3.5" />
                                           </button>
                                         </TooltipTrigger>
@@ -826,10 +846,63 @@ export function WatchingClient({
                                       </Tooltip>
                                     </TooltipProvider>
                                   </div>
-                                  <Input id={`ep-${p.id}`} type="number" min={1} inputMode="numeric" value={episodeInput} onChange={(e) => setEpisodeInput(e.target.value)} className="h-9 w-full" placeholder="e.g. 4" />
-                                  <div className="grid grid-cols-2 gap-2 w-full">
-                                    <Button className="w-full" onClick={() => saveEpisode(p.id, episodeInput)} disabled={busy === p.id + "episode"}>Save</Button>
-                                    <Button variant="outline" className="w-full" onClick={() => saveEpisode(p.id, "")} disabled={busy === p.id + "episode"}>Clear</Button>
+                                  <div className="flex items-center gap-1.5">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-10 w-10 shrink-0"
+                                      aria-label="Decrease episode"
+                                      disabled={busy === p.id + "episode" || !(Number(episodeInput) >= 2)}
+                                      onClick={() => {
+                                        const n = parseInt(episodeInput, 10)
+                                        if (Number.isFinite(n) && n >= 2) setEpisodeInput(String(n - 1))
+                                      }}
+                                    >
+                                      <Minus className="h-4 w-4" />
+                                    </Button>
+                                    <Input
+                                      ref={episodeInputRef}
+                                      id={`ep-${p.id}`}
+                                      type="number"
+                                      min={1}
+                                      inputMode="numeric"
+                                      value={episodeInput}
+                                      onChange={(e) => setEpisodeInput(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault()
+                                          saveEpisode(p.id, episodeInput)
+                                        }
+                                      }}
+                                      className="h-10 flex-1 text-center text-lg font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring"
+                                      placeholder="1"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-10 w-10 shrink-0"
+                                      aria-label="Increase episode"
+                                      disabled={busy === p.id + "episode"}
+                                      onClick={() => {
+                                        const n = parseInt(episodeInput, 10)
+                                        setEpisodeInput(String(Number.isFinite(n) && n >= 1 ? n + 1 : 1))
+                                      }}
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button className="flex-1 h-10" onClick={() => saveEpisode(p.id, episodeInput)} disabled={busy === p.id + "episode"}>Save</Button>
+                                    <button
+                                      type="button"
+                                      className="shrink-0 px-1 text-sm text-muted-foreground hover:text-foreground underline-offset-2 hover:underline disabled:opacity-50 h-10 inline-flex items-center justify-center"
+                                      onClick={() => saveEpisode(p.id, "")}
+                                      disabled={busy === p.id + "episode"}
+                                    >
+                                      Clear
+                                    </button>
                                   </div>
                                 </PopoverContent>
                               </Popover>
