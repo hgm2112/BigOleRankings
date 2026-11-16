@@ -97,9 +97,7 @@ function ShowCard({ show, section }: { show: UpcomingShow; section: "new" | "upc
                 </>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Last checked: {show.lastCheckedAt ? formatDate(show.lastCheckedAt) : "Never"}
-            </p>
+
           </div>
         </div>
       </CardContent>
@@ -186,15 +184,17 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><CalendarDays className="h-6 w-6" />Upcoming Releases</h1>
           <p className="text-muted-foreground">So..... this comes out tomorrow, right?</p>
-          {overallLastChecked && (
-            <p className="text-xs text-muted-foreground mt-1">Last checked (latest): {formatDate(overallLastChecked)}</p>
-          )}
         </div>
         <div className="flex flex-col items-start sm:items-end gap-2">
-          <Button onClick={handleUpdate} disabled={updating || shows.length === 0}>
-            {updating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarDays className="h-4 w-4 mr-2" />}
-            {updating ? "Updating..." : "Update Release Dates"}
-          </Button>
+          <div className="flex flex-col items-center gap-1 w-full sm:w-auto">
+            <Button onClick={handleUpdate} disabled={updating || shows.length === 0}>
+              {updating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarDays className="h-4 w-4 mr-2" />}
+              {updating ? "Updating..." : "Update Release Dates"}
+            </Button>
+            {overallLastChecked && (
+              <p className="text-xs text-muted-foreground text-center">Last checked (latest): {formatDate(overallLastChecked)}</p>
+            )}
+          </div>
           {(progress || summary) && (
             <div className="text-sm text-muted-foreground text-left sm:text-right">
               {progress && <p>{progress}</p>}
