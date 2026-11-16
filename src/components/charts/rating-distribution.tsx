@@ -33,7 +33,7 @@ export function RatingDistributionChart({
 
   return (
     <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }} barGap={2}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={2}>
           <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis
             dataKey="label"

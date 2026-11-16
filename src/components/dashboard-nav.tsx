@@ -73,7 +73,13 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
         <nav className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => {
             const Icon = link.icon
-            const isActive = pathname === link.href || pathname?.startsWith(link.href + "/")
+            const isActive =
+              link.href === "/entries"
+                ? pathname === "/entries" ||
+                  (pathname?.startsWith("/entries/") &&
+                    pathname !== "/entries/new" &&
+                    !pathname?.startsWith("/entries/new/"))
+                : pathname === link.href || pathname?.startsWith(link.href + "/")
             return (
               <Button key={link.href} variant={isActive ? "secondary" : "ghost"} size="sm" asChild>
                 <Link href={link.href}>
