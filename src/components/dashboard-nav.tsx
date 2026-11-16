@@ -108,10 +108,10 @@ export function DashboardNav({ user, profile }: { user: SupabaseUser; profile: P
                 <Button variant="ghost" size="sm" className="justify-start" asChild>
                   <Link href="/settings" onClick={() => setMenuOpen(false)}><Settings className="h-4 w-4 mr-2" />Settings</Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="justify-start hidden md:inline-flex" asChild>
+                <Button variant="ghost" size="sm" className="justify-start md:hidden" asChild>
                   <Link href="/stats" onClick={() => setMenuOpen(false)}><BarChart3 className="h-4 w-4 mr-2" />Stats</Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="justify-start" asChild>
+                <Button variant="ghost" size="sm" className="justify-start md:hidden" asChild>
                   <Link href="/compare" onClick={() => setMenuOpen(false)}><Users className="h-4 w-4 mr-2" />Compare</Link>
                 </Button>
               </div>
