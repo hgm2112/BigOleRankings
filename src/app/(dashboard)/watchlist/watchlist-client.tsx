@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { TMDSearch, type TMDBResult } from "@/components/tmdb-search"
 import { Card, CardContent } from "@/components/ui/card"
@@ -236,7 +237,7 @@ export function WatchlistClient({ initialItems }: { initialItems: WatchlistItem[
                         </div>
                       )}
                       <div className="flex-1 min-w-0 space-y-1">
-                        <p className="font-semibold truncate leading-tight">{item.title}</p>
+                        <Link href={`/title/${item.media_type}/${item.tmdb_id}`} className="font-semibold truncate leading-tight hover:underline block">{item.title}</Link>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                           <MediaTypeBadge type={item.media_type} />
                           {item.media_type === "tv" && (item.season_count ?? 0) > 0 && (

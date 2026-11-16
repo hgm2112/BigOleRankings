@@ -265,7 +265,11 @@ function FeedRow({
   me: Me | null
   onToggleLike: (event: FeedEvent) => void
 }) {
-  const titleHref = event.entryId ? `/entries/${event.entryId}` : `/users/${event.user.username}`
+  const titleHref = event.entryId
+    ? `/entries/${event.entryId}`
+    : event.media?.tmdb_id != null && event.media?.media_type
+      ? `/title/${event.media.media_type}/${event.media.tmdb_id}`
+      : `/users/${event.user.username}`
   const displayName = event.user.display_name || event.user.username
   const isOwn = !!me && me.username === event.user.username
   const { action, suffix } = eventVerbParts(event)
