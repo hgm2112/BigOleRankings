@@ -104,6 +104,8 @@ export function EntryDetailClient({
   seasonRatings,
   mySeasonRatings,
   viewerCount,
+  avgGutRating,
+  avgDetailedRating,
   movieRewatchCount = 0,
   fullSeriesRewatchCount = 0,
   seasonRewatchStats = {},
@@ -120,6 +122,8 @@ export function EntryDetailClient({
   seasonRatings: SeasonRating[]
   mySeasonRatings: SeasonRating[]
   viewerCount: number
+  avgGutRating: number | null
+  avgDetailedRating: number | null
   movieRewatchCount?: number
   fullSeriesRewatchCount?: number
   seasonRewatchStats?: Record<number, SeasonRewatchStat>
@@ -319,13 +323,6 @@ export function EntryDetailClient({
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold">{entry.title}</h1>
               <StatusBadge status={liveStatus ?? entry.status} mediaType={entry.media_type} nextAirDate={liveNextAirDate} />
-              <span
-                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-muted/50 text-muted-foreground whitespace-nowrap"
-                title={`${viewerCount} ${viewerCount === 1 ? "user" : "users"} watched this`}
-              >
-                <Eye className="h-3.5 w-3.5" />
-                <span className="tabular-nums">{viewerCount}</span>
-              </span>
             </div>
             <p className="text-muted-foreground flex items-center gap-2">
               {entry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={entry.media_type} /> : entry.media_type === "tv" ? "TV Show" : "Movie"}
@@ -348,16 +345,33 @@ export function EntryDetailClient({
 
           <div className="flex items-center gap-3 flex-wrap">
             {isOwner && (
-              <>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/entries/${entry.id}/edit`}><Edit3 className="h-4 w-4 mr-1" />Edit</Link>
-                </Button>
-                {!hasDetailed && (
-                  <Button size="sm" asChild>
-                    <Link href={`/entries/${entry.id}/detailed`}><ClipboardList className="h-4 w-4 mr-1" />Add Detailed Rating</Link>
-                  </Button>
-                )}
-              </>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/entries/${entry.id}/edit`}><Edit3 className="h-4 w-4 mr-1" />Edit</Link>
+              </Button>
+            )}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-muted/50 text-muted-foreground whitespace-nowrap"
+                title={`${viewerCount} ${viewerCount === 1 ? "user" : "users"} rated this`}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span className="tabular-nums">{viewerCount}</span>
+              </span>
+              {avgGutRating != null && (
+                <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap tabular-nums bg-[#064e4e] text-[#5eead4] ring-1 ring-inset ring-[#5eead4]/35">
+                  Gut {avgGutRating}
+                </span>
+              )}
+              {avgDetailedRating != null && (
+                <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap tabular-nums bg-[#3b0764] text-[#d8b4fe] ring-1 ring-inset ring-[#d8b4fe]/35">
+                  Det {avgDetailedRating}
+                </span>
+              )}
+            </div>
+            {isOwner && !hasDetailed && (
+              <Button size="sm" asChild>
+                <Link href={`/entries/${entry.id}/detailed`}><ClipboardList className="h-4 w-4 mr-1" />Add Detailed Rating</Link>
+              </Button>
             )}
             {wlState?.eligible && (
               <Button variant="outline" size="sm" onClick={handleWatchlistAdd} disabled={wlBusy}>

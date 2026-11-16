@@ -102,6 +102,9 @@ export default async function TitlePage({
 
   let initialWatchlist = { eligible: true, onWatchlist: false, reason: null as string | null }
   let hasActiveWatching = false
+  let viewerCount = 0
+  let avgGutRating: number | null = null
+  let avgDetailedRating: number | null = null
   if (mediaRow?.id) {
     const { data: ratingRow } = await supabase
       .from("ratings")
@@ -111,21 +114,51 @@ export default async function TitlePage({
       .maybeSingle()
     if (ratingRow?.id) redirect(`/entries/${ratingRow.id}`)
 
-    const eligibility = await getWatchlistEligibilityForMediaId(supabase, user.id, mediaRow.id)
+    const [eligibility, activeRes, ratingsRes] = await Promise.all([
+      getWatchlistEligibilityForMediaId(supabase, user.id, mediaRow.id),
+      supabase
+        .from("watch_periods")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("media_id", mediaRow.id)
+        .eq("status", "currently_watching")
+        .limit(1),
+      supabase
+        .from("ratings")
+        .select("gut_rating, detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again")
+        .eq("media_id", mediaRow.id),
+    ])
+
     initialWatchlist = {
       eligible: eligibility.eligible,
       onWatchlist: eligibility.onWatchlist,
       reason: eligibility.reason ? reasonLabel(eligibility.reason) : null,
     }
+    hasActiveWatching = (activeRes.data?.length ?? 0) > 0
 
-    const { data: active } = await supabase
-      .from("watch_periods")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("media_id", mediaRow.id)
-      .eq("status", "currently_watching")
-      .limit(1)
-    hasActiveWatching = (active?.length ?? 0) > 0
+    const allRatingsForMedia = ratingsRes.data ?? []
+    viewerCount = allRatingsForMedia.length
+    let gutSum = 0
+    let gutCount = 0
+    let detailedSum = 0
+    let detailedCount = 0
+    for (const r of allRatingsForMedia) {
+      if (r.gut_rating != null) {
+        gutSum += r.gut_rating
+        gutCount++
+      }
+      if (
+        r.detailed_enjoyment != null &&
+        r.detailed_impact != null &&
+        r.detailed_recommend != null &&
+        r.detailed_watch_again != null
+      ) {
+        detailedSum += r.detailed_enjoyment + r.detailed_impact + r.detailed_recommend + r.detailed_watch_again
+        detailedCount++
+      }
+    }
+    avgGutRating = gutCount > 0 ? Math.round((gutSum / gutCount) * 10) / 10 : null
+    avgDetailedRating = detailedCount > 0 ? Math.round((detailedSum / detailedCount) * 10) / 10 : null
   }
 
   const details = await fetchTitleDetails(type as "movie" | "tv", idNum)
@@ -136,6 +169,9 @@ export default async function TitlePage({
       details={details}
       initialWatchlist={initialWatchlist}
       hasActiveWatching={hasActiveWatching}
+      viewerCount={viewerCount}
+      avgGutRating={avgGutRating}
+      avgDetailedRating={avgDetailedRating}
     />
   )
 }

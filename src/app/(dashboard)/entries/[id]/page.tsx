@@ -45,10 +45,33 @@ export default async function EntryDetailPage({ params, searchParams }: { params
         .eq("media_id", entry.media_id)
         .maybeSingle()
 
-  const { count: viewerCount } = await supabase
+  const { data: allRatingsForMedia } = await supabase
     .from("ratings")
-    .select("user_id", { count: "exact", head: true })
+    .select("gut_rating, detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again")
     .eq("media_id", entry.media_id)
+
+  const viewerCount = allRatingsForMedia?.length ?? 0
+  let gutSum = 0
+  let gutCount = 0
+  let detailedSum = 0
+  let detailedCount = 0
+  for (const r of allRatingsForMedia ?? []) {
+    if (r.gut_rating != null) {
+      gutSum += r.gut_rating
+      gutCount++
+    }
+    if (
+      r.detailed_enjoyment != null &&
+      r.detailed_impact != null &&
+      r.detailed_recommend != null &&
+      r.detailed_watch_again != null
+    ) {
+      detailedSum += r.detailed_enjoyment + r.detailed_impact + r.detailed_recommend + r.detailed_watch_again
+      detailedCount++
+    }
+  }
+  const avgGutRating = gutCount > 0 ? Math.round((gutSum / gutCount) * 10) / 10 : null
+  const avgDetailedRating = detailedCount > 0 ? Math.round((detailedSum / detailedCount) * 10) / 10 : null
 
   let followerRatings: {
     username: string
@@ -209,6 +232,8 @@ export default async function EntryDetailPage({ params, searchParams }: { params
       seasonRatings={seasonRatings}
       mySeasonRatings={mySeasonRatings}
       viewerCount={viewerCount ?? 0}
+      avgGutRating={avgGutRating}
+      avgDetailedRating={avgDetailedRating}
       movieRewatchCount={movieRewatchCount}
       fullSeriesRewatchCount={fullSeriesRewatchCount}
       seasonRewatchStats={seasonRewatchStats}

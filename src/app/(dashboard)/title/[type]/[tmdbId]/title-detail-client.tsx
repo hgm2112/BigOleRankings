@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { PosterLightbox } from "@/components/poster-lightbox"
-import { ArrowLeft, Bookmark, BookmarkPlus, Film, Loader2, PlayCircle, Star, Tv } from "lucide-react"
+import { ArrowLeft, Bookmark, BookmarkPlus, Eye, Film, Loader2, PlayCircle, Star, Tv } from "lucide-react"
 import { todayLocalDate } from "@/lib/watching"
 
 interface TMDBSeason {
@@ -58,10 +58,16 @@ export function TitleDetailClient({
   details,
   initialWatchlist,
   hasActiveWatching: initialActiveWatching,
+  viewerCount = 0,
+  avgGutRating = null,
+  avgDetailedRating = null,
 }: {
   details: TMDBTitleDetails
   initialWatchlist: WatchlistState
   hasActiveWatching: boolean
+  viewerCount?: number
+  avgGutRating?: number | null
+  avgDetailedRating?: number | null
 }) {
   const router = useRouter()
   const [watchlist, setWatchlist] = useState<WatchlistState>(initialWatchlist)
@@ -225,7 +231,30 @@ export function TitleDetailClient({
 
             <div className="flex-1 min-w-0 space-y-3 text-center sm:text-left">
               <div>
-                <h1 className="text-2xl font-bold leading-tight">{details.title}</h1>
+                <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+                  <h1 className="text-2xl font-bold leading-tight">{details.title}</h1>
+                  {viewerCount > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-start">
+                      <span
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-muted/50 text-muted-foreground whitespace-nowrap"
+                        title={`${viewerCount} ${viewerCount === 1 ? "user" : "users"} rated this`}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        <span className="tabular-nums">{viewerCount}</span>
+                      </span>
+                      {avgGutRating != null && (
+                        <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap tabular-nums bg-[#064e4e] text-[#5eead4] ring-1 ring-inset ring-[#5eead4]/35">
+                          Gut {avgGutRating}
+                        </span>
+                      )}
+                      {avgDetailedRating != null && (
+                        <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap tabular-nums bg-[#3b0764] text-[#d8b4fe] ring-1 ring-inset ring-[#d8b4fe]/35">
+                          Det {avgDetailedRating}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start mt-1 text-sm text-muted-foreground">
                   <MediaTypeBadge type={details.media_type} />
                   {details.year && <span>{details.year}</span>}
