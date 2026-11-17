@@ -245,6 +245,7 @@ export function WatchlistClient({ initialItems }: { initialItems: WatchlistItem[
                           {item.media_type === "tv" && (item.season_count ?? 0) > 0 && (
                             <span>{item.season_count} season{item.season_count === 1 ? "" : "s"}</span>
                           )}
+                          {item.media_type === "tv" && (item.season_count ?? 0) > 0 && item.year ? <span>•</span> : null}
                           {item.year ? <span>{item.year}</span> : null}
                         </div>
                         <div className="flex flex-col gap-2 pt-2">
