@@ -54,17 +54,14 @@ async function ensureMedia(service: any, body: any): Promise<{ mediaId: string; 
       .upsert({ id: mediaId, runtime: body.runtime ?? null }, { onConflict: "id" })
     if (error) return { error: error.message, status: 500 }
   } else {
+    const tvPayload: Record<string, any> = { id: mediaId }
+    if (body.status != null) tvPayload.status = body.status
+    if (body.next_air_date != null) tvPayload.next_air_date = body.next_air_date
+    if (body.network != null) tvPayload.network = body.network
+
     const { error: tvError } = await service
       .from("tv_shows")
-      .upsert(
-        {
-          id: mediaId,
-          status: body.status ?? null,
-          next_air_date: body.next_air_date ?? null,
-          network: body.network ?? null,
-        },
-        { onConflict: "id" }
-      )
+      .upsert(tvPayload, { onConflict: "id" })
     if (tvError) return { error: tvError.message, status: 500 }
     await ensureTvSeasons(service, body.tmdb_id, mediaId)
   }
