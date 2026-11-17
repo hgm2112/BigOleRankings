@@ -100,11 +100,12 @@ export interface WatchlistItem {
   poster_path: string | null
   year: number | null
   season_count: number | null
+  status: string | null
 }
 
 export const WATCHLIST_SELECT = `
   id, media_id, created_at,
-  media:media_id (id, tmdb_id, media_type, title, poster_path, year, seasons(season_number))
+  media:media_id (id, tmdb_id, media_type, title, poster_path, year, seasons(season_number), tv_shows(status))
 `
 
 export function normalizeWatchlistRows(rows: any[] | null | undefined): WatchlistItem[] {
@@ -117,6 +118,8 @@ export function normalizeWatchlistRows(rows: any[] | null | undefined): Watchlis
         media.media_type === "tv"
           ? seasons.filter((s: any) => typeof s?.season_number === "number" && s.season_number >= 1).length
           : 0
+      const tvShow = Array.isArray(media.tv_shows) ? media.tv_shows[0] : media.tv_shows
+      const status = media.media_type === "tv" ? ((tvShow?.status ?? null) as string | null) : null
       return {
         id: row.id as string,
         media_id: row.media_id as string,
@@ -127,6 +130,7 @@ export function normalizeWatchlistRows(rows: any[] | null | undefined): Watchlis
         poster_path: (media.poster_path ?? null) as string | null,
         year: (media.year ?? null) as number | null,
         season_count: seasonCount > 0 ? seasonCount : null,
+        status,
       } satisfies WatchlistItem
     })
     .filter((r): r is WatchlistItem => !!r)

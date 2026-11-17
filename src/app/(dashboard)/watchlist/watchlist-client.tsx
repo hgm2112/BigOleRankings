@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { MediaTypeBadge } from "@/components/media-type-badge"
+import { StatusBadge } from "@/components/status-badge"
 import { Film, Tv, Bookmark, Play, Trash2, BookmarkCheck } from "lucide-react"
 import { todayLocalDate, type WatchPeriodWithMedia } from "@/lib/watching"
 
@@ -26,6 +27,7 @@ interface WatchlistItem {
   poster_path: string | null
   year: number | null
   season_count: number | null
+  status: string | null
 }
 
 interface TMDBDetails {
@@ -245,22 +247,36 @@ export function WatchlistClient({ initialItems }: { initialItems: WatchlistItem[
                           )}
                           {item.year ? <span>{item.year}</span> : null}
                         </div>
-                        <div className="flex flex-wrap gap-2 pt-2">
-                          <Button size="sm" onClick={() => openStart(item)} disabled={!!busyKey}>
-                            <Play className="h-4 w-4 mr-1" />Start watching
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setBusyKey(`remove:${item.media_id}`)
-                              removeFromWatchlist(item.media_id).finally(() => setBusyKey(null))
-                            }}
-                            disabled={!!busyKey}
-                            aria-label="Remove from Watchlist"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />{removing ? "Removing..." : "Remove"}
-                          </Button>
+                        <div className="flex flex-col gap-2 pt-2">
+                          <div className="flex items-stretch gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1 sm:flex-none"
+                              onClick={() => openStart(item)}
+                              disabled={!!busyKey}
+                            >
+                              <Play className="h-4 w-4 mr-1" />Start watching
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="shrink-0 px-3 sm:px-4"
+                              onClick={() => {
+                                setBusyKey(`remove:${item.media_id}`)
+                                removeFromWatchlist(item.media_id).finally(() => setBusyKey(null))
+                              }}
+                              disabled={!!busyKey}
+                              aria-label="Remove from Watchlist"
+                            >
+                              <Trash2 className="h-4 w-4 sm:mr-1" />
+                              <span className="hidden sm:inline">{removing ? "Removing..." : "Remove"}</span>
+                            </Button>
+                          </div>
+                          {item.media_type === "tv" && item.status && (
+                            <div>
+                              <StatusBadge status={item.status} mediaType={item.media_type} />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
