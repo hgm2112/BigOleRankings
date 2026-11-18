@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { DashboardClient } from "./dashboard-client"
 import { ENTRY_SELECT, flattenEntry, flattenEntries, fetchDnfSeasonKeys } from "@/lib/entry-queries"
 import { WATCH_PERIOD_SELECT, normalizeWatchPeriods } from "@/lib/watching"
+import { getEligibleUpcomingShowsForUser } from "@/lib/upcoming-releases"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -10,10 +11,35 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login")
 
-  const { data: entries } = await supabase
-    .from("ratings")
-    .select(ENTRY_SELECT)
-    .eq("user_id", user.id)
+  const [{ data: entries }, upcomingShows] = await Promise.all([
+    supabase
+      .from("ratings")
+      .select(ENTRY_SELECT)
+      .eq("user_id", user.id),
+    getEligibleUpcomingShowsForUser(supabase, user.id),
+  ])
+
+  const today = new Date().toISOString().slice(0, 10)
+  const countdownCandidate = upcomingShows
+    .filter((s) => s.upcomingReleaseDate && s.upcomingReleaseDate >= today)
+    .sort((a, b) => {
+      if (a.upcomingReleaseDate! !== b.upcomingReleaseDate!) {
+        return a.upcomingReleaseDate! < b.upcomingReleaseDate! ? -1 : 1
+      }
+      return a.title.localeCompare(b.title)
+    })[0]
+  const countdownRelease = countdownCandidate?.upcomingReleaseDate
+    ? {
+        mediaId: countdownCandidate.mediaId,
+        tmdbId: countdownCandidate.tmdbId,
+        title: countdownCandidate.title,
+        posterPath: countdownCandidate.posterPath,
+        year: countdownCandidate.year,
+        upcomingSeasonNumber: countdownCandidate.upcomingSeasonNumber,
+        upcomingReleaseDate: countdownCandidate.upcomingReleaseDate,
+        status: countdownCandidate.status,
+      }
+    : null
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -111,6 +137,7 @@ export default async function DashboardPage() {
       myComparisonEntries={myComparisonEntries}
       pinnedWatching={pinnedWatching}
       pendingDetailedEntries={flattenEntries(pendingDetailed)}
+      countdownRelease={countdownRelease}
     />
   )
 }

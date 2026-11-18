@@ -11,6 +11,7 @@ import { ScoreChip } from "@/components/score-chip"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { useCustomization } from "@/components/customization-provider"
+import { ReleaseCountdownBanner, type CountdownRelease } from "@/components/release-countdown-banner"
 import { formatDate } from "@/lib/format-date"
 import { BarChart3, TrendingUp, TrendingDown, Pin, Film, Tv, Clock, ListChecks, PlayCircle, ChevronDown, ChevronUp } from "lucide-react"
 
@@ -64,6 +65,7 @@ interface DashboardClientProps {
   headerDescription?: string
   showPinSection?: boolean
   fullRankingsHref?: string
+  countdownRelease?: CountdownRelease | null
 }
 
 function computeRankings(entries: Entry[], useDetailed: boolean, ascending: boolean) {
@@ -421,7 +423,7 @@ function PinnedFriendCard({ pinnedUser, pinnedEntry, myComparisonEntry, watching
   )
 }
 
-export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pinnedWatching = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true, fullRankingsHref }: DashboardClientProps) {
+export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pinnedWatching = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true, fullRankingsHref, countdownRelease }: DashboardClientProps) {
   const { prefs } = useCustomization()
   const displayName = profile?.display_name || profile?.username || "User"
 
@@ -528,9 +530,12 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{headerTitle ?? `Hello, ${displayName}`}</h1>
-        <p className="text-muted-foreground">{headerDescription ?? "Welcome to the island of misfit toys"}</p>
+      <div className="flex flex-col sm:flex-row sm:items-stretch sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{headerTitle ?? `Hello, ${displayName}`}</h1>
+          <p className="text-muted-foreground">{headerDescription ?? "Welcome to the island of misfit toys"}</p>
+        </div>
+        {countdownRelease ? <ReleaseCountdownBanner release={countdownRelease} /> : null}
       </div>
 
       {pendingDetailedEntries.length > 0 && (
