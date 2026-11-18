@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { StatusBadge } from "@/components/status-badge"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { formatDate } from "@/lib/format-date"
 import { CalendarDays, Tv, Loader2, AlertCircle } from "lucide-react"
@@ -29,22 +28,50 @@ function posterUrl(path: string | null) {
 }
 
 function todayIsoDateLocal(): string {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+function daysUntil(dateStr: string, todayIso: string): number {
+  const [y1, m1, d1] = dateStr.split("-").map(Number)
+  const [y2, m2, d2] = todayIso.split("-").map(Number)
+  const target = new Date(y1, m1 - 1, d1)
+  const today = new Date(y2, m2 - 1, d2)
+  return Math.round((target.getTime() - today.getTime()) / 86400000)
 }
 
 function isRecentRelease(dateStr: string | null | undefined, today: string): boolean {
   if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false
-  const d = new Date(`${dateStr}T00:00:00Z`)
-  const t = new Date(`${today}T00:00:00Z`)
-  if (Number.isNaN(d.getTime()) || Number.isNaN(t.getTime())) return false
-  const diffDays = Math.floor((t.getTime() - d.getTime()) / 86400000)
+  const diffDays = -daysUntil(dateStr, today)
   return diffDays >= 0 && diffDays <= 30
+}
+
+function countdownLabel(dateStr: string, todayIso: string): string {
+  const diff = daysUntil(dateStr, todayIso)
+  if (diff <= 0) return "Today"
+  if (diff === 1) return "Tomorrow"
+  return `in ${diff} days`
+}
+
+function recencyLabel(dateStr: string, todayIso: string): string {
+  const diff = -daysUntil(dateStr, todayIso)
+  if (diff <= 0) return "Today"
+  if (diff === 1) return "Yesterday"
+  return `${diff} days ago`
 }
 
 function ShowCard({ show, section }: { show: UpcomingShow; section: "new" | "upcoming" | "awaiting" }) {
   const url = posterUrl(show.posterPath)
   const isNew = section === "new"
   const hasUpcomingDate = !!show.upcomingReleaseDate
+  const today = todayIsoDateLocal()
+  const countdownDays = hasUpcomingDate ? daysUntil(show.upcomingReleaseDate!, today) : null
+  const countdownSoon = countdownDays != null && countdownDays <= 14
+  const recencyDays = isNew && show.recentReleaseDate ? -daysUntil(show.recentReleaseDate, today) : null
+  const recencyRecent = recencyDays != null && recencyDays <= 7
   return (
     <Card>
       <CardContent className="pt-4">
@@ -61,39 +88,48 @@ function ShowCard({ show, section }: { show: UpcomingShow; section: "new" | "upc
             </div>
           )}
           <div className="flex-1 min-w-0 space-y-1.5">
-            <div className="flex items-start justify-between gap-2">
+            <div>
               <p className="font-semibold leading-tight line-clamp-2">{show.title}</p>
-              <StatusBadge status={show.status} mediaType="tv" />
             </div>
-            <div className="text-sm space-y-0.5">
+            <div className="text-sm space-y-1">
               {isNew ? (
                 <>
                   {show.recentReleaseSeasonNumber != null && (
-                    <p className="text-muted-foreground">Season {show.recentReleaseSeasonNumber}</p>
+                    <p className="text-foreground/70">Season {show.recentReleaseSeasonNumber}</p>
                   )}
-                  <p>
-                    <span className="text-muted-foreground">Released: </span>
-                    <span className="font-medium">{show.recentReleaseDate ? formatDate(show.recentReleaseDate) : "—"}</span>
+                  <p className="font-semibold text-foreground">
+                    {show.recentReleaseDate ? formatDate(show.recentReleaseDate) : "—"}
                   </p>
+                  {show.recentReleaseDate && (
+                    <p className={`text-sm font-medium ${recencyRecent ? "text-teal-600 dark:text-teal-400" : "text-muted-foreground"}`}>
+                      {recencyLabel(show.recentReleaseDate, today)}
+                    </p>
+                  )}
                 </>
               ) : section === "upcoming" && hasUpcomingDate ? (
                 <>
                   {show.upcomingSeasonNumber != null && (
-                    <p className="text-muted-foreground">Season {show.upcomingSeasonNumber}</p>
+                    <p className="text-foreground/70">Season {show.upcomingSeasonNumber}</p>
                   )}
-                  <p>
-                    <span className="text-muted-foreground">Premiere: </span>
-                    <span className="font-medium">{formatDate(show.upcomingReleaseDate)}</span>
+                  <p className="font-semibold text-foreground">
+                    {formatDate(show.upcomingReleaseDate!)}
+                  </p>
+                  <p className={`text-sm font-medium ${countdownSoon ? "text-teal-600 dark:text-teal-400" : "text-muted-foreground"}`}>
+                    {countdownLabel(show.upcomingReleaseDate!, today)}
                   </p>
                 </>
               ) : (
                 <>
                   {show.expectedSeasonNumber != null ? (
-                    <p className="text-muted-foreground">Expected Season {show.expectedSeasonNumber}</p>
+                    <p className="text-foreground/70">Season {show.expectedSeasonNumber} expected</p>
                   ) : show.upcomingSeasonNumber != null ? (
-                    <p className="text-muted-foreground">Season {show.upcomingSeasonNumber}</p>
+                    <p className="text-foreground/70">Season {show.upcomingSeasonNumber}</p>
                   ) : null}
-                  <p className="text-muted-foreground">Release date not announced</p>
+                  {show.status === "In Production" ? (
+                    <p className="text-sm font-medium text-teal-600 dark:text-teal-400">In Production</p>
+                  ) : (
+                    <p className="text-muted-foreground/60">Release date not announced</p>
+                  )}
                 </>
               )}
             </div>
@@ -228,9 +264,9 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
       {shows.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center space-y-2">
-            <p className="font-medium">No renewed shows</p>
+            <p className="font-medium">No upcoming shows yet</p>
             <p className="text-sm text-muted-foreground">
-              TV shows you&apos;ve rated that are marked as Renewed will appear here with their upcoming and recently released season premieres.
+              TV shows you&apos;ve rated that are returning or in production will appear here with their upcoming and recently released season premieres.
             </p>
           </CardContent>
         </Card>

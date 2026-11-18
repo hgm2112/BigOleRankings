@@ -430,7 +430,7 @@ export async function getEligibleUpcomingShowsForUser(
     )
     .eq("user_id", userId)
     .eq("media.media_type", "tv")
-    .eq("media.tv_shows.status", "Returning Series")
+    .in("media.tv_shows.status", ["Returning Series", "In Production"])
 
   if (error || !data) return []
 
