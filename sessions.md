@@ -73,3 +73,23 @@ A running log of notable work sessions for this project.
 - Banner start-watching uses the existing watching flow for the upcoming TV season (handles “already watching” gracefully) and does not require a page navigation on success.
 - Unrelated untracked local assets (mockups/fonts/icons, `src/app/icon.png`) were left out of commits.
 
+---
+
+## 2026-11-22 — Season-Only Upcoming Eligibility & Hide Upcoming Shows
+
+**Summary**
+- Updated **Upcoming Releases** eligibility so TV shows with **season-only ratings** (a `season_ratings` row but no overall `ratings` entry) can appear on `/upcoming`, as long as the show status is **Returning Series** or **In Production**. Updated refresh/persist auth to accept season-only ownership.
+- Added **Hide/Unhide** for Upcoming Releases: users can hide a show from `/upcoming`; hidden shows are excluded from the Upcoming Releases page, dashboard release countdown banner, and upcoming release push notifications. Added a “Show hidden shows” section on `/upcoming` for unhiding.
+- Updated release-notification cron to include season-only raters, include **In Production** status consistently, and skip hidden user+show pairs.
+
+**Key commits (pushed to `origin/master`)**
+- `8847ad1` — Add upcoming release hiding and season-only eligibility
+
+**Migrations (created, not applied by the agent)**
+- `supabase/migrations/20261122120000_upcoming_release_hides.sql`
+
+**Notes**
+- Apply the hide migration before using the hide feature in a target environment.
+- Hiding is per-user/per-show and only affects upcoming-release tracking/alerts (not normal ratings/entries, watchlist, or detail pages).
+- Unrelated untracked local assets (mockups/fonts/icons, `src/app/icon.png`) were left out of commits.
+
