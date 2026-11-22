@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { formatDate } from "@/lib/format-date"
-import { CalendarDays, Tv, Loader2, AlertCircle } from "lucide-react"
+import { CalendarDays, Tv, Loader2, AlertCircle, EyeOff, Eye } from "lucide-react"
 import type { UpcomingShow } from "@/lib/upcoming-releases"
 
 interface RefreshFailure {
@@ -63,17 +63,32 @@ function recencyLabel(dateStr: string, todayIso: string): string {
   return `${diff} days ago`
 }
 
-function ShowCard({ show, section }: { show: UpcomingShow; section: "new" | "upcoming" | "awaiting" }) {
+function ShowCard({
+  show,
+  section,
+  onHide,
+  onUnhide,
+  hiding,
+}: {
+  show: UpcomingShow
+  section: "new" | "upcoming" | "awaiting" | "hidden"
+  onHide?: (mediaId: string) => void
+  onUnhide?: (mediaId: string) => void
+  hiding?: boolean
+}) {
   const url = posterUrl(show.posterPath)
   const isNew = section === "new"
+  const isHidden = section === "hidden"
   const hasUpcomingDate = !!show.upcomingReleaseDate
   const today = todayIsoDateLocal()
   const countdownDays = hasUpcomingDate ? daysUntil(show.upcomingReleaseDate!, today) : null
   const countdownSoon = countdownDays != null && countdownDays <= 14
-  const recencyDays = isNew && show.recentReleaseDate ? -daysUntil(show.recentReleaseDate, today) : null
+  const recencyDays = (isNew || isHidden) && show.recentReleaseDate && isRecentRelease(show.recentReleaseDate, today)
+    ? -daysUntil(show.recentReleaseDate, today)
+    : null
   const recencyRecent = recencyDays != null && recencyDays <= 7
   return (
-    <Card>
+    <Card className={isHidden ? "opacity-80" : undefined}>
       <CardContent className="pt-4">
         <div className="flex gap-3">
           {url ? (
@@ -88,11 +103,37 @@ function ShowCard({ show, section }: { show: UpcomingShow; section: "new" | "upc
             </div>
           )}
           <div className="flex-1 min-w-0 space-y-1.5">
-            <div>
+            <div className="flex items-start justify-between gap-2">
               <p className="font-semibold leading-tight line-clamp-2">{show.title}</p>
+              {onHide && !isHidden && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => onHide(show.mediaId)}
+                  disabled={hiding}
+                  aria-label={`Hide ${show.title} from upcoming releases`}
+                  title="Hide from Upcoming Releases"
+                >
+                  {hiding ? <Loader2 className="h-4 w-4 animate-spin" /> : <EyeOff className="h-4 w-4" />}
+                </Button>
+              )}
+              {onUnhide && isHidden && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => onUnhide(show.mediaId)}
+                  disabled={hiding}
+                  aria-label={`Unhide ${show.title}`}
+                  title="Unhide"
+                >
+                  {hiding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              )}
             </div>
             <div className="text-sm space-y-1">
-              {isNew ? (
+              {isNew || (isHidden && isRecentRelease(show.recentReleaseDate, today)) ? (
                 <>
                   {show.recentReleaseSeasonNumber != null && (
                     <p className="text-foreground/70">Season {show.recentReleaseSeasonNumber}</p>
@@ -106,7 +147,7 @@ function ShowCard({ show, section }: { show: UpcomingShow; section: "new" | "upc
                     </p>
                   )}
                 </>
-              ) : section === "upcoming" && hasUpcomingDate ? (
+              ) : hasUpcomingDate ? (
                 <>
                   {show.upcomingSeasonNumber != null && (
                     <p className="text-foreground/70">Season {show.upcomingSeasonNumber}</p>
@@ -141,8 +182,17 @@ function ShowCard({ show, section }: { show: UpcomingShow; section: "new" | "upc
   )
 }
 
-export function UpcomingReleasesClient({ initialShows }: { initialShows: UpcomingShow[] }) {
+export function UpcomingReleasesClient({
+  initialShows,
+  initialHiddenShows = [],
+}: {
+  initialShows: UpcomingShow[]
+  initialHiddenShows?: UpcomingShow[]
+}) {
   const [shows, setShows] = useState<UpcomingShow[]>(initialShows)
+  const [hiddenShows, setHiddenShows] = useState<UpcomingShow[]>(initialHiddenShows)
+  const [showHidden, setShowHidden] = useState(false)
+  const [hidingIds, setHidingIds] = useState<Set<string>>(new Set())
   const [updating, setUpdating] = useState(false)
   const [progress, setProgress] = useState<string | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
@@ -180,6 +230,57 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
     return { newReleases, dated, awaiting, overallLastChecked: overall }
   }, [shows])
 
+  const setHiding = (mediaId: string, value: boolean) => {
+    setHidingIds((prev) => {
+      const next = new Set(prev)
+      if (value) next.add(mediaId)
+      else next.delete(mediaId)
+      return next
+    })
+  }
+
+  const handleHide = async (mediaId: string) => {
+    const show = shows.find((s) => s.mediaId === mediaId)
+    if (!show || hidingIds.has(mediaId)) return
+    setHiding(mediaId, true)
+    try {
+      const res = await fetch("/api/upcoming-releases/hide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_id: mediaId, hidden: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to hide show")
+      setShows((prev) => prev.filter((s) => s.mediaId !== mediaId))
+      setHiddenShows((prev) => [...prev.filter((s) => s.mediaId !== mediaId), show].sort((a, b) => a.title.localeCompare(b.title)))
+    } catch (e: unknown) {
+      setFailures([{ mediaId, title: show.title, error: e instanceof Error ? e.message : "Failed to hide show" }])
+    } finally {
+      setHiding(mediaId, false)
+    }
+  }
+
+  const handleUnhide = async (mediaId: string) => {
+    const show = hiddenShows.find((s) => s.mediaId === mediaId)
+    if (!show || hidingIds.has(mediaId)) return
+    setHiding(mediaId, true)
+    try {
+      const res = await fetch("/api/upcoming-releases/hide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_id: mediaId, hidden: false }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to unhide show")
+      setHiddenShows((prev) => prev.filter((s) => s.mediaId !== mediaId))
+      setShows((prev) => [...prev.filter((s) => s.mediaId !== mediaId), show])
+    } catch (e: unknown) {
+      setFailures([{ mediaId, title: show.title, error: e instanceof Error ? e.message : "Failed to unhide show" }])
+    } finally {
+      setHiding(mediaId, false)
+    }
+  }
+
   const handleUpdate = async () => {
     if (updating) return
     setUpdating(true)
@@ -205,10 +306,10 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
         setSummary(`Updated ${updated} of ${total} shows.`)
       }
       setProgress("Update complete.")
-    } catch (e: any) {
+    } catch (e: unknown) {
       setSummary(null)
       setProgress(null)
-      setFailures([{ mediaId: "", title: null, error: e?.message || "Update failed" }])
+      setFailures([{ mediaId: "", title: null, error: e instanceof Error ? e.message : "Update failed" }])
     } finally {
       setUpdating(false)
     }
@@ -266,7 +367,7 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
           <CardContent className="py-10 text-center space-y-2">
             <p className="font-medium">No upcoming shows yet</p>
             <p className="text-sm text-muted-foreground">
-              TV shows you&apos;ve rated that are returning or in production will appear here with their upcoming and recently released season premieres.
+              TV shows you&apos;ve rated, or rated a season for, that are returning or in production will appear here with their upcoming and recently released season premieres.
             </p>
           </CardContent>
         </Card>
@@ -276,7 +377,7 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
             <section className="space-y-3">
               <h2 className="text-lg font-semibold">New Releases</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {newReleases.map((show) => <ShowCard key={show.mediaId} show={show} section="new" />)}
+                {newReleases.map((show) => <ShowCard key={show.mediaId} show={show} section="new" onHide={handleHide} hiding={hidingIds.has(show.mediaId)} />)}
               </div>
             </section>
           )}
@@ -287,7 +388,7 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
               <p className="text-sm text-muted-foreground">No confirmed upcoming release dates yet.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dated.map((show) => <ShowCard key={show.mediaId} show={show} section="upcoming" />)}
+                {dated.map((show) => <ShowCard key={show.mediaId} show={show} section="upcoming" onHide={handleHide} hiding={hidingIds.has(show.mediaId)} />)}
               </div>
             )}
           </section>
@@ -298,11 +399,30 @@ export function UpcomingReleasesClient({ initialShows }: { initialShows: Upcomin
               <p className="text-sm text-muted-foreground">No shows awaiting a release date.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {awaiting.map((show) => <ShowCard key={show.mediaId} show={show} section="awaiting" />)}
+                {awaiting.map((show) => <ShowCard key={show.mediaId} show={show} section="awaiting" onHide={handleHide} hiding={hidingIds.has(show.mediaId)} />)}
               </div>
             )}
           </section>
         </div>
+      )}
+
+      {hiddenShows.length > 0 && (
+        <section className="space-y-3 pt-2">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setShowHidden((v) => !v)} className="text-muted-foreground">
+              {showHidden ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+              {showHidden ? "Hide" : "Show"} hidden shows ({hiddenShows.length})
+            </Button>
+          </div>
+          {showHidden && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Hidden shows won&apos;t appear in Upcoming Releases, the dashboard countdown, or release notifications.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {hiddenShows.map((show) => <ShowCard key={show.mediaId} show={show} section="hidden" onUnhide={handleUnhide} hiding={hidingIds.has(show.mediaId)} />)}
+              </div>
+            </div>
+          )}
+        </section>
       )}
     </div>
   )

@@ -415,7 +415,38 @@ export async function fetchAndPersistShowReleaseInfo(
   }
 }
 
-export async function getEligibleUpcomingShowsForUser(
+type AnyRow = Record<string, unknown>
+
+function toUpcomingShow(m: AnyRow, tv: AnyRow): UpcomingShow {
+  return {
+    mediaId: m.id as string,
+    tmdbId: m.tmdb_id as number,
+    title: m.title as string,
+    posterPath: (m.poster_path ?? null) as string | null,
+    year: (m.year ?? null) as number | null,
+    status: (tv.status ?? null) as string | null,
+    upcomingSeasonNumber: (tv.upcoming_season_number ?? null) as number | null,
+    upcomingReleaseDate: (tv.upcoming_release_date ?? null) as string | null,
+    lastCheckedAt: (tv.release_info_last_checked_at ?? null) as string | null,
+    recentReleaseSeasonNumber: (tv.recent_release_season_number ?? null) as number | null,
+    recentReleaseDate: (tv.recent_release_date ?? null) as string | null,
+    expectedSeasonNumber: (tv.expected_season_number ?? null) as number | null,
+  }
+}
+
+async function getHiddenMediaIds(supabase: SupabaseClient, userId: string): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("upcoming_release_hides")
+    .select("media_id")
+    .eq("user_id", userId)
+  const ids = new Set<string>()
+  for (const row of (data || []) as AnyRow[]) {
+    if (typeof row.media_id === "string") ids.add(row.media_id)
+  }
+  return ids
+}
+
+async function getBaseEligibleUpcomingShowsForUser(
   supabase: SupabaseClient,
   userId: string
 ): Promise<UpcomingShow[]> {
@@ -435,27 +466,74 @@ export async function getEligibleUpcomingShowsForUser(
   if (error || !data) return []
 
   const byMedia = new Map<string, UpcomingShow>()
-  for (const row of data as any[]) {
-    const m = Array.isArray(row.media) ? row.media[0] : row.media
+  for (const row of data as AnyRow[]) {
+    const mRaw = row.media
+    const m = (Array.isArray(mRaw) ? mRaw[0] : mRaw) as AnyRow | null
     if (!m) continue
-    const tv = Array.isArray(m.tv_shows) ? m.tv_shows[0] : m.tv_shows
+    const tvRaw = m.tv_shows
+    const tv = (Array.isArray(tvRaw) ? tvRaw[0] : tvRaw) as AnyRow | null
     if (!tv) continue
     const mediaId = m.id as string
     if (byMedia.has(mediaId)) continue
-    byMedia.set(mediaId, {
-      mediaId,
-      tmdbId: m.tmdb_id as number,
-      title: m.title as string,
-      posterPath: (m.poster_path ?? null) as string | null,
-      year: (m.year ?? null) as number | null,
-      status: (tv.status ?? null) as string | null,
-      upcomingSeasonNumber: (tv.upcoming_season_number ?? null) as number | null,
-      upcomingReleaseDate: (tv.upcoming_release_date ?? null) as string | null,
-      lastCheckedAt: (tv.release_info_last_checked_at ?? null) as string | null,
-      recentReleaseSeasonNumber: (tv.recent_release_season_number ?? null) as number | null,
-      recentReleaseDate: (tv.recent_release_date ?? null) as string | null,
-      expectedSeasonNumber: (tv.expected_season_number ?? null) as number | null,
-    })
+    byMedia.set(mediaId, toUpcomingShow(m, tv))
   }
+
+  // Also include shows where the user has rated a season but may not have an overall show rating.
+  const { data: seasonRows } = await supabase
+    .from("season_ratings")
+    .select("media_id")
+    .eq("user_id", userId)
+
+  const seasonMediaIds = Array.from(
+    new Set(
+      ((seasonRows || []) as AnyRow[])
+        .map((r) => r.media_id)
+        .filter((id): id is string => typeof id === "string" && !byMedia.has(id))
+    )
+  )
+
+  if (seasonMediaIds.length > 0) {
+    const { data: mediaRows } = await supabase
+      .from("media")
+      .select(
+        `id, tmdb_id, media_type, title, poster_path, year,
+         tv_shows:tv_shows!inner (status, upcoming_season_number, upcoming_release_date, release_info_last_checked_at, recent_release_season_number, recent_release_date, expected_season_number)`
+      )
+      .in("id", seasonMediaIds)
+      .eq("media_type", "tv")
+      .in("tv_shows.status", ["Returning Series", "In Production"])
+
+    for (const m of (mediaRows || []) as AnyRow[]) {
+      const tvRaw = m.tv_shows
+      const tv = (Array.isArray(tvRaw) ? tvRaw[0] : tvRaw) as AnyRow | null
+      if (!m.id || !tv || byMedia.has(m.id as string)) continue
+      byMedia.set(m.id as string, toUpcomingShow(m, tv))
+    }
+  }
+
   return Array.from(byMedia.values())
+}
+
+export async function getEligibleUpcomingShowsForUser(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<UpcomingShow[]> {
+  const [shows, hiddenIds] = await Promise.all([
+    getBaseEligibleUpcomingShowsForUser(supabase, userId),
+    getHiddenMediaIds(supabase, userId),
+  ])
+  if (hiddenIds.size === 0) return shows
+  return shows.filter((s) => !hiddenIds.has(s.mediaId))
+}
+
+export async function getHiddenUpcomingShowsForUser(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<UpcomingShow[]> {
+  const [shows, hiddenIds] = await Promise.all([
+    getBaseEligibleUpcomingShowsForUser(supabase, userId),
+    getHiddenMediaIds(supabase, userId),
+  ])
+  if (hiddenIds.size === 0) return []
+  return shows.filter((s) => hiddenIds.has(s.mediaId))
 }

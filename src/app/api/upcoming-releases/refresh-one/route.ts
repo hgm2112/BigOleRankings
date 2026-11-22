@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Ensure the requesting user has an entry for this TV show (scoped, on-demand).
+  // Accept either an overall rating or a season rating for the show.
   const { data: rating } = await supabase
     .from("ratings")
     .select("media_id, media:media_id!inner (id, tmdb_id, media_type)")
@@ -28,7 +29,26 @@ export async function POST(request: NextRequest) {
     .eq("media_id", mediaId)
     .maybeSingle()
 
-  const m: any = rating ? (Array.isArray((rating as any).media) ? (rating as any).media[0] : (rating as any).media) : null
+  let m: any = rating ? (Array.isArray((rating as any).media) ? (rating as any).media[0] : (rating as any).media) : null
+  if (!m || m.media_type !== "tv" || typeof m.tmdb_id !== "number") {
+    const { data: seasonRating } = await supabase
+      .from("season_ratings")
+      .select("media_id")
+      .eq("user_id", user.id)
+      .eq("media_id", mediaId)
+      .limit(1)
+      .maybeSingle()
+
+    if (seasonRating) {
+      const { data: media } = await supabase
+        .from("media")
+        .select("id, tmdb_id, media_type")
+        .eq("id", mediaId)
+        .maybeSingle()
+      m = media
+    }
+  }
+
   if (!m || m.media_type !== "tv" || typeof m.tmdb_id !== "number") {
     return Response.json({ error: "TV show entry not found for user" }, { status: 404 })
   }

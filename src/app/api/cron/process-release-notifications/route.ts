@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   // Candidate shows: recent release recorded (in-window logic maintained by refresh/persist).
   const { data: shows } = await admin
     .from("tv_shows")
-    .select("id, recent_release_season_number, recent_release_date, recent_release_kind, recent_release_episode_numbers, media:media!inner(id, title)")
+    .select("id, status, recent_release_season_number, recent_release_date, recent_release_kind, recent_release_episode_numbers, media:media!inner(id, title)")
     .not("recent_release_date", "is", null)
     .not("recent_release_season_number", "is", null)
 
@@ -93,17 +93,41 @@ export async function GET(request: NextRequest) {
 
     checked++
 
-    // Users who have this TV show on their Upcoming/Renewed eligible list.
+    // Users who have this TV show on their Upcoming/Renewed eligible list,
+    // including season-only raters, and excluding users who hid the show.
     const { data: ratingRows } = await admin
       .from("ratings")
       .select("user_id, media:media!inner(id, media_type, tv_shows!inner(status))")
       .eq("media_id", mediaId)
       .eq("media.media_type", "tv")
-      .eq("media.tv_shows.status", "Returning Series")
+      .in("media.tv_shows.status", ["Returning Series", "In Production"])
 
-    if (!ratingRows?.length) continue
+    const eligibleStatus = show.status === "Returning Series" || show.status === "In Production"
+    const { data: seasonRatingRows } = eligibleStatus
+      ? await admin.from("season_ratings").select("user_id").eq("media_id", mediaId)
+      : { data: [] as { user_id: string }[] }
 
-    const userIds = Array.from(new Set((ratingRows as any[]).map((r) => r.user_id).filter(Boolean))) as string[]
+    const userIdSet = new Set<string>()
+    for (const r of (ratingRows || []) as { user_id?: string | null }[]) {
+      if (typeof r.user_id === "string") userIdSet.add(r.user_id)
+    }
+    for (const r of (seasonRatingRows || []) as { user_id?: string | null }[]) {
+      if (typeof r.user_id === "string") userIdSet.add(r.user_id)
+    }
+
+    if (userIdSet.size === 0) continue
+
+    const { data: hiddenRows } = await admin
+      .from("upcoming_release_hides")
+      .select("user_id")
+      .eq("media_id", mediaId)
+      .in("user_id", Array.from(userIdSet))
+
+    for (const h of (hiddenRows || []) as { user_id?: string | null }[]) {
+      if (typeof h.user_id === "string") userIdSet.delete(h.user_id)
+    }
+
+    const userIds = Array.from(userIdSet)
     if (userIds.length === 0) continue
 
     const { data: settingsRows } = await admin

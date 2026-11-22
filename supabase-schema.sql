@@ -480,3 +480,30 @@ alter table release_notification_deliveries enable row level security;
 -- intentionally no user policies (cron/service role only)
 
 grant all on release_notification_deliveries to anon, authenticated, service_role;
+
+-- Per-user hides for Upcoming Releases (/upcoming, dashboard countdown, release notifications)
+create table if not exists upcoming_release_hides (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  media_id uuid not null references media (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, media_id)
+);
+
+create index if not exists upcoming_release_hides_user_id_idx
+  on upcoming_release_hides (user_id);
+
+alter table upcoming_release_hides enable row level security;
+
+create policy "Users can view their own upcoming release hides"
+  on upcoming_release_hides for select
+  using (auth.uid() = user_id);
+
+create policy "Users can hide upcoming releases"
+  on upcoming_release_hides for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can unhide upcoming releases"
+  on upcoming_release_hides for delete
+  using (auth.uid() = user_id);
+
+grant all on upcoming_release_hides to anon, authenticated, service_role;
