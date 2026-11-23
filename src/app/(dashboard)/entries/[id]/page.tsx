@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { notFound } from "next/navigation"
 import { EntryDetailClient } from "./entry-detail-client"
 import { ENTRY_SELECT, flattenEntry } from "@/lib/entry-queries"
-import { fetchMovieRewatchCount, fetchRatingHistory, fetchTvWatchStats } from "@/lib/rewatch"
+import { fetchManualRewatchCounts, fetchMovieRewatchCount, fetchRatingHistory, fetchTvWatchStats } from "@/lib/rewatch"
 import { getWatchlistEligibilityForMediaId } from "@/lib/watchlist"
 
 export default async function EntryDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sort?: string; dir?: string; back?: string }> }) {
@@ -172,10 +172,12 @@ export default async function EntryDetailPage({ params, searchParams }: { params
   let fullSeriesRewatchCount = 0
   let seasonRewatchStats: Record<number, { completed: number; additional: number }> = {}
   let ratingHistory: Awaited<ReturnType<typeof fetchRatingHistory>> = []
+  let manualRewatchWhole = 0
+  let manualRewatchBySeason: Record<number, number> = {}
 
-  // Rewatch counts are derived from watch_periods (visible to authenticated users).
+  // Rewatch counts are derived from watch_periods (visible to authenticated users) plus manual counters.
   // Rating history is owner-private (RLS); fetch only for the entry owner when viewer is owner.
-  const [historyRes, movieCountRes, tvStatsRes] = await Promise.all([
+  const [historyRes, movieCountRes, tvStatsRes, manualRes] = await Promise.all([
     isOwner ? fetchRatingHistory(supabase, entry.user_id, entry.media_id) : Promise.resolve([]),
     entry.media_type === "movie"
       ? fetchMovieRewatchCount(supabase, entry.user_id, entry.media_id)
@@ -183,11 +185,14 @@ export default async function EntryDetailPage({ params, searchParams }: { params
     entry.media_type === "tv"
       ? fetchTvWatchStats(supabase, entry.user_id, entry.media_id)
       : Promise.resolve({ fullSeriesRewatchCount: 0, seasonStats: {} as Record<number, { completed: number; additional: number }> }),
+    fetchManualRewatchCounts(supabase, entry.user_id, entry.media_id),
   ])
   ratingHistory = historyRes
   movieRewatchCount = movieCountRes
   fullSeriesRewatchCount = tvStatsRes.fullSeriesRewatchCount
   seasonRewatchStats = tvStatsRes.seasonStats
+  manualRewatchWhole = manualRes.whole
+  manualRewatchBySeason = manualRes.bySeason
 
   if (entry.media_type === "tv") {
     const { data: seasonRows } = await supabase
@@ -237,6 +242,8 @@ export default async function EntryDetailPage({ params, searchParams }: { params
       movieRewatchCount={movieRewatchCount}
       fullSeriesRewatchCount={fullSeriesRewatchCount}
       seasonRewatchStats={seasonRewatchStats}
+      manualRewatchWhole={manualRewatchWhole}
+      manualRewatchBySeason={manualRewatchBySeason}
       ratingHistory={ratingHistory}
       watchlistState={watchlistState}
     />

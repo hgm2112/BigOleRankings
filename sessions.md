@@ -93,3 +93,29 @@ A running log of notable work sessions for this project.
 - Hiding is per-user/per-show and only affects upcoming-release tracking/alerts (not normal ratings/entries, watchlist, or detail pages).
 - Unrelated untracked local assets (mockups/fonts/icons, `src/app/icon.png`) were left out of commits.
 
+
+---
+
+## 2026-11-22 — Manual Rewatch Counter on Detail Pages
+
+**Summary**
+- Added a simple **manual rewatch counter** on show/movie detail pages so users can log rewatches without entering dates and without using `/watching`. Works for **movies**, **whole TV shows**, and **individual TV seasons**.
+- Manual + / - updates only the separate manual counter: no `watch_periods`, no `/watching` history, no `watch_activities`, and no social feed events.
+- Detailed card/entry detail shows the combined rewatch total (existing `/watching`-derived rewatches + manual counter). Owners can edit; other logged-in users viewing another user’s entry see the total read-only.
+- Added the same compact counter to unrated title detail pages (`/title/[type]/[tmdbId]`) and to entry detail pages (`/entries/[id]`).
+
+**Key files**
+- `supabase/migrations/20261122130000_manual_rewatch_counts.sql` — additive `manual_rewatch_counts` table + RLS/policies.
+- `src/app/api/rewatches/route.ts` — POST endpoint to increment/decrement manual rewatch count.
+- `src/lib/rewatch.ts` — fetch manual counts and include them in movie/TV rewatch totals.
+- `src/app/(dashboard)/entries/[id]/page.tsx` — load/pass manual rewatch counts.
+- `src/app/(dashboard)/entries/[id]/entry-detail-client.tsx` — compact owner +/- controls and viewer read-only display.
+- `src/app/(dashboard)/title/[type]/[tmdbId]/page.tsx` — load/pass manual rewatch counts for title detail.
+- `src/app/(dashboard)/title/[type]/[tmdbId]/title-detail-client.tsx` — compact manual rewatch controls on title detail.
+
+**Migrations (created/applied by user)**
+- `supabase/migrations/20261122130000_manual_rewatch_counts.sql`
+
+**Notes**
+- Manual counter is intentionally separate from `/watching`; the detailed page displays a combined total.
+- No destructive DB changes. `npx tsc --noEmit` passed after the changes.

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getWatchlistEligibilityForMediaId, reasonLabel } from "@/lib/watchlist"
+import { fetchManualRewatchCounts } from "@/lib/rewatch"
 import { TitleDetailClient } from "./title-detail-client"
 
 const TMDB_ACCESS_TOKEN = process.env.TMDB_ACCESS_TOKEN
@@ -105,6 +106,9 @@ export default async function TitlePage({
   let viewerCount = 0
   let avgGutRating: number | null = null
   let avgDetailedRating: number | null = null
+  const mediaId: string | null = mediaRow?.id ?? null
+  let manualRewatchWhole = 0
+  let manualRewatchBySeason: Record<number, number> = {}
   if (mediaRow?.id) {
     const { data: ratingRow } = await supabase
       .from("ratings")
@@ -114,7 +118,7 @@ export default async function TitlePage({
       .maybeSingle()
     if (ratingRow?.id) redirect(`/entries/${ratingRow.id}`)
 
-    const [eligibility, activeRes, ratingsRes] = await Promise.all([
+    const [eligibility, activeRes, ratingsRes, manualRes] = await Promise.all([
       getWatchlistEligibilityForMediaId(supabase, user.id, mediaRow.id),
       supabase
         .from("watch_periods")
@@ -127,7 +131,10 @@ export default async function TitlePage({
         .from("ratings")
         .select("gut_rating, detailed_enjoyment, detailed_impact, detailed_recommend, detailed_watch_again")
         .eq("media_id", mediaRow.id),
+      fetchManualRewatchCounts(supabase, user.id, mediaRow.id),
     ])
+    manualRewatchWhole = manualRes.whole
+    manualRewatchBySeason = manualRes.bySeason
 
     initialWatchlist = {
       eligible: eligibility.eligible,
@@ -167,11 +174,14 @@ export default async function TitlePage({
   return (
     <TitleDetailClient
       details={details}
+      mediaId={mediaId}
       initialWatchlist={initialWatchlist}
       hasActiveWatching={hasActiveWatching}
       viewerCount={viewerCount}
       avgGutRating={avgGutRating}
       avgDetailedRating={avgDetailedRating}
+      manualRewatchWhole={manualRewatchWhole}
+      manualRewatchBySeason={manualRewatchBySeason}
     />
   )
 }

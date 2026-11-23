@@ -13,7 +13,7 @@ import { useCustomization } from "@/components/customization-provider"
 import { PosterLightbox } from "@/components/poster-lightbox"
 import { formatDate } from "@/lib/format-date"
 import { usePosterTheme } from "@/hooks/use-poster-theme"
-import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye, Repeat, BookmarkPlus, BookmarkCheck } from "lucide-react"
+import { Edit3, ArrowLeft, ClipboardList, ChevronDown, ChevronUp, Eye, Repeat, BookmarkPlus, BookmarkCheck, Minus, Plus } from "lucide-react"
 import { Film, Tv } from "lucide-react"
 
 type SeasonRewatchStat = { completed: number; additional: number }
@@ -109,6 +109,8 @@ export function EntryDetailClient({
   movieRewatchCount = 0,
   fullSeriesRewatchCount = 0,
   seasonRewatchStats = {},
+  manualRewatchWhole = 0,
+  manualRewatchBySeason = {},
   ratingHistory = [],
   watchlistState,
 }: {
@@ -127,6 +129,8 @@ export function EntryDetailClient({
   movieRewatchCount?: number
   fullSeriesRewatchCount?: number
   seasonRewatchStats?: Record<number, SeasonRewatchStat>
+  manualRewatchWhole?: number
+  manualRewatchBySeason?: Record<number, number>
   ratingHistory?: RatingHistoryRow[]
   watchlistState?: WatchlistState
 }) {
@@ -153,10 +157,110 @@ export function EntryDetailClient({
   const [wlState, setWlState] = useState<WatchlistState | null>(watchlistState ?? null)
   const [wlBusy, setWlBusy] = useState(false)
   const [wlError, setWlError] = useState<string | null>(null)
+  const [manualWhole, setManualWhole] = useState(manualRewatchWhole)
+  const [manualBySeason, setManualBySeason] = useState<Record<number, number>>(manualRewatchBySeason)
+  const [rewatchBusyKey, setRewatchBusyKey] = useState<string | null>(null)
 
   useEffect(() => {
     setWlState(watchlistState ?? null)
   }, [watchlistState, entry.media_id])
+
+  const [prevManualKey, setPrevManualKey] = useState({ mediaId: entry.media_id, whole: manualRewatchWhole, bySeason: manualRewatchBySeason })
+  if (
+    prevManualKey.mediaId !== entry.media_id ||
+    prevManualKey.whole !== manualRewatchWhole ||
+    prevManualKey.bySeason !== manualRewatchBySeason
+  ) {
+    setPrevManualKey({ mediaId: entry.media_id, whole: manualRewatchWhole, bySeason: manualRewatchBySeason })
+    setManualWhole(manualRewatchWhole)
+    setManualBySeason(manualRewatchBySeason)
+  }
+
+  const baseMovieRewatchCount = Math.max(0, movieRewatchCount - manualRewatchWhole)
+  const baseFullSeriesRewatchCount = Math.max(0, fullSeriesRewatchCount - manualRewatchWhole)
+  const displayMovieRewatchCount = baseMovieRewatchCount + manualWhole
+  const displayFullSeriesRewatchCount = baseFullSeriesRewatchCount + manualWhole
+
+  const adjustManualRewatch = async (seasonNumber: number | null, delta: 1 | -1) => {
+    const key = seasonNumber == null ? "whole" : `season:${seasonNumber}`
+    if (rewatchBusyKey) return
+    setRewatchBusyKey(key)
+    try {
+      const res = await fetch("/api/rewatches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_id: entry.media_id, season_number: seasonNumber, delta }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to update rewatch count")
+      const next = typeof data.count === "number" ? data.count : 0
+      if (seasonNumber == null) setManualWhole(next)
+      else setManualBySeason((prev) => ({ ...prev, [seasonNumber]: next }))
+    } catch {
+      // ignore; user can retry
+    } finally {
+      setRewatchBusyKey(null)
+    }
+  }
+
+  const renderRewatchCounter = (seasonNumber: number | null, total: number, label = "Rewatched") => {
+    const key = seasonNumber == null ? "whole" : `season:${seasonNumber}`
+    const busy = rewatchBusyKey === key
+    if (!isOwner) {
+      if (total <= 0) return null
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`${label}: ${total}`}>
+          <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="tabular-nums">{total}</span>
+        </span>
+      )
+    }
+    if (total <= 0) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-xs text-muted-foreground"
+          onClick={() => adjustManualRewatch(seasonNumber, 1)}
+          disabled={busy}
+          aria-label={`Add ${label.toLowerCase()}`}
+          title={`Add ${label.toLowerCase()}`}
+        >
+          <Repeat className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+          <Plus className="h-3 w-3" />
+        </Button>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground" title={label}>
+        <Repeat className="h-3.5 w-3.5 mr-0.5" aria-hidden="true" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => adjustManualRewatch(seasonNumber, -1)}
+          disabled={busy || total <= 0}
+          aria-label={`Decrease ${label.toLowerCase()} count`}
+        >
+          <Minus className="h-3 w-3" />
+        </Button>
+        <span className="tabular-nums w-4 text-center">{total}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => adjustManualRewatch(seasonNumber, 1)}
+          disabled={busy}
+          aria-label={`Increase ${label.toLowerCase()} count`}
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+      </span>
+    )
+  }
 
   const handleWatchlistAdd = async () => {
     if (!wlState || !wlState.eligible) return
@@ -327,13 +431,10 @@ export function EntryDetailClient({
             <p className="text-muted-foreground flex items-center gap-2">
               {entry.year} &middot; {prefs.media_badges ? <MediaTypeBadge type={entry.media_type} /> : entry.media_type === "tv" ? "TV Show" : "Movie"}
             </p>
-            {entry.media_type === "tv" && fullSeriesRewatchCount > 0 && (
-              <div className="mt-1">
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`Full-series rewatches: ${fullSeriesRewatchCount}`}>
-                  <span>Full-Series Rewatches:</span>
-                  <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className="tabular-nums">{fullSeriesRewatchCount}</span>
-                </span>
+            {entry.media_type === "tv" && (isOwner || displayFullSeriesRewatchCount > 0) && (
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="whitespace-nowrap">Show rewatches:</span>
+                {renderRewatchCounter(null, displayFullSeriesRewatchCount, "Show rewatches")}
               </div>
             )}
             {!isOwner && ownerProfile && (
@@ -389,13 +490,10 @@ export function EntryDetailClient({
           <Separator />
 
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <h2 className="font-semibold">Gut Rating</h2>
-              {entry.media_type === "movie" && movieRewatchCount > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={`${movieRewatchCount} rewatch${movieRewatchCount === 1 ? "" : "es"}`}>
-                  <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className="tabular-nums">{movieRewatchCount}</span>
-                </span>
+              {entry.media_type === "movie" && (isOwner || displayMovieRewatchCount > 0) && (
+                renderRewatchCounter(null, displayMovieRewatchCount, "Rewatches")
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -533,6 +631,9 @@ export function EntryDetailClient({
                   const sHist = seasonHistoryBySeason.get(s.season_number) ?? []
                   const sStat = seasonRewatchStats[s.season_number]
                   const expanded = expandedSeasonHistory.has(s.season_number)
+                  const manualSeason = manualBySeason[s.season_number] ?? 0
+                  const baseSeasonAdditional = Math.max(0, (sStat?.additional ?? 0) - (manualRewatchBySeason[s.season_number] ?? 0))
+                  const displaySeasonAdditional = baseSeasonAdditional + manualSeason
 
                   const ratingNode = sr?.dnf ? (
                     <span className="font-medium text-destructive">DNF</span>
@@ -546,12 +647,7 @@ export function EntryDetailClient({
                     <span className="text-muted-foreground">—</span>
                   )
 
-                  const rewatchNode = sStat && sStat.additional > 0 ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span className="tabular-nums">{sStat.additional}</span>
-                    </span>
-                  ) : null
+                  const rewatchNode = renderRewatchCounter(s.season_number, displaySeasonAdditional, `Season ${s.season_number} rewatches`)
 
                   const mobileHistoryButton = sHist.length > 0 ? (
                     <Button

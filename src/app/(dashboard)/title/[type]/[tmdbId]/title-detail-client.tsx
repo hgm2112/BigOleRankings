@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator"
 import { MediaTypeBadge } from "@/components/media-type-badge"
 import { PosterLightbox } from "@/components/poster-lightbox"
-import { ArrowLeft, Bookmark, BookmarkPlus, Eye, Film, Loader2, PlayCircle, Star, Tv } from "lucide-react"
+import { ArrowLeft, Bookmark, BookmarkPlus, Eye, Film, Loader2, Minus, PlayCircle, Plus, Repeat, Star, Tv } from "lucide-react"
 import { todayLocalDate } from "@/lib/watching"
 
 interface TMDBSeason {
@@ -56,18 +56,24 @@ function formatRuntime(minutes: number | null): string | null {
 
 export function TitleDetailClient({
   details,
+  mediaId: initialMediaId,
   initialWatchlist,
   hasActiveWatching: initialActiveWatching,
   viewerCount = 0,
   avgGutRating = null,
   avgDetailedRating = null,
+  manualRewatchWhole = 0,
+  manualRewatchBySeason = {},
 }: {
   details: TMDBTitleDetails
+  mediaId: string | null
   initialWatchlist: WatchlistState
   hasActiveWatching: boolean
   viewerCount?: number
   avgGutRating?: number | null
   avgDetailedRating?: number | null
+  manualRewatchWhole?: number
+  manualRewatchBySeason?: Record<number, number>
 }) {
   const router = useRouter()
   const [watchlist, setWatchlist] = useState<WatchlistState>(initialWatchlist)
@@ -80,6 +86,76 @@ export function TitleDetailClient({
   const [watchError, setWatchError] = useState<string | null>(null)
   const [seasonNumber, setSeasonNumber] = useState<string>("")
   const [startDate, setStartDate] = useState(todayLocalDate())
+  const [mediaId, setMediaId] = useState<string | null>(initialMediaId)
+  const [manualWhole, setManualWhole] = useState(manualRewatchWhole)
+  const [manualBySeason, setManualBySeason] = useState<Record<number, number>>(manualRewatchBySeason)
+  const [rewatchBusyKey, setRewatchBusyKey] = useState<string | null>(null)
+
+  const adjustManualRewatch = async (sn: number | null, delta: 1 | -1) => {
+    const key = sn == null ? "whole" : `season:${sn}`
+    if (rewatchBusyKey) return
+    setRewatchBusyKey(key)
+    try {
+      const res = await fetch("/api/rewatches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          media_id: mediaId ?? undefined,
+          tmdb_id: mediaId ? undefined : details.tmdb_id,
+          media_type: mediaId ? undefined : details.media_type,
+          title: mediaId ? undefined : details.title,
+          poster_path: mediaId ? undefined : details.poster_path,
+          year: mediaId ? undefined : (details.year ? parseInt(details.year) : null),
+          season_number: sn,
+          delta,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to update rewatch count")
+      const next = typeof data.count === "number" ? data.count : 0
+      if (typeof data.media_id === "string") setMediaId(data.media_id)
+      if (sn == null) setManualWhole(next)
+      else setManualBySeason((prev) => ({ ...prev, [sn]: next }))
+    } catch {
+      // ignore; user can retry
+    } finally {
+      setRewatchBusyKey(null)
+    }
+  }
+
+  const renderRewatchCounter = (sn: number | null, total: number, label = "Rewatched") => {
+    const key = sn == null ? "whole" : `season:${sn}`
+    const busy = rewatchBusyKey === key
+    if (total <= 0) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-xs text-muted-foreground"
+          onClick={() => adjustManualRewatch(sn, 1)}
+          disabled={busy}
+          aria-label={`Add ${label.toLowerCase()}`}
+          title={`Add ${label.toLowerCase()}`}
+        >
+          <Repeat className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+          <Plus className="h-3 w-3" />
+        </Button>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground" title={label}>
+        <Repeat className="h-3.5 w-3.5 mr-0.5" aria-hidden="true" />
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => adjustManualRewatch(sn, -1)} disabled={busy || total <= 0} aria-label={`Decrease ${label.toLowerCase()} count`}>
+          <Minus className="h-3 w-3" />
+        </Button>
+        <span className="tabular-nums w-4 text-center">{total}</span>
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => adjustManualRewatch(sn, 1)} disabled={busy} aria-label={`Increase ${label.toLowerCase()} count`}>
+          <Plus className="h-3 w-3" />
+        </Button>
+      </span>
+    )
+  }
 
   const seasons = useMemo(
     () => (details.seasons ?? []).filter((s) => s.season_number >= 1),
@@ -311,6 +387,12 @@ export function TitleDetailClient({
               {!watchlist.eligible && !watchlist.onWatchlist && watchlist.reason && (
                 <p className="text-xs text-muted-foreground">{watchlist.reason}</p>
               )}
+              {details.media_type === "movie" && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center sm:justify-start">
+                  <span>Rewatched:</span>
+                  {renderRewatchCounter(null, manualWhole, "Rewatches")}
+                </div>
+              )}
               {details.media_type === "tv" && seasons.length === 0 && (
                 <p className="text-xs text-muted-foreground">No released season data available yet, so watching can&apos;t be started for this show right now.</p>
               )}
@@ -321,16 +403,28 @@ export function TitleDetailClient({
             <>
               <Separator className="my-5" />
               <div>
-                <h2 className="font-semibold mb-2">Seasons</h2>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <h2 className="font-semibold">Seasons</h2>
+                  <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                    <span>Show rewatches:</span>
+                    {renderRewatchCounter(null, manualWhole, "Show rewatches")}
+                  </span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {seasons.map((s) => (
-                    <div key={s.season_number} className="text-sm text-muted-foreground rounded-md border px-3 py-2 flex items-center justify-between gap-2">
-                      <span className="font-medium text-foreground">{s.name || `Season ${s.season_number}`}</span>
-                      <span className="text-xs whitespace-nowrap">
-                        {s.air_year ? `${s.air_year} · ` : ""}{s.episode_count} ep{s.episode_count === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                  ))}
+                  {seasons.map((s) => {
+                    const seasonRewatchCount = manualBySeason[s.season_number] ?? 0
+                    return (
+                      <div key={s.season_number} className="text-sm text-muted-foreground rounded-md border px-3 py-2 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="font-medium text-foreground">{s.name || `Season ${s.season_number}`}</span>
+                          <span className="text-xs ml-2 whitespace-nowrap">
+                            {s.air_year ? `${s.air_year} · ` : ""}{s.episode_count} ep{s.episode_count === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                        {renderRewatchCounter(s.season_number, seasonRewatchCount, `Season ${s.season_number} rewatches`)}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </>

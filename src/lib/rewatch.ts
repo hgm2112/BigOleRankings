@@ -8,6 +8,13 @@ export interface WatchCountResult {
   seasonStats: Record<number, { completed: number; additional: number }>
 }
 
+export interface ManualRewatchCounts {
+  /** Manual whole-title/movie counter (season_number IS NULL). */
+  whole: number
+  /** Manual per-season counters (TV season_number >= 1). */
+  bySeason: Record<number, number>
+}
+
 export interface RatingHistoryRow {
   id: string
   user_id: string
@@ -55,22 +62,51 @@ export async function fetchRatingHistory(
   return (data ?? []) as unknown as RatingHistoryRow[]
 }
 
+export async function fetchManualRewatchCounts(
+  supabase: SupabaseClient,
+  userId: string,
+  mediaId: string
+): Promise<ManualRewatchCounts> {
+  const { data, error } = await supabase
+    .from("manual_rewatch_counts")
+    .select("season_number, count")
+    .eq("user_id", userId)
+    .eq("media_id", mediaId)
+
+  if (error || !data) return { whole: 0, bySeason: {} }
+
+  let whole = 0
+  const bySeason: Record<number, number> = {}
+  for (const row of data as Array<{ season_number: number | null; count: number | null }>) {
+    const count = Math.max(0, Number(row.count ?? 0))
+    if (row.season_number == null) {
+      whole = count
+    } else {
+      bySeason[row.season_number] = count
+    }
+  }
+  return { whole, bySeason }
+}
+
 export async function fetchMovieRewatchCount(
   supabase: SupabaseClient,
   userId: string,
   mediaId: string
 ): Promise<number> {
-  const { count, error } = await supabase
-    .from("watch_periods")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("media_id", mediaId)
-    .eq("media_type", "movie")
-    .eq("status", "finished")
-    .not("ended_at", "is", null)
+  const [{ count, error }, manual] = await Promise.all([
+    supabase
+      .from("watch_periods")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("media_id", mediaId)
+      .eq("media_type", "movie")
+      .eq("status", "finished")
+      .not("ended_at", "is", null),
+    fetchManualRewatchCounts(supabase, userId, mediaId),
+  ])
 
-  if (error) return 0
-  return Math.max(0, (count ?? 0) - 1)
+  if (error) return manual.whole
+  return Math.max(0, (count ?? 0) - 1) + manual.whole
 }
 
 export async function fetchTvWatchStats(
@@ -78,7 +114,7 @@ export async function fetchTvWatchStats(
   userId: string,
   mediaId: string
 ): Promise<{ fullSeriesRewatchCount: number; seasonStats: Record<number, { completed: number; additional: number }> }> {
-  const [{ data: periods, error: pErr }, { count: fsCount, error: fsErr }] = await Promise.all([
+  const [{ data: periods, error: pErr }, { count: fsCount, error: fsErr }, manual] = await Promise.all([
     supabase
       .from("watch_periods")
       .select("id, season_number, status, ended_at, started_at, created_at, full_series_rewatch_id")
@@ -93,10 +129,16 @@ export async function fetchTvWatchStats(
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("media_id", mediaId),
+    fetchManualRewatchCounts(supabase, userId, mediaId),
   ])
 
   if (pErr) {
-    return { fullSeriesRewatchCount: 0, seasonStats: {} }
+    return {
+      fullSeriesRewatchCount: (fsErr ? 0 : (fsCount ?? 0)) + manual.whole,
+      seasonStats: Object.fromEntries(
+        Object.entries(manual.bySeason).map(([sn, c]) => [Number(sn), { completed: 0, additional: c }])
+      ),
+    }
   }
 
   type FinishedPeriodRow = {
@@ -119,27 +161,18 @@ export async function fetchTvWatchStats(
 
   const seasonStats: Record<number, { completed: number; additional: number }> = {}
 
-  const orderCmp = (a: FinishedPeriodRow, b: FinishedPeriodRow) => {
-    const ea = String(a.ended_at ?? "")
-    const eb = String(b.ended_at ?? "")
-    if (ea !== eb) return ea < eb ? -1 : 1
-    const sa = String(a.started_at ?? "")
-    const sb = String(b.started_at ?? "")
-    if (sa !== sb) return sa < sb ? -1 : 1
-    const ca = String(a.created_at ?? "")
-    const cb = String(b.created_at ?? "")
-    if (ca !== cb) return ca < cb ? -1 : 1
-    return String(a.id).localeCompare(String(b.id))
-  }
-
   for (const [sn, list] of bySeason.entries()) {
-    const sorted = [...list].sort(orderCmp)
-    const completed = sorted.length
-    seasonStats[sn] = { completed, additional: Math.max(0, completed - 1) }
+    const completed = list.length
+    seasonStats[sn] = { completed, additional: Math.max(0, completed - 1) + (manual.bySeason[sn] ?? 0) }
+  }
+  // Include manual-only seasons (no watch periods).
+  for (const [snStr, manualCount] of Object.entries(manual.bySeason)) {
+    const sn = Number(snStr)
+    if (!seasonStats[sn]) seasonStats[sn] = { completed: 0, additional: manualCount }
   }
 
   return {
-    fullSeriesRewatchCount: fsErr ? 0 : (fsCount ?? 0),
+    fullSeriesRewatchCount: (fsErr ? 0 : (fsCount ?? 0)) + manual.whole,
     seasonStats,
   }
 }
