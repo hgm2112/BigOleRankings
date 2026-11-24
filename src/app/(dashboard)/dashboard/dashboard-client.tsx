@@ -66,6 +66,7 @@ interface DashboardClientProps {
   showPinSection?: boolean
   fullRankingsHref?: string
   countdownRelease?: CountdownRelease | null
+  countdownAlreadyWatching?: boolean
 }
 
 function computeRankings(entries: Entry[], useDetailed: boolean, ascending: boolean) {
@@ -423,7 +424,7 @@ function PinnedFriendCard({ pinnedUser, pinnedEntry, myComparisonEntry, watching
   )
 }
 
-export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pinnedWatching = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true, fullRankingsHref, countdownRelease }: DashboardClientProps) {
+export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntries = [], myComparisonEntries = [], pinnedWatching = [], pendingDetailedEntries = [], headerTitle, headerDescription, showPinSection = true, fullRankingsHref, countdownRelease, countdownAlreadyWatching = false }: DashboardClientProps) {
   const { prefs } = useCustomization()
   const displayName = profile?.display_name || profile?.username || "User"
 
@@ -535,7 +536,7 @@ export function DashboardClient({ entries, profile, pinnedUsers = [], pinnedEntr
           <h1 className="text-2xl font-bold">{headerTitle ?? `Hello, ${displayName}`}</h1>
           <p className="text-muted-foreground">{headerDescription ?? "Welcome to the island of misfit toys"}</p>
         </div>
-        {countdownRelease ? <ReleaseCountdownBanner release={countdownRelease} /> : null}
+        {countdownRelease ? <ReleaseCountdownBanner release={countdownRelease} initialWatching={countdownAlreadyWatching} /> : null}
       </div>
 
       {pendingDetailedEntries.length > 0 && (

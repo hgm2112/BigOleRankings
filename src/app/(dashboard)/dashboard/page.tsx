@@ -41,6 +41,20 @@ export default async function DashboardPage() {
       }
     : null
 
+  let countdownAlreadyWatching = false
+  if (countdownRelease?.upcomingSeasonNumber != null) {
+    const { data: activeCountdownPeriod } = await supabase
+      .from("watch_periods")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("media_id", countdownRelease.mediaId)
+      .eq("season_number", countdownRelease.upcomingSeasonNumber)
+      .eq("status", "currently_watching")
+      .limit(1)
+      .maybeSingle()
+    countdownAlreadyWatching = !!activeCountdownPeriod
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("username, display_name, pinned_user_id, pinned_user_id_2, pinned_user_id_3")
@@ -138,6 +152,7 @@ export default async function DashboardPage() {
       pinnedWatching={pinnedWatching}
       pendingDetailedEntries={flattenEntries(pendingDetailed)}
       countdownRelease={countdownRelease}
+      countdownAlreadyWatching={countdownAlreadyWatching}
     />
   )
 }

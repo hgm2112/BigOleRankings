@@ -39,8 +39,16 @@ function posterUrl(path: string | null) {
   return path ? `https://image.tmdb.org/t/p/w185${path}` : null
 }
 
-export function ReleaseCountdownBanner({ release }: { release: CountdownRelease }) {
-  const [startState, setStartState] = useState<"idle" | "loading" | "watching" | "error">("idle")
+export function ReleaseCountdownBanner({
+  release,
+  initialWatching = false,
+}: {
+  release: CountdownRelease
+  initialWatching?: boolean
+}) {
+  const [startState, setStartState] = useState<"idle" | "loading" | "watching" | "error">(
+    initialWatching ? "watching" : "idle"
+  )
   const [startError, setStartError] = useState<string | null>(null)
 
   const today = todayIsoDateLocal()
