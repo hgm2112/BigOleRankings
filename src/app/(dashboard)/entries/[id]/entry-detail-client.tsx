@@ -433,8 +433,8 @@ export function EntryDetailClient({
             </p>
             {entry.media_type === "tv" && (isOwner || displayFullSeriesRewatchCount > 0) && (
               <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="whitespace-nowrap">Show rewatches:</span>
-                {renderRewatchCounter(null, displayFullSeriesRewatchCount, "Show rewatches")}
+                <span className="whitespace-nowrap">{seasons.length === 1 ? "Rewatched:" : "Show rewatches:"}</span>
+                {renderRewatchCounter(null, displayFullSeriesRewatchCount, seasons.length === 1 ? "Rewatched" : "Show rewatches")}
               </div>
             )}
             {!isOwner && ownerProfile && (
@@ -647,7 +647,9 @@ export function EntryDetailClient({
                     <span className="text-muted-foreground">—</span>
                   )
 
-                  const rewatchNode = renderRewatchCounter(s.season_number, displaySeasonAdditional, `Season ${s.season_number} rewatches`)
+                  const rewatchNode = seasons.length === 1
+                    ? null
+                    : renderRewatchCounter(s.season_number, displaySeasonAdditional, `Season ${s.season_number} rewatches`)
 
                   const mobileHistoryButton = sHist.length > 0 ? (
                     <Button

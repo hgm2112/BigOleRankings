@@ -406,8 +406,8 @@ export function TitleDetailClient({
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <h2 className="font-semibold">Seasons</h2>
                   <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                    <span>Show rewatches:</span>
-                    {renderRewatchCounter(null, manualWhole, "Show rewatches")}
+                    <span>{seasons.length === 1 ? "Rewatched:" : "Show rewatches:"}</span>
+                    {renderRewatchCounter(null, manualWhole, seasons.length === 1 ? "Rewatched" : "Show rewatches")}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -421,7 +421,7 @@ export function TitleDetailClient({
                             {s.air_year ? `${s.air_year} · ` : ""}{s.episode_count} ep{s.episode_count === 1 ? "" : "s"}
                           </span>
                         </div>
-                        {renderRewatchCounter(s.season_number, seasonRewatchCount, `Season ${s.season_number} rewatches`)}
+                        {seasons.length !== 1 && renderRewatchCounter(s.season_number, seasonRewatchCount, `Season ${s.season_number} rewatches`)}
                       </div>
                     )
                   })}
